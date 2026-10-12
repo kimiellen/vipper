@@ -34,19 +34,19 @@ const currentView = () => viewStack[viewStack.length - 1];
 function currentItems(): Item[] {
   const view = currentView();
   if (view.kind === 'urls') {
-    return view.entry.urls.map((url) => ({
-      label: url,
+    return view.entry.urls.map((u) => ({
+      label: u.url,
       hint: '',
-      action: () => open(url),
+      action: () => open(u.url),
     }));
   }
   return filterIndex(entries, search.value)
     .filter((e) => e.status === 'active')
     .map((e) => ({
       label: e.title,
-      hint: e.urls.length === 1 ? e.urls[0] : `${e.urls.length} 个 URL ›`,
+      hint: e.urls.length === 1 ? e.urls[0].url : `${e.urls.length} 个 URL ›`,
       action: () => {
-        if (e.urls.length === 1) return open(e.urls[0]);
+        if (e.urls.length === 1) return open(e.urls[0].url);
         viewStack.push({ kind: 'urls', entry: e });
         selected = 0;
         render();

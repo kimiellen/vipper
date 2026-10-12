@@ -1,4 +1,5 @@
 import { buildGroupSequence, resolveTargetGroup, resolveTargetTab, UNGROUPED } from '../utils/tabnav';
+import { matchUrl } from '../utils/matchUrl';
 import * as keychain from '../utils/keychain';
 import * as vault from '../utils/vault';
 
@@ -82,26 +83,103 @@ async function openLauncher(): Promise<void> {
   });
 }
 
-/** launcher 页面消息：打开书签到来源组 / 关闭弹窗 */
-function handleLauncherMessages(): void {
+/** 向页面 content script 发消息；chrome:// 等无法注入的页面静默失败 */
+async function safeSend(tabId: number, msg: unknown): Promise<void> {
+  try {
+    await chrome.tabs.sendMessage(tabId, msg);
+  } catch { /* 页面无 content script */ }
+}
+
+interface Candidate { bookmarkId: string; accountIndex: number; text: string }
+
+/** 按 URL 匹配规则找出当前页面可用的账号候选 */
+async function sendCandidates(tabId: number, pageUrl: string): Promise<void> {
+  const idx = await vault.listIndex();
+  const matched = idx.filter(
+    (e) => e.status === 'active' && e.urls.some((u) => matchUrl(u.match, u.url, pageUrl)),
+  );
+  const candidates: Candidate[] = [];
+  for (const e of matched) {
+    const b = await vault.getBookmark(e.id); // 密文形态即可：仅需账号数与展示名
+    if (!b) continue;
+    b.accounts.forEach((a, i) =>
+      candidates.push({ bookmarkId: b.id, accountIndex: i, text: `${b.title} · ${a.label || a.username}` }),
+    );
+  }
+  if (candidates.length === 0) {
+    await safeSend(tabId, { type: 'vipper:toast', text: '无匹配书签' });
+  } else if (candidates.length === 1) {
+    await fillAccount(tabId, candidates[0].bookmarkId, candidates[0].accountIndex);
+  } else {
+    await safeSend(tabId, { type: 'vipper:picker', candidates });
+  }
+}
+
+/** 解密指定账号并下发填充（明文只在消息里过境），随后刷新 lastUsedAt */
+async function fillAccount(tabId: number, bookmarkId: string, accountIndex: number): Promise<void> {
+  const b = await vault.getBookmarkDecrypted(bookmarkId);
+  const a = b?.accounts[accountIndex];
+  if (!a) return;
+  await safeSend(tabId, { type: 'vipper:fill', username: a.username, password: a.password });
+  await vault.touchLastUsed(bookmarkId);
+}
+
+/** Alt+P：当前页面主动填充；未解锁则引导页面内解锁 */
+async function handleAutofill(): Promise<void> {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (tab?.id === undefined || !tab.url) return;
+  if (!(await keychain.isUnlocked())) {
+    await safeSend(tab.id, { type: 'vipper:locked' });
+    return;
+  }
+  await sendCandidates(tab.id, tab.url);
+}
+
+/** launcher 与 content script 的消息入口 */
+function handleMessages(): void {
   chrome.runtime.onMessage.addListener((msg, sender) => {
     if (msg?.type === 'vipper:open') {
       void (async () => {
         const { launcherSource } = await chrome.storage.session.get('launcherSource');
         if (!launcherSource) return;
-        const tab = await chrome.tabs.create({
-          windowId: launcherSource.windowId,
-          url: msg.url,
-          active: true,
-        });
+        let tab: chrome.tabs.Tab;
+        try {
+          tab = await chrome.tabs.create({
+            windowId: launcherSource.windowId,
+            url: msg.url,
+            active: true,
+          });
+        } catch {
+          // 来源窗口已失效（关闭/竞态），退化为在当前窗口打开
+          tab = await chrome.tabs.create({ url: msg.url, active: true });
+        }
         if (launcherSource.groupId !== null && tab.id !== undefined) {
-          await chrome.tabs.group({ groupId: launcherSource.groupId, tabIds: [tab.id] });
+          try {
+            await chrome.tabs.group({ groupId: launcherSource.groupId, tabIds: [tab.id] });
+          } catch { /* 组已不存在则放弃入组 */ }
         }
         if (sender.tab?.windowId !== undefined) await chrome.windows.remove(sender.tab.windowId);
       })();
     }
     if (msg?.type === 'vipper:close-launcher' && sender.tab?.windowId !== undefined) {
       void chrome.windows.remove(sender.tab.windowId);
+    }
+    // content script：浮层内解锁
+    if (msg?.type === 'vipper:unlock' && sender.tab?.id !== undefined) {
+      void (async () => {
+        const tabId = sender.tab!.id!;
+        const ok = await keychain.unlock(msg.password);
+        if (!ok) {
+          await safeSend(tabId, { type: 'vipper:unlock-failed' });
+          return;
+        }
+        const tab = await chrome.tabs.get(tabId);
+        if (tab.url) await sendCandidates(tabId, tab.url);
+      })();
+    }
+    // content script：二级菜单选定后请求填充
+    if (msg?.type === 'vipper:fill-request' && sender.tab?.id !== undefined) {
+      void fillAccount(sender.tab.id, msg.bookmarkId, msg.accountIndex);
     }
   });
 }
@@ -113,11 +191,12 @@ async function handleCommand(command: string): Promise<void> {
   if (command === 'tab-prev') await switchTab(-1);
   if (command === 'tab-next') await switchTab(1);
   if (command === 'open-launcher') await openLauncher();
+  if (command === 'autofill') await handleAutofill();
 }
 
 export default defineBackground(() => {
   trackLastActiveTab();
-  handleLauncherMessages();
+  handleMessages();
   chrome.commands.onCommand.addListener((command) => void handleCommand(command));
 
   // chrome.commands 无编程触发 API，暴露给 CDP 自动化验收脚本驱动

@@ -76,6 +76,7 @@ check('新标签在来源组 G0 中', opened?.groupId === setup.g0, opened);
 check('弹窗已自动关闭', !hasPage('launcher.html'));
 
 // ---- 单 URL 书签直接打开（无二级菜单）----
+await sleep(600); // 等第一个弹窗完全关闭、焦点回到主窗口，避免来源窗口竞态
 await sw(`__vipper.dispatch('open-launcher')`);
 const page2 = await attachPage('launcher.html');
 for (let i = 0; i < 20; i++) {

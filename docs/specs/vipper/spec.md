@@ -50,7 +50,7 @@ vipper 是一个 Chrome MV3 扩展，目标用户是作者本人（Arch Linux + 
 - **基础信息区**：`title`（书签名）、`createdAt`、`updatedAt`、`lastUsedAt`（条目列表按 lastUsedAt **降序**）
 - **tag 栏**：`tags: TagId[]`，引用 tag 管理表，可多个
 - **关联信息栏**：`linkedInfos: LinkedInfoId[]`，引用关联信息表（手机号/微信号/邮箱等），可多个
-- **URL 区**：`urls: { url, match }[]`，默认 1 条可增；`match` 为匹配规则 `host | exact | prefix`（默认 `host`），供 Alt+P 判定"当前页面是否适用此 URL"（学 Bitwarden）
+- **URL 区**：`urls: { url, match }[]`，默认 1 条可增；`match` 为匹配规则 `host | exact | prefix`（默认 `host`；`exact` = origin + pathname，忽略 query/hash），供 Alt+P 判定"当前页面是否适用此 URL"（学 Bitwarden）
 - **账号区**：`accounts: { username, password, label? }[]`，默认 1 对可增；`password` 加密落盘；`label` 用于多账号二级菜单辨识（如"主号/小号"），缺省显示 username
 - **记录区**：`records: (Note | Secret)[]`，默认空、不限量；只有这两种是"模板"（可重复添加）：
   - `note` 明文记录：`{ name, content }`，不加密

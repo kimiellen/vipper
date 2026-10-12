@@ -44,12 +44,15 @@
 - [x] 验证：`scripts/m4-verify.mjs` 15/15 通过；M1 回归 9/9、M2 回归 12/12、M3 回归 8/8
   - 注意：M3 前的 `vault:bookmarks` 单 key 数据不做迁移（仅开发期种子数据），m3-verify 种子改为走 vault API
 
-## M5：Alt+P 填充
+## M5：Alt+P 填充 ✅（2026-10-13）
 
-- [ ] content script 登录表单探测与填充（兼容受控组件：原生 setter + input 事件）
-- [ ] Alt+P 按当前页面与书签 urls 的 match 规则匹配，默认 host
-- [ ] 多账号二级菜单（↑/↓ + 回车，显示 label 或 username）；锁定状态时引导输主密码解锁
-- [ ] 验证：m5-verify.mjs（本地测试登录页实测）
+- [x] content script 登录表单探测与填充（原生 setter + input/change 事件，兼容受控组件）
+- [x] Alt+P 按 match 规则匹配（host/exact/prefix；exact = origin+pathname，忽略 query/hash）
+- [x] 多账号二级菜单（closed shadow DOM 浮层，↑/↓ + 回车，显示 label 或 username）；锁定状态浮层内输主密码解锁（错密码报错）
+- [x] 明文凭据最小暴露：菜单只传展示名，选定后 SW 解密单条经消息过境；填充后更新 lastUsedAt
+- [x] 验证：`scripts/m5-verify.mjs` 6/6 通过（内嵌 HTTP 登录页 + CDP Input 可信按键）；M1 9/9、M2 12/12、M3 8/8、M4 15/15 回归通过
+  - 修复 M4 漏改：单 URL 书签打开误传 BookmarkUrl 对象（m3 回归捕获）
+  - 增强：来源窗口/组失效时打开书签有兜底
 
 ## M6：书签编辑与管理 UI
 

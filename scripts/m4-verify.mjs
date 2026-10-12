@@ -66,7 +66,7 @@ const idxEntry = JSON.parse(await sw(`(async () => {
   return JSON.stringify(idx.find((e) => e.id === '${id}') ?? null);
 })()`));
 check('idx 索引含该条目（title/urls/status）',
-  idxEntry?.title === 'Bank' && idxEntry?.urls?.[0] === 'https://bank.example.com/login' && idxEntry?.status === 'active',
+  idxEntry?.title === 'Bank' && idxEntry?.urls?.[0]?.url === 'https://bank.example.com/login' && idxEntry?.status === 'active',
   idxEntry);
 
 // ---- 锁定与解锁 ----

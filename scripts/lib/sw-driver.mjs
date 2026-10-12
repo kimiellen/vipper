@@ -40,11 +40,14 @@ export async function connectSW(port = 9333) {
 
   async function attachEval(targetId) {
     const { result: { sessionId } } = await raw('Target.attachToTarget', { targetId, flatten: true });
-    return async (expression) => {
+    const fn = async (expression) => {
       const r = await raw('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true }, sessionId);
       if (r.result?.exceptionDetails) throw new Error('eval error: ' + JSON.stringify(r.result.exceptionDetails));
       return r.result?.result?.value;
     };
+    // 暴露 session 级原语（Input.dispatchKeyEvent 等可信输入事件）
+    fn.send = (method, params = {}) => raw(method, params, sessionId);
+    return fn;
   }
 
   // MV3 SW 事件驱动，启动后 30s 休眠；休眠则等 targetCreated 重新出现

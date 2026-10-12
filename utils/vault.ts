@@ -36,13 +36,13 @@ export interface Bookmark {
   lastUsedAt: number;
 }
 
-/** 索引条目：只含搜索/列表需要的明文字段 */
+/** 索引条目：只含搜索/列表/匹配需要的明文字段 */
 export interface IndexEntry {
   id: string;
   title: string;
   tags: string[];
   linkedInfos: string[];
-  urls: string[];
+  urls: BookmarkUrl[];
   lastUsedAt: number;
   status: 'active' | 'archived';
 }
@@ -57,7 +57,7 @@ const toIndex = (b: Bookmark): IndexEntry => ({
   title: b.title,
   tags: b.tags,
   linkedInfos: b.linkedInfos,
-  urls: b.urls.map((u) => u.url),
+  urls: b.urls,
   lastUsedAt: b.lastUsedAt,
   status: b.status,
 });
@@ -156,6 +156,6 @@ export function filterIndex(entries: IndexEntry[], query: string): IndexEntry[] 
   const q = query.trim().toLowerCase();
   if (!q) return sorted;
   return sorted.filter(
-    (e) => e.title.toLowerCase().includes(q) || e.urls.some((u) => u.toLowerCase().includes(q)),
+    (e) => e.title.toLowerCase().includes(q) || e.urls.some((u) => u.url.toLowerCase().includes(q)),
   );
 }
