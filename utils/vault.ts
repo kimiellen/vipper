@@ -1,36 +1,161 @@
 /**
- * 书签数据模型与 storage.local 读写层。
+ * 书签库：完整条目模型 + storage.local 拆 key 布局。
  *
- * 数据模型（spec: Feature 2）：
- * - 一条书签 = 标题 + 多个 URL（记录字段在 M4 引入）
- * - 完全独立于 Chrome 原生书签，存 chrome.storage.local
+ * 布局（spec: 存储布局）：
+ *   idx        → 轻量索引（搜索/列表只读它）
+ *   bm:<id>    → 活跃条目详情
+ *   arc:<id>   → 归档条目详情
+ *   meta:tags / meta:links / meta:settings → 管理表与配置
+ *
+ * 加密约定：saveBookmark 接收明文敏感字段、落盘前加密（需已解锁）；
+ * getBookmark 返回原始存储形态（敏感字段为密文）；getBookmarkDecrypted 返回明文（需已解锁）。
  */
+
+import { decryptString, encryptString, isEncrypted } from './crypto';
+import { getKey } from './keychain';
+
+export type UrlMatch = 'host' | 'exact' | 'prefix';
+export interface BookmarkUrl { url: string; match: UrlMatch }
+export interface Account { username: string; password: string; label?: string }
+export interface NoteRecord { template: 'note'; name: string; content: string }
+export interface SecretRecord { template: 'secret'; name: string; content: string }
+export type VaultRecord = NoteRecord | SecretRecord;
 
 export interface Bookmark {
   id: string;
   title: string;
-  urls: string[];
+  remark: string;
+  tags: string[];
+  linkedInfos: string[];
+  urls: BookmarkUrl[];
+  accounts: Account[];
+  records: VaultRecord[];
+  status: 'active' | 'archived';
   createdAt: number;
+  updatedAt: number;
+  lastUsedAt: number;
 }
 
-const KEY = 'vault:bookmarks';
-
-export async function listBookmarks(): Promise<Bookmark[]> {
-  const data = await chrome.storage.local.get(KEY);
-  return (data[KEY] as Bookmark[] | undefined) ?? [];
+/** 索引条目：只含搜索/列表需要的明文字段 */
+export interface IndexEntry {
+  id: string;
+  title: string;
+  tags: string[];
+  linkedInfos: string[];
+  urls: string[];
+  lastUsedAt: number;
+  status: 'active' | 'archived';
 }
 
-export async function addBookmark(input: { title: string; urls: string[] }): Promise<Bookmark> {
-  const bookmark: Bookmark = { ...input, id: crypto.randomUUID(), createdAt: Date.now() };
-  await chrome.storage.local.set({ [KEY]: [...(await listBookmarks()), bookmark] });
+const IDX = 'idx';
+const bmKey = (id: string) => `bm:${id}`;
+const arcKey = (id: string) => `arc:${id}`;
+const keyOf = (b: Pick<Bookmark, 'id' | 'status'>) => (b.status === 'archived' ? arcKey(b.id) : bmKey(b.id));
+
+const toIndex = (b: Bookmark): IndexEntry => ({
+  id: b.id,
+  title: b.title,
+  tags: b.tags,
+  linkedInfos: b.linkedInfos,
+  urls: b.urls.map((u) => u.url),
+  lastUsedAt: b.lastUsedAt,
+  status: b.status,
+});
+
+export async function listIndex(): Promise<IndexEntry[]> {
+  return ((await chrome.storage.local.get(IDX))[IDX] as IndexEntry[] | undefined) ?? [];
+}
+
+async function writeIndex(entries: IndexEntry[]): Promise<void> {
+  await chrome.storage.local.set({ [IDX]: entries });
+}
+
+/** 对条目的敏感字段做加密/解密变换 */
+async function mapSensitive(b: Bookmark, fn: (v: string) => Promise<string>): Promise<Bookmark> {
+  return {
+    ...b,
+    accounts: await Promise.all(b.accounts.map(async (a) => ({ ...a, password: await fn(a.password) }))),
+    records: await Promise.all(
+      b.records.map(async (r) => (r.template === 'secret' ? { ...r, content: await fn(r.content) } : r)),
+    ),
+  };
+}
+
+export type NewBookmark = Partial<Bookmark> & { title: string; urls: BookmarkUrl[] };
+
+export async function addBookmark(input: NewBookmark): Promise<Bookmark> {
+  const now = Date.now();
+  const bookmark: Bookmark = {
+    remark: '', tags: [], linkedInfos: [], accounts: [], records: [],
+    status: 'active', createdAt: now, updatedAt: now, lastUsedAt: now,
+    ...input,
+    id: crypto.randomUUID(),
+  };
+  await saveBookmark(bookmark);
   return bookmark;
 }
 
-/** 关键字检索：标题或任一 URL 包含查询串（大小写不敏感）；空查询返回全部 */
-export function filterBookmarks(bookmarks: Bookmark[], query: string): Bookmark[] {
+/**
+ * 保存条目：敏感字段加密后落盘，同步更新索引。
+ * 含未加密的敏感字段时要求已解锁。
+ */
+export async function saveBookmark(bookmark: Bookmark): Promise<void> {
+  const hasPlainSensitive =
+    bookmark.accounts.some((a) => !isEncrypted(a.password)) ||
+    bookmark.records.some((r) => r.template === 'secret' && !isEncrypted(r.content));
+
+  let toStore = { ...bookmark, updatedAt: Date.now() };
+  if (hasPlainSensitive) {
+    const key = await getKey();
+    if (!key) throw new Error('vault locked');
+    toStore = await mapSensitive(toStore, async (v) => (isEncrypted(v) ? v : encryptString(key, v)));
+  }
+
+  // 状态切换时清理另一侧的 key
+  await chrome.storage.local.remove(bookmark.status === 'archived' ? bmKey(bookmark.id) : arcKey(bookmark.id));
+  await chrome.storage.local.set({ [keyOf(toStore)]: toStore });
+
+  const idx = await listIndex();
+  const i = idx.findIndex((e) => e.id === bookmark.id);
+  const entry = toIndex(toStore);
+  if (i === -1) idx.push(entry);
+  else idx[i] = entry;
+  await writeIndex(idx);
+}
+
+/** 读取条目原始形态（敏感字段为密文），活跃/归档都找 */
+export async function getBookmark(id: string): Promise<Bookmark | null> {
+  const data = await chrome.storage.local.get([bmKey(id), arcKey(id)]);
+  return (data[bmKey(id)] as Bookmark | undefined) ?? (data[arcKey(id)] as Bookmark | undefined) ?? null;
+}
+
+/** 读取条目明文形态（需已解锁） */
+export async function getBookmarkDecrypted(id: string): Promise<Bookmark | null> {
+  const raw = await getBookmark(id);
+  if (!raw) return null;
+  const key = await getKey();
+  if (!key) throw new Error('vault locked');
+  return mapSensitive(raw, async (v) => (isEncrypted(v) ? decryptString(key, v) : v));
+}
+
+export async function deleteBookmark(id: string): Promise<void> {
+  await chrome.storage.local.remove([bmKey(id), arcKey(id)]);
+  await writeIndex((await listIndex()).filter((e) => e.id !== id));
+}
+
+/** 打开/填充后调用，驱动 lastUsedAt 排序与自动归档 */
+export async function touchLastUsed(id: string): Promise<void> {
+  const b = await getBookmark(id);
+  if (!b) return;
+  await saveBookmark({ ...b, lastUsedAt: Date.now() }); // 敏感字段已是密文，无需解锁
+}
+
+/** 索引级检索：标题或任一 URL 包含查询串（大小写不敏感）；空查询返回全部（按 lastUsedAt 降序） */
+export function filterIndex(entries: IndexEntry[], query: string): IndexEntry[] {
+  const sorted = [...entries].sort((a, b) => b.lastUsedAt - a.lastUsedAt);
   const q = query.trim().toLowerCase();
-  if (!q) return bookmarks;
-  return bookmarks.filter(
-    (b) => b.title.toLowerCase().includes(q) || b.urls.some((u) => u.toLowerCase().includes(q)),
+  if (!q) return sorted;
+  return sorted.filter(
+    (e) => e.title.toLowerCase().includes(q) || e.urls.some((u) => u.toLowerCase().includes(q)),
   );
 }

@@ -16,14 +16,15 @@ import { connectSW, createChecker, sleep } from './lib/sw-driver.mjs';
 const { sw, attachPage, hasPage, close } = await connectSW();
 const { check, summary } = createChecker();
 
-// ---- 场景：来源标签放进组 G0；种子书签（单 URL / 多 URL / 无关项）----
+// ---- 场景：来源标签放进组 G0；经 vault API 种子书签（M4 起为拆 key 布局，需先解锁）----
 const setup = JSON.parse(await sw(`(async () => {
-  const KEY = 'vault:bookmarks';
-  await chrome.storage.local.set({ [KEY]: [
-    { id: 'b1', title: 'GitHub', urls: ['about:blank#gh-login'], createdAt: 1 },
-    { id: 'b2', title: 'Dev Portal', urls: ['about:blank#dev-a', 'about:blank#dev-b'], createdAt: 2 },
-    { id: 'b3', title: 'Mail', urls: ['about:blank#mail'], createdAt: 3 },
-  ] });
+  await __vipper.keychain.setupMasterPassword('m3-test');
+  const mk = (title, urls) => __vipper.vault.addBookmark({
+    title, urls: urls.map((url) => ({ url, match: 'host' })),
+  });
+  await mk('GitHub', ['about:blank#gh-login']);
+  await mk('Dev Portal', ['about:blank#dev-a', 'about:blank#dev-b']);
+  await mk('Mail', ['about:blank#mail']);
   const win = await chrome.windows.getCurrent();
   const [t0] = await chrome.tabs.query({ windowId: win.id });
   const g0 = await chrome.tabs.group({ tabIds: [t0.id] });

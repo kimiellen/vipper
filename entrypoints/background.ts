@@ -1,4 +1,6 @@
 import { buildGroupSequence, resolveTargetGroup, resolveTargetTab, UNGROUPED } from '../utils/tabnav';
+import * as keychain from '../utils/keychain';
+import * as vault from '../utils/vault';
 
 /** 每组上次活跃标签的 storage.session key */
 function lastActiveKey(windowId: number, groupId: number | null): string {
@@ -119,5 +121,9 @@ export default defineBackground(() => {
   chrome.commands.onCommand.addListener((command) => void handleCommand(command));
 
   // chrome.commands 无编程触发 API，暴露给 CDP 自动化验收脚本驱动
-  (globalThis as Record<string, unknown>).__vipper = { dispatch: handleCommand };
+  (globalThis as Record<string, unknown>).__vipper = {
+    dispatch: handleCommand,
+    vault,      // M4+ 验收：凭据库 CRUD
+    keychain,   // M4+ 验收：解锁/锁定/设置
+  };
 });

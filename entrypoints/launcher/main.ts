@@ -8,11 +8,11 @@
  * - Esc：二级菜单返回上级；顶级关闭弹窗
  */
 
-import { filterBookmarks, listBookmarks, type Bookmark } from '../../utils/vault';
+import { filterIndex, listIndex, type IndexEntry } from '../../utils/vault';
 
 type View =
   | { kind: 'bookmarks' }
-  | { kind: 'urls'; bookmark: Bookmark };
+  | { kind: 'urls'; entry: IndexEntry };
 
 interface Item {
   label: string;
@@ -24,7 +24,7 @@ const search = document.querySelector<HTMLInputElement>('#search')!;
 const list = document.querySelector<HTMLUListElement>('#list')!;
 const crumb = document.querySelector<HTMLDivElement>('#crumb')!;
 
-let bookmarks: Bookmark[] = [];
+let entries: IndexEntry[] = [];
 let viewStack: View[] = [{ kind: 'bookmarks' }];
 /** -1 表示焦点在搜索栏，>=0 为列表选中下标 */
 let selected = -1;
@@ -34,22 +34,24 @@ const currentView = () => viewStack[viewStack.length - 1];
 function currentItems(): Item[] {
   const view = currentView();
   if (view.kind === 'urls') {
-    return view.bookmark.urls.map((url) => ({
+    return view.entry.urls.map((url) => ({
       label: url,
       hint: '',
       action: () => open(url),
     }));
   }
-  return filterBookmarks(bookmarks, search.value).map((b) => ({
-    label: b.title,
-    hint: b.urls.length === 1 ? b.urls[0] : `${b.urls.length} 个 URL ›`,
-    action: () => {
-      if (b.urls.length === 1) return open(b.urls[0]);
-      viewStack.push({ kind: 'urls', bookmark: b });
-      selected = 0;
-      render();
-    },
-  }));
+  return filterIndex(entries, search.value)
+    .filter((e) => e.status === 'active')
+    .map((e) => ({
+      label: e.title,
+      hint: e.urls.length === 1 ? e.urls[0] : `${e.urls.length} 个 URL ›`,
+      action: () => {
+        if (e.urls.length === 1) return open(e.urls[0]);
+        viewStack.push({ kind: 'urls', entry: e });
+        selected = 0;
+        render();
+      },
+    }));
 }
 
 async function open(url: string): Promise<void> {
@@ -59,7 +61,7 @@ async function open(url: string): Promise<void> {
 
 function render(): void {
   const view = currentView();
-  crumb.textContent = view.kind === 'urls' ? `‹ ${view.bookmark.title}（Esc 返回）` : '';
+  crumb.textContent = view.kind === 'urls' ? `‹ ${view.entry.title}（Esc 返回）` : '';
 
   const items = currentItems();
   list.innerHTML = '';
@@ -116,5 +118,5 @@ document.addEventListener('keydown', (e) => {
 
 search.addEventListener('input', () => { selected = -1; render(); });
 
-bookmarks = await listBookmarks();
+entries = await listIndex();
 render();

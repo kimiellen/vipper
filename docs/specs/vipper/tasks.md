@@ -34,14 +34,15 @@
 - [x] 验证：`scripts/m3-verify.mjs` 8/8 通过（聚焦/过滤/钻取/入组/关窗）；M1 回归 9/9、M2 回归 12/12
 - [ ] 待定（产品问题）：书签的**录入入口**未设计（当前只能靠测试脚本种子数据），后续讨论
 
-## M4：凭据库核心
+## M4：凭据库核心 ✅（2026-10-13）
 
-- [ ] 存储布局重构：单 key 改为 idx / bm:<id> / arc:<id> / meta:* 拆分（launcher 改读 idx），manifest 加 unlimitedStorage
-- [ ] 完整条目模型落地：基础信息（title/createdAt/updatedAt/lastUsedAt）、tags/linkedInfos 引用、urls 带 match 规则、accounts 带 label、records（note/secret）、remark、status
-- [ ] 主密码设置/验证流程，PBKDF2 派生密钥（WebCrypto）
-- [ ] AES-GCM 加密写入层：`account.password` 与 `secret.content` 加密落盘（自描述 `$enc` 信封），密钥仅存 storage.session
-- [ ] 锁定策略：重启锁定 + 30 分钟无操作锁定（时长可配置）
-- [ ] 验证：m4-verify.mjs CDP 验收（加解密往返、错密码拒绝、密文落盘、重启/超时锁定）+ m1-m3 回归
+- [x] 存储布局重构：单 key 改为 idx / bm:<id> / arc:<id> / meta:* 拆分（launcher 改读 idx + lastUsedAt 降序），manifest 加 unlimitedStorage
+- [x] 完整条目模型落地：基础信息（title/createdAt/updatedAt/lastUsedAt）、tags/linkedInfos 引用、urls 带 match 规则、accounts 带 label、records（note/secret）、remark、status
+- [x] 主密码设置/验证流程，PBKDF2-SHA256 60 万次派生（`utils/keychain.ts` + `utils/crypto.ts` 纯函数层）
+- [x] AES-GCM 加密写入层：`account.password` 与 `secret.content` 加密落盘（自描述 `$enc` 信封），密钥仅存 storage.session
+- [x] 锁定策略：重启锁定（session 清空即锁）+ 惰性滑动超时锁（默认 30 分钟，meta:settings 可配）
+- [x] 验证：`scripts/m4-verify.mjs` 15/15 通过；M1 回归 9/9、M2 回归 12/12、M3 回归 8/8
+  - 注意：M3 前的 `vault:bookmarks` 单 key 数据不做迁移（仅开发期种子数据），m3-verify 种子改为走 vault API
 
 ## M5：Alt+P 填充
 
