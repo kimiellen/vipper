@@ -4,6 +4,7 @@ export default defineConfig({
   manifest: {
     name: 'vipper',
     description: '标签管理器 + 书签/密码管理器（Hyprland 风格二维导航）',
+    permissions: ['tabs', 'tabGroups', 'storage'],
     commands: {
       'group-prev': {
         suggested_key: { default: 'Alt+Up' },
