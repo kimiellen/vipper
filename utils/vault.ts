@@ -225,3 +225,67 @@ export async function deleteTag(id: string): Promise<void> {
 export async function deleteLinkedInfo(id: string): Promise<void> {
   await chrome.storage.local.set({ [META_LINKS]: (await listLinkedInfos()).filter((l) => l.id !== id) });
 }
+
+// ---------- 导入导出（spec: 导入导出） ----------
+
+export interface VaultExport {
+  app: 'vipper';
+  version: 1;
+  exportedAt: number;
+  bookmarks: Bookmark[];
+  tags: Tag[];
+  linkedInfos: LinkedInfo[];
+}
+
+/** 导出全量明文（含归档条目）。需已解锁——敏感字段解密后导出 */
+export async function exportAll(): Promise<VaultExport> {
+  if (!(await getKey())) throw new Error('vault locked');
+  const bookmarks: Bookmark[] = [];
+  for (const e of await listIndex()) {
+    const b = await getBookmarkDecrypted(e.id);
+    if (b) bookmarks.push(b);
+  }
+  return {
+    app: 'vipper', version: 1, exportedAt: Date.now(),
+    bookmarks, tags: await listTags(), linkedInfos: await listLinkedInfos(),
+  };
+}
+
+/**
+ * 导入合并：同 id 条目 updatedAt 新者胜；tag/关联信息按 name / type+value 去重，
+ * 并据此重映射条目里的引用 id。需已解锁——导入的明文敏感字段要重新加密落盘。
+ */
+export async function importAll(data: VaultExport): Promise<{ added: number; updated: number; skipped: number }> {
+  if (data?.app !== 'vipper' || !Array.isArray(data.bookmarks)) throw new Error('不是有效的 vipper 导出文件');
+  if (!(await getKey())) throw new Error('vault locked');
+
+  // 管理表合并：保留本地同名项 id，新项保留导出文件中的 id（避免引用悬空）
+  const tagMap = new Map<string, string>();
+  for (const t of data.tags ?? []) {
+    const tags = await listTags();
+    const hit = tags.find((x) => x.name === t.name);
+    if (hit) tagMap.set(t.id, hit.id);
+    else { await chrome.storage.local.set({ [META_TAGS]: [...tags, t] }); tagMap.set(t.id, t.id); }
+  }
+  const linkMap = new Map<string, string>();
+  for (const l of data.linkedInfos ?? []) {
+    const links = await listLinkedInfos();
+    const hit = links.find((x) => x.type === l.type && x.value === l.value);
+    if (hit) linkMap.set(l.id, hit.id);
+    else { await chrome.storage.local.set({ [META_LINKS]: [...links, l] }); linkMap.set(l.id, l.id); }
+  }
+
+  let added = 0, updated = 0, skipped = 0;
+  for (const b of data.bookmarks) {
+    const mapped: Bookmark = {
+      ...b,
+      tags: b.tags.map((t) => tagMap.get(t) ?? t),
+      linkedInfos: b.linkedInfos.map((l) => linkMap.get(l) ?? l),
+    };
+    const existing = await getBookmark(b.id);
+    if (!existing) { await saveBookmark(mapped); added++; }
+    else if (b.updatedAt > existing.updatedAt) { await saveBookmark(mapped); updated++; }
+    else skipped++;
+  }
+  return { added, updated, skipped };
+}

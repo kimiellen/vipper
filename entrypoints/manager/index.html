@@ -22,6 +22,7 @@
     .row { display: flex; gap: 8px; margin: 4px 0; align-items: center; }
     .row .val { flex: 1; }
     .err { color: #f38ba8; font-size: 12px; }
+    .meta { color: #7f849c; font-size: 12px; }
   </style>
 </head>
 <body>
@@ -41,6 +42,18 @@
     <button id="add-link">添加</button>
   </div>
   <div class="err" id="link-err" hidden></div>
+
+  <h2>数据</h2>
+  <div class="row">
+    <input id="data-pw" type="password" placeholder="主密码（导出需确认）" />
+  </div>
+  <div class="row">
+    <button id="export-btn">导出明文 JSON</button>
+    <button id="import-btn">导入 JSON</button>
+    <input id="import-file" type="file" accept="application/json,.json" hidden />
+  </div>
+  <div class="meta" id="data-status"></div>
+  <div class="err" id="data-err" hidden></div>
 
   <script type="module" src="./main.ts"></script>
 </body>
