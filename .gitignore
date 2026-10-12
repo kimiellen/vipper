@@ -5,3 +5,4 @@ node_modules/
 .pnpm-cache/
 .chrome-test-profile/
 .m0-check.mjs
+.fake-home/

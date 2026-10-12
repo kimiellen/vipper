@@ -20,3 +20,19 @@ Chrome MV3 扩展：标签管理器 + 书签/密码管理器。面向 Hyprland�
 - feature 级决策记录在 `docs/specs/vipper/spec.md`，跨会话进度在 `docs/specs/vipper/tasks.md`
 - 方向性变更：先改 spec，再改代码（spec-change 协议）
 - 每个里程碑完成后立即 commit，一个 commit 只做一件事
+
+## 自动化测试回路（Agent 沙箱环境）
+
+品牌版 Chrome ≥137 已移除 `--load-extension`，自动化验证用 **Chromium**：
+
+```bash
+# 沙箱内 HOME 只读，必须给 chromium 指一个可写 HOME
+HOME=$PWD/.fake-home chromium --headless=new \
+  --user-data-dir=$PWD/.chrome-test-profile \
+  --load-extension=$PWD/.output/chrome-mv3 \
+  --remote-debugging-port=9333 --no-first-run --no-default-browser-check about:blank
+```
+
+- MV3 service worker 是事件驱动的，headless 下 target 不可见时用浏览器级 CDP `Target.setDiscoverTargets` 发现
+- 沙箱内 `pnpm add` 需要 `--store-dir=$PWD/.pnpm-store`
+- 真机按键行为（快捷键冲突等）无法自动化，需用户在 Chrome 中手动验收
