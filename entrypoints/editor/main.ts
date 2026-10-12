@@ -135,6 +135,7 @@ async function load(): Promise<void> {
   }
   bookmark.tags.forEach((t) => selectedTags.add(t));
   bookmark.linkedInfos.forEach((l) => selectedLinks.add(l));
+  ($('#archive-btn') as HTMLButtonElement).textContent = bookmark.status === 'archived' ? '恢复' : '归档';
   renderForm();
 }
 
@@ -206,6 +207,13 @@ $('#add-account').addEventListener('click', () => addAccountRow({ username: '', 
 $('#add-note').addEventListener('click', () => addRecordRow({ template: 'note', name: '', content: '' }));
 $('#add-secret').addEventListener('click', () => addRecordRow({ template: 'secret', name: '', content: '' }));
 $('#save-btn').addEventListener('click', () => void save());
+// 归档/恢复：以切换后的状态保存当前条目
+$('#archive-btn').addEventListener('click', () => void (async () => {
+  if (!editId) { await closeSelf(); return; }
+  const next = bookmark.status === 'archived' ? 'active' : 'archived';
+  await vault.saveBookmark({ ...bookmark, status: next });
+  await closeSelf();
+})());
 $('#delete-btn').addEventListener('click', () => void (async () => {
   if (editId) await vault.deleteBookmark(editId);
   await closeSelf();

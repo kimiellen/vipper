@@ -9,7 +9,7 @@
  * - Esc：二级菜单返回上级；顶级关闭弹窗
  */
 
-import { filterIndex, listIndex, type IndexEntry } from '../../utils/vault';
+import { filterIndex, listIndex, restoreBookmark, type IndexEntry } from '../../utils/vault';
 
 type View =
   | { kind: 'bookmarks' }
@@ -27,6 +27,10 @@ interface Item {
 const search = document.querySelector<HTMLInputElement>('#search')!;
 const list = document.querySelector<HTMLUListElement>('#list')!;
 const crumb = document.querySelector<HTMLDivElement>('#crumb')!;
+const footer = document.querySelector<HTMLDivElement>('#footer')!;
+
+/** 归档模式：以 launcher.html?archive=1 打开的独立归档页（布局功能一致，数据源为归档条目） */
+const archiveMode = new URLSearchParams(location.search).has('archive');
 
 let entries: IndexEntry[] = [];
 let viewStack: View[] = [{ kind: 'bookmarks' }];
@@ -49,7 +53,7 @@ function currentItems(): Item[] {
     }));
   }
   return filterIndex(entries, search.value)
-    .filter((e) => e.status === 'active')
+    .filter((e) => e.status === (archiveMode ? 'archived' : 'active'))
     .map((e) => ({
       label: e.title,
       hint: e.urls.length === 1 ? e.urls[0]!.url : `${e.urls.length} 个 URL ›`,
@@ -89,7 +93,9 @@ function faviconUrl(pageUrl: string): string {
 
 function render(): void {
   const view = currentView();
-  crumb.textContent = view.kind === 'urls' ? `‹ ${view.entry.title}（Esc 返回）` : '';
+  crumb.textContent = view.kind === 'urls'
+    ? `‹ ${view.entry.title}（Esc 返回）`
+    : (archiveMode ? '【归档】' : '');
 
   const items = currentItems();
   lastItems = items;
@@ -160,12 +166,33 @@ document.addEventListener('keydown', (e) => {
         } else if (e.key === 'm') {
           e.preventDefault();
           void openManager();
+        } else if (e.key === 'a' && !archiveMode) {
+          e.preventDefault();
+          void chrome.windows.create({
+            url: chrome.runtime.getURL('launcher.html?archive=1'),
+            type: 'popup', width: 640, height: 480, focused: true,
+          });
+        } else if (e.key === 'r' && archiveMode) {
+          // 归档页恢复选中条目
+          e.preventDefault();
+          const it = items[selected === -1 ? 0 : selected];
+          if (it) {
+            void restoreBookmark(it.bookmarkId).then(async () => {
+              entries = await listIndex();
+              selected = -1;
+              render();
+            });
+          }
         }
       }
   }
 });
 
 search.addEventListener('input', () => { selected = -1; render(); });
+
+footer.textContent = archiveMode
+  ? 'Enter 打开 · Ctrl+R 恢复 · Ctrl+E 编辑 · Esc 关闭'
+  : 'Enter 打开 · Ctrl+E 编辑 · Ctrl+N 新建 · Ctrl+M 管理表 · Ctrl+A 归档页 · Esc 关闭';
 
 entries = await listIndex();
 render();

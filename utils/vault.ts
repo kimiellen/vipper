@@ -12,7 +12,7 @@
  */
 
 import { decryptString, encryptString, isEncrypted } from './crypto';
-import { getKey } from './keychain';
+import { getKey, getSettings } from './keychain';
 
 export type UrlMatch = 'host' | 'exact' | 'prefix';
 export interface BookmarkUrl { url: string; match: UrlMatch }
@@ -158,6 +158,30 @@ export function filterIndex(entries: IndexEntry[], query: string): IndexEntry[] 
   return sorted.filter(
     (e) => e.title.toLowerCase().includes(q) || e.urls.some((u) => u.url.toLowerCase().includes(q)),
   );
+}
+
+// ---------- 归档 ----------
+
+/** 手动归档：数据从 bm: 挪到 arc:（saveBookmark 按 status 处理迁移与索引） */
+export async function archiveBookmark(id: string): Promise<void> {
+  const b = await getBookmark(id);
+  if (!b || b.status === 'archived') return;
+  await saveBookmark({ ...b, status: 'archived' });
+}
+
+export async function restoreBookmark(id: string): Promise<void> {
+  const b = await getBookmark(id);
+  if (!b || b.status === 'active') return;
+  await saveBookmark({ ...b, status: 'active' });
+}
+
+/** 自动归档：lastUsedAt 超过阈值（meta:settings，默认 180 天）的活跃条目归档。返回归档的 id 列表 */
+export async function autoArchive(): Promise<string[]> {
+  const { autoArchiveDays } = await getSettings();
+  const cutoff = Date.now() - autoArchiveDays * 86_400_000;
+  const stale = (await listIndex()).filter((e) => e.status === 'active' && e.lastUsedAt < cutoff);
+  for (const e of stale) await archiveBookmark(e.id);
+  return stale.map((e) => e.id);
 }
 
 // ---------- 管理表：tag / 关联信息（先建后选，不即输即建） ----------

@@ -61,12 +61,12 @@
 - [x] launcher 列表：lastUsedAt 降序、favicon（`favicon` 权限 + `/_favicon/`）、打开时经 background 更新 lastUsedAt；Ctrl+E 编辑 / Ctrl+N 新建 / Ctrl+M 管理表
 - [x] 验证：`scripts/m6-verify.mjs` 12/12 通过；M1-M5 全量回归通过；新增 `pnpm typecheck`（tsc 严格模式，修复存量类型错误）
 
-## M7：归档
+## M7：归档 ✅（2026-10-13）
 
-- [ ] 手动归档/恢复（bm: ↔ arc: 数据迁移 + idx 状态更新）
-- [ ] 自动归档：lastUsedAt 超阈值（默认 180 天，meta:settings 可配）
-- [ ] 归档页：复用 launcher 布局（archive 模式）
-- [ ] 验证：m7-verify.mjs
+- [x] 手动归档/恢复（bm: ↔ arc: 数据迁移 + idx 状态更新，vault 层 archiveBookmark/restoreBookmark）
+- [x] 自动归档：浏览器启动时 + 每日 alarm 扫描，lastUsedAt 超阈值（默认 180 天，meta:settings 可配）
+- [x] 归档页：launcher?archive=1 独立窗口复用布局，Ctrl+A 进入、Ctrl+R 恢复；编辑页归档/恢复按钮
+- [x] 验证：`scripts/m7-verify.mjs` 7/7 通过；M1-M6 全量回归通过
 
 ## M8：导入导出
 

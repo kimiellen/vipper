@@ -198,9 +198,18 @@ async function handleCommand(command: string): Promise<void> {
   if (command === 'autofill') await handleAutofill();
 }
 
+/** 自动归档调度：浏览器启动时跑一次，之后每日一次（spec: 归档） */
+function scheduleAutoArchive(): void {
+  const run = () => void vault.autoArchive().catch(() => { /* 未初始化等情况忽略 */ });
+  chrome.runtime.onStartup.addListener(run);
+  chrome.alarms.create('vipper:auto-archive', { periodInMinutes: 24 * 60 });
+  chrome.alarms.onAlarm.addListener((a) => { if (a.name === 'vipper:auto-archive') run(); });
+}
+
 export default defineBackground(() => {
   trackLastActiveTab();
   handleMessages();
+  scheduleAutoArchive();
   chrome.commands.onCommand.addListener((command) => void handleCommand(command));
 
   // chrome.commands 无编程触发 API，暴露给 CDP 自动化验收脚本驱动
