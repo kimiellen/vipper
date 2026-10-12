@@ -36,10 +36,11 @@
 
 ## M4：凭据库与解锁
 
+- [ ] 记录模型落地：account/note/secret 三模板鉴别联合 + remark 附属（spec 数据模型表）
 - [ ] 主密码设置/验证流程，PBKDF2 派生密钥（WebCrypto）
-- [ ] AES-GCM 加密写入层：密码字段与私密记录加密落盘，密钥仅存 storage.session
+- [ ] AES-GCM 加密写入层：`account.password` 与 `secret.content` 加密落盘（自描述 `$enc` 信封），密钥仅存 storage.session
 - [ ] 锁定策略：重启锁定 + 30 分钟无操作锁定（时长可配置）
-- [ ] 验证：单测（加解密往返、错误密码拒绝）+ 重启浏览器实测锁定
+- [ ] 验证：单测（加解密往返、错误密码拒绝）+ CDP 实测重启锁定
 
 ## M5：Alt+P 填充
 

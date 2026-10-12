@@ -47,11 +47,18 @@ vipper 是一个 Chrome MV3 扩展，目标用户是作者本人（Arch Linux + 
 
 完全独立于 Chrome 原生书签/密码系统，扩展自建存储（`chrome.storage.local`）：
 
-- 一条**书签** = 多个 URL + 多条**记录**
-- 记录模板化（模板字段设计待细化，见"待定项"）：
-  - 账号密码模板
-  - 记录模板
-  - 私密记录模板
+- 一条**书签** = 标题 + 多个 URL + 多条**记录**
+- **记录**按模板分为三种（鉴别联合），另有一个附属的备注：
+
+| 模板 | 字段 | 加密 |
+|---|---|---|
+| `account` 账号模板 | `username`、`password` | `password` 加密落盘 |
+| `note` 明文记录模板 | `name`、`content` | 不加密 |
+| `secret` 私密记录模板 | `name`、`content` | `content` 加密落盘 |
+| 备注 `remark` | 字符串 | 不加密；附属在**记录**上，每条记录最多一个 |
+
+- 加密格式自描述：`{"$enc":"v1","iv":<base64>,"data":<base64>}`，便于将来算法/密钥迁移
+- 标题、URL、name、remark 保持明文以支持检索；只有 `password` 与 `secret.content` 是密文
 
 ### 安全模型（已确认）
 
@@ -78,7 +85,7 @@ vipper 是一个 Chrome MV3 扩展，目标用户是作者本人（Arch Linux + 
 
 ## 待定项（后续讨论后通过 spec-change 补充）
 
-- 记录模板的字段设计（账号密码 / 记录 / 私密记录三种模板的字段）
+- 书签/记录的**录入入口**（管理 UI 或快捷命令，当前只能脚本种子数据）
 - 是否要求用户可见的真实文件存储（需 native messaging，当前按 chrome.storage.local 设计）
 - 切组滚动动画的 UI 载体（第一版不做）
 
