@@ -26,12 +26,13 @@
 - [x] 验证：`scripts/m2-verify.mjs` 12/12 通过（隐式组/真实组/单标签组/四向边界）；M1 回归 9/9 通过
   - 顺带重构：CDP 驱动与测试场景抽取为 `scripts/lib/` 共享模块，消除 m1/m2 脚本重复
 
-## M3：书签弹窗（Alt+.）
+## M3：书签弹窗（Alt+.）✅（2026-10-12）
 
-- [ ] 书签数据模型（多 URL + 多记录引用）与 storage.local 读写层
-- [ ] Alt+. 呼出 popup 窗口；安装说明含手动绑键步骤与 Hyprland windowrule
-- [ ] 弹窗 UI：搜索栏自动聚焦、关键字检索、↓ 进入条目区、方向键导航、回车在来源组打开（tabs.create + tabs.group）
-- [ ] 验证：实际跑通 搜索→打开→进组 完整流程
+- [x] 书签数据模型（id/标题/多 URL）与 storage.local 读写层（`utils/vault.ts`）；记录字段留待 M4
+- [x] Alt+. 呼出 popup 窗口（`open-launcher` 命令，无 suggested_key——配额已满）；安装说明 [docs/install.md](../../../docs/install.md) 含手动绑键步骤与 Hyprland windowrule
+- [x] 弹窗 UI：搜索栏自动聚焦、关键字检索、↓ 进入条目区、方向键导航、回车打开（多 URL 书签进入二级菜单选 URL）、Esc 返回/关闭；回车经 background 在来源组打开（tabs.create + tabs.group）并自动关弹窗
+- [x] 验证：`scripts/m3-verify.mjs` 8/8 通过（聚焦/过滤/钻取/入组/关窗）；M1 回归 9/9、M2 回归 12/12
+- [ ] 待定（产品问题）：书签的**录入入口**未设计（当前只能靠测试脚本种子数据），后续讨论
 
 ## M4：凭据库与解锁
 

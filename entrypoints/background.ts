@@ -61,16 +61,61 @@ async function switchTab(direction: -1 | 1): Promise<void> {
   await chrome.tabs.update(targetTabId, { active: true });
 }
 
+/** Alt+.：呼出书签管理弹窗。先记录来源标签（窗口 + 所在组），供"回车在来源组打开"使用 */
+async function openLauncher(): Promise<void> {
+  const [source] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (source?.windowId === undefined) return;
+  await chrome.storage.session.set({
+    launcherSource: {
+      windowId: source.windowId,
+      groupId: source.groupId === UNGROUPED ? null : source.groupId,
+    },
+  });
+  await chrome.windows.create({
+    url: chrome.runtime.getURL('launcher.html'),
+    type: 'popup',
+    width: 640,
+    height: 480,
+    focused: true,
+  });
+}
+
+/** launcher 页面消息：打开书签到来源组 / 关闭弹窗 */
+function handleLauncherMessages(): void {
+  chrome.runtime.onMessage.addListener((msg, sender) => {
+    if (msg?.type === 'vipper:open') {
+      void (async () => {
+        const { launcherSource } = await chrome.storage.session.get('launcherSource');
+        if (!launcherSource) return;
+        const tab = await chrome.tabs.create({
+          windowId: launcherSource.windowId,
+          url: msg.url,
+          active: true,
+        });
+        if (launcherSource.groupId !== null && tab.id !== undefined) {
+          await chrome.tabs.group({ groupId: launcherSource.groupId, tabIds: [tab.id] });
+        }
+        if (sender.tab?.windowId !== undefined) await chrome.windows.remove(sender.tab.windowId);
+      })();
+    }
+    if (msg?.type === 'vipper:close-launcher' && sender.tab?.windowId !== undefined) {
+      void chrome.windows.remove(sender.tab.windowId);
+    }
+  });
+}
+
 async function handleCommand(command: string): Promise<void> {
   console.log(`[vipper] command received: ${command}`);
   if (command === 'group-prev') await switchGroup(-1);
   if (command === 'group-next') await switchGroup(1);
   if (command === 'tab-prev') await switchTab(-1);
   if (command === 'tab-next') await switchTab(1);
+  if (command === 'open-launcher') await openLauncher();
 }
 
 export default defineBackground(() => {
   trackLastActiveTab();
+  handleLauncherMessages();
   chrome.commands.onCommand.addListener((command) => void handleCommand(command));
 
   // chrome.commands 无编程触发 API，暴露给 CDP 自动化验收脚本驱动

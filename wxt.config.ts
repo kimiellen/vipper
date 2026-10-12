@@ -22,6 +22,10 @@ export default defineConfig({
         suggested_key: { default: 'Alt+Shift+Right' },
         description: '组内切换到右侧标签',
       },
+      // suggested_key 上限 4 个已用满，此命令需用户在 chrome://extensions/shortcuts 手动绑定 Alt+.
+      'open-launcher': {
+        description: '打开书签管理器',
+      },
     },
   },
 });
