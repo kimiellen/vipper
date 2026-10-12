@@ -46,3 +46,17 @@ export function resolveTargetGroup(
   const next = seq[curIdx + direction];
   return next ?? null;
 }
+
+/**
+ * 计算组内（含隐式组）左/右切换目标。不跨组、不环绕。
+ * @returns 目标标签 id；到达组内边界或标签不在组中时返回 null
+ */
+export function resolveTargetTab(
+  entry: GroupEntry,
+  activeTabId: number,
+  direction: -1 | 1,
+): number | null {
+  const idx = entry.tabIds.indexOf(activeTabId);
+  if (idx === -1) return null;
+  return entry.tabIds[idx + direction] ?? null;
+}

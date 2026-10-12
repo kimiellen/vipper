@@ -1,4 +1,4 @@
-import { buildGroupSequence, resolveTargetGroup, UNGROUPED } from '../utils/tabnav';
+import { buildGroupSequence, resolveTargetGroup, resolveTargetTab, UNGROUPED } from '../utils/tabnav';
 
 /** 每组上次活跃标签的 storage.session key */
 function lastActiveKey(windowId: number, groupId: number | null): string {
@@ -46,11 +46,27 @@ async function switchGroup(direction: -1 | 1): Promise<void> {
   );
 }
 
+/** Alt+Shift+←/→：当前组（含隐式组）内左/右切换标签，不跨组、不环绕 */
+async function switchTab(direction: -1 | 1): Promise<void> {
+  const [active] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (active?.id === undefined || active.windowId === undefined) return;
+
+  const tabs = (await chrome.tabs.query({ windowId: active.windowId }))
+    .sort((a, b) => a.index - b.index);
+  const cur = buildGroupSequence(tabs).find((g) => g.tabIds.includes(active.id!));
+  if (!cur) return;
+
+  const targetTabId = resolveTargetTab(cur, active.id, direction);
+  if (targetTabId === null) return;
+  await chrome.tabs.update(targetTabId, { active: true });
+}
+
 async function handleCommand(command: string): Promise<void> {
   console.log(`[vipper] command received: ${command}`);
   if (command === 'group-prev') await switchGroup(-1);
   if (command === 'group-next') await switchGroup(1);
-  // tab-prev / tab-next（组内导航）在 M2 实现
+  if (command === 'tab-prev') await switchTab(-1);
+  if (command === 'tab-next') await switchTab(1);
 }
 
 export default defineBackground(() => {
