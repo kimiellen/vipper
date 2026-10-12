@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Vipper 编辑</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; }
+    body {
+      background: #1e1e2e; color: #cdd6f4; font: 14px/1.6 system-ui, sans-serif;
+      padding: 16px 20px; max-width: 680px; margin: 0 auto;
+    }
+    h2 { font-size: 13px; color: #89b4fa; margin: 16px 0 6px; }
+    input, textarea, select {
+      background: #313244; color: inherit; border: 1px solid #45475a;
+      border-radius: 6px; padding: 6px 10px; font: inherit; outline: none;
+    }
+    input:focus, textarea:focus { border-color: #89b4fa; }
+    button {
+      background: #45475a; color: inherit; border: none; border-radius: 6px;
+      padding: 6px 14px; font: inherit; cursor: pointer;
+    }
+    button.primary { background: #89b4fa; color: #1e1e2e; }
+    button.danger { background: #f38ba8; color: #1e1e2e; }
+    .row { display: flex; gap: 8px; margin: 4px 0; align-items: center; }
+    .row input { flex: 1; min-width: 0; }
+    .chip {
+      padding: 4px 10px; border-radius: 12px; border: 1px solid #45475a;
+      background: transparent; cursor: pointer; margin: 2px 4px 2px 0;
+    }
+    .chip.on { background: #89b4fa; color: #1e1e2e; border-color: #89b4fa; }
+    .meta { color: #7f849c; font-size: 12px; }
+    #actions { margin-top: 20px; display: flex; gap: 10px; }
+    #unlock { text-align: center; padding-top: 60px; }
+    #unlock .err { color: #f38ba8; font-size: 12px; margin-top: 6px; }
+    .badge { font-size: 11px; padding: 2px 8px; border-radius: 8px; background: #585b70; flex: none; }
+    .badge.secret { background: #f38ba8; color: #1e1e2e; }
+    textarea { width: 100%; min-height: 60px; }
+    #title-input { width: 100%; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <div id="unlock" hidden>
+    <p>密码库已锁定，输入主密码后继续编辑</p>
+    <p><input id="unlock-pw" type="password" placeholder="主密码" /> <button id="unlock-btn">解锁</button></p>
+    <div class="err" id="unlock-err" hidden>密码错误</div>
+  </div>
+
+  <div id="form" hidden>
+    <h2>基础信息</h2>
+    <input id="title-input" type="text" placeholder="书签名" />
+    <div class="meta" id="timestamps"></div>
+
+    <h2>Tag</h2>
+    <div id="tag-chips"></div>
+
+    <h2>关联信息</h2>
+    <div id="link-chips"></div>
+
+    <h2>URL 区</h2>
+    <div id="url-rows"></div>
+    <button id="add-url">+ 添加 URL</button>
+
+    <h2>账号区</h2>
+    <div id="account-rows"></div>
+    <button id="add-account">+ 添加账号</button>
+
+    <h2>记录区</h2>
+    <div id="record-rows"></div>
+    <button id="add-note">+ 明文记录</button>
+    <button id="add-secret">+ 私密记录</button>
+
+    <h2>备注</h2>
+    <textarea id="remark-input" placeholder="备注（每条书签仅一个）"></textarea>
+
+    <div id="actions">
+      <button class="primary" id="save-btn">保存</button>
+      <button class="danger" id="delete-btn">删除条目</button>
+      <button id="cancel-btn">取消</button>
+    </div>
+  </div>
+
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>

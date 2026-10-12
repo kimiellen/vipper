@@ -159,3 +159,45 @@ export function filterIndex(entries: IndexEntry[], query: string): IndexEntry[] 
     (e) => e.title.toLowerCase().includes(q) || e.urls.some((u) => u.url.toLowerCase().includes(q)),
   );
 }
+
+// ---------- 管理表：tag / 关联信息（先建后选，不即输即建） ----------
+
+export interface Tag { id: string; name: string }
+export interface LinkedInfo { id: string; type: string; value: string }
+
+const META_TAGS = 'meta:tags';
+const META_LINKS = 'meta:links';
+
+async function listTable<T>(key: string): Promise<T[]> {
+  return ((await chrome.storage.local.get(key))[key] as T[] | undefined) ?? [];
+}
+
+export const listTags = () => listTable<Tag>(META_TAGS);
+export const listLinkedInfos = () => listTable<LinkedInfo>(META_LINKS);
+
+/** 重名/重值拒绝（防语义重复） */
+export async function addTag(name: string): Promise<Tag> {
+  const tags = await listTags();
+  if (tags.some((t) => t.name === name)) throw new Error(`tag 已存在: ${name}`);
+  const tag: Tag = { id: crypto.randomUUID(), name };
+  await chrome.storage.local.set({ [META_TAGS]: [...tags, tag] });
+  return tag;
+}
+
+export async function addLinkedInfo(type: string, value: string): Promise<LinkedInfo> {
+  const links = await listLinkedInfos();
+  if (links.some((l) => l.type === type && l.value === value)) {
+    throw new Error(`关联信息已存在: ${type} ${value}`);
+  }
+  const link: LinkedInfo = { id: crypto.randomUUID(), type, value };
+  await chrome.storage.local.set({ [META_LINKS]: [...links, link] });
+  return link;
+}
+
+export async function deleteTag(id: string): Promise<void> {
+  await chrome.storage.local.set({ [META_TAGS]: (await listTags()).filter((t) => t.id !== id) });
+}
+
+export async function deleteLinkedInfo(id: string): Promise<void> {
+  await chrome.storage.local.set({ [META_LINKS]: (await listLinkedInfos()).filter((l) => l.id !== id) });
+}

@@ -14,7 +14,7 @@ export function bytesToB64(buf: ArrayBuffer | Uint8Array): string {
   return btoa(s);
 }
 
-export function b64ToBytes(b64: string): Uint8Array {
+export function b64ToBytes(b64: string): Uint8Array<ArrayBuffer> {
   const s = atob(b64);
   const bytes = new Uint8Array(s.length);
   for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i);

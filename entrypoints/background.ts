@@ -109,7 +109,8 @@ async function sendCandidates(tabId: number, pageUrl: string): Promise<void> {
   if (candidates.length === 0) {
     await safeSend(tabId, { type: 'vipper:toast', text: '无匹配书签' });
   } else if (candidates.length === 1) {
-    await fillAccount(tabId, candidates[0].bookmarkId, candidates[0].accountIndex);
+    const c = candidates[0]!;
+    await fillAccount(tabId, c.bookmarkId, c.accountIndex);
   } else {
     await safeSend(tabId, { type: 'vipper:picker', candidates });
   }
@@ -140,7 +141,9 @@ function handleMessages(): void {
   chrome.runtime.onMessage.addListener((msg, sender) => {
     if (msg?.type === 'vipper:open') {
       void (async () => {
-        const { launcherSource } = await chrome.storage.session.get('launcherSource');
+        const { launcherSource } = (await chrome.storage.session.get('launcherSource')) as {
+          launcherSource?: { windowId: number; groupId: number | null };
+        };
         if (!launcherSource) return;
         let tab: chrome.tabs.Tab;
         try {
@@ -159,6 +162,7 @@ function handleMessages(): void {
           } catch { /* 组已不存在则放弃入组 */ }
         }
         if (sender.tab?.windowId !== undefined) await chrome.windows.remove(sender.tab.windowId);
+        if (msg.bookmarkId) await vault.touchLastUsed(msg.bookmarkId);
       })();
     }
     if (msg?.type === 'vipper:close-launcher' && sender.tab?.windowId !== undefined) {

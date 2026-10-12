@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Vipper 管理表</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; }
+    body {
+      background: #1e1e2e; color: #cdd6f4; font: 14px/1.6 system-ui, sans-serif;
+      padding: 16px 20px; max-width: 560px; margin: 0 auto;
+    }
+    h2 { font-size: 13px; color: #89b4fa; margin: 16px 0 6px; }
+    input {
+      background: #313244; color: inherit; border: 1px solid #45475a;
+      border-radius: 6px; padding: 6px 10px; font: inherit; outline: none;
+    }
+    input:focus { border-color: #89b4fa; }
+    button {
+      background: #45475a; color: inherit; border: none; border-radius: 6px;
+      padding: 6px 14px; font: inherit; cursor: pointer;
+    }
+    .row { display: flex; gap: 8px; margin: 4px 0; align-items: center; }
+    .row .val { flex: 1; }
+    .err { color: #f38ba8; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h2>Tag 管理表</h2>
+  <div id="tag-list"></div>
+  <div class="row">
+    <input id="new-tag" placeholder="新 tag 名称" />
+    <button id="add-tag">添加</button>
+  </div>
+  <div class="err" id="tag-err" hidden></div>
+
+  <h2>关联信息表</h2>
+  <div id="link-list"></div>
+  <div class="row">
+    <input id="new-link-type" placeholder="类型（如：邮箱）" />
+    <input id="new-link-value" placeholder="值（如：a@b.c）" />
+    <button id="add-link">添加</button>
+  </div>
+  <div class="err" id="link-err" hidden></div>
+
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>

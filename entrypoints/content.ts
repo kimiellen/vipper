@@ -132,6 +132,7 @@ function showPicker(candidates: Candidate[]): void {
     else if (e.key === 'Enter') {
       cleanup();
       const c = candidates[selected];
+      if (!c) return;
       void chrome.runtime.sendMessage({
         type: 'vipper:fill-request', bookmarkId: c.bookmarkId, accountIndex: c.accountIndex,
       });

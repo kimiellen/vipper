@@ -20,8 +20,11 @@
     #list { flex: 1; overflow-y: auto; list-style: none; padding: 0 8px 12px; }
     #list li {
       padding: 8px 12px; border-radius: 6px; cursor: default;
-      display: flex; justify-content: space-between; gap: 12px;
+      display: flex; align-items: center; gap: 8px;
     }
+    #list li .hint { margin-left: auto; }
+    .favicon { width: 16px; height: 16px; flex: none; }
+    #footer { padding: 6px 16px; color: #7f849c; font-size: 12px; border-top: 1px solid #313244; }
     #list li.selected { background: #45475a; }
     #list .hint { color: #7f849c; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #empty { padding: 16px; color: #7f849c; text-align: center; }
@@ -31,6 +34,7 @@
   <input id="search" type="text" placeholder="搜索书签…（↓ 进入列表，Enter 打开，Esc 返回/关闭）" autofocus />
   <div id="crumb"></div>
   <ul id="list"></ul>
+  <div id="footer">Enter 打开 · Ctrl+E 编辑 · Ctrl+N 新建 · Ctrl+M 管理表 · Esc 关闭</div>
   <script type="module" src="./main.ts"></script>
 </body>
 </html>

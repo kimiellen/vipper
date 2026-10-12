@@ -54,12 +54,12 @@
   - 修复 M4 漏改：单 URL 书签打开误传 BookmarkUrl 对象（m3 回归捕获）
   - 增强：来源窗口/组失效时打开书签有兜底
 
-## M6：书签编辑与管理 UI
+## M6：书签编辑与管理 UI ✅（2026-10-13）
 
-- [ ] 书签编辑页：基础信息区 / tag 栏 / 关联信息栏 / URL 区 / 账号区 / 记录区 / 备注区（分区布局见 spec）
-- [ ] tag 管理表 + 关联信息表的管理页（先建后选，不即输即建）
-- [ ] launcher 列表：按 lastUsedAt 降序、显示 favicon、打开/填充时更新 lastUsedAt
-- [ ] 验证：m6-verify.mjs + 手动 UI 验收
+- [x] 书签编辑页（`editor.html`）：基础信息/tag 栏/关联信息栏/URL 区/账号区/记录区/备注区，分区布局与 spec 一致；锁定门控（未解锁先输主密码）
+- [x] 管理表页（`manager.html`）：tag + 关联信息先建后选，重名/重值拒绝
+- [x] launcher 列表：lastUsedAt 降序、favicon（`favicon` 权限 + `/_favicon/`）、打开时经 background 更新 lastUsedAt；Ctrl+E 编辑 / Ctrl+N 新建 / Ctrl+M 管理表
+- [x] 验证：`scripts/m6-verify.mjs` 12/12 通过；M1-M5 全量回归通过；新增 `pnpm typecheck`（tsc 严格模式，修复存量类型错误）
 
 ## M7：归档
 
