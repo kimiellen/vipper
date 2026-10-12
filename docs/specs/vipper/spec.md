@@ -45,20 +45,49 @@ vipper 是一个 Chrome MV3 扩展，目标用户是作者本人（Arch Linux + 
 
 ### 数据模型
 
-完全独立于 Chrome 原生书签/密码系统，扩展自建存储（`chrome.storage.local`）：
+完全独立于 Chrome 原生书签/密码系统，扩展自建存储。书签条目按页面布局分区（2026-10-13 定稿）：
 
-- 一条**书签** = 标题 + 多个 URL + 多条**记录**
-- **记录**按模板分为三种（鉴别联合），另有一个附属的备注：
+- **基础信息区**：`title`（书签名）、`createdAt`、`updatedAt`、`lastUsedAt`（条目列表按 lastUsedAt **降序**）
+- **tag 栏**：`tags: TagId[]`，引用 tag 管理表，可多个
+- **关联信息栏**：`linkedInfos: LinkedInfoId[]`，引用关联信息表（手机号/微信号/邮箱等），可多个
+- **URL 区**：`urls: { url, match }[]`，默认 1 条可增；`match` 为匹配规则 `host | exact | prefix`（默认 `host`），供 Alt+P 判定"当前页面是否适用此 URL"（学 Bitwarden）
+- **账号区**：`accounts: { username, password, label? }[]`，默认 1 对可增；`password` 加密落盘；`label` 用于多账号二级菜单辨识（如"主号/小号"），缺省显示 username
+- **记录区**：`records: (Note | Secret)[]`，默认空、不限量；只有这两种是"模板"（可重复添加）：
+  - `note` 明文记录：`{ name, content }`，不加密
+  - `secret` 私密记录：`{ name, content }`，`content` 加密落盘
+- **备注区**：`remark: string`，书签级固定唯一字段，不是模板，不加密
+- **条目状态**：`status: 'active' | 'archived'`
+- **favicon**：展示层自动获取站点图标，不入数据模型
 
-| 模板 | 字段 | 加密 |
+两张全局管理表（均**只能先建后选**，不支持即输即建，防止相近语义重复添加）：
+
+- tag 管理表：`{ id, name }[]`
+- 关联信息表：`{ id, type, value }[]`（type 如手机号/邮箱/微信/自定义）
+
+加密格式自描述：`{"$enc":"v1","iv":<base64>,"data":<base64>}`，便于将来算法/密钥迁移。只有 `account.password` 与 `secret.content` 是密文，其余字段明文以支持检索。
+
+### 存储布局（性能设计）
+
+chrome.storage.local 是 LevelDB 键值库（声明 `unlimitedStorage` 去配额上限），性能靠 **key 拆分**而非分文件：
+
+| key | 内容 | 访问场景 |
 |---|---|---|
-| `account` 账号模板 | `username`、`password` | `password` 加密落盘 |
-| `note` 明文记录模板 | `name`、`content` | 不加密 |
-| `secret` 私密记录模板 | `name`、`content` | `content` 加密落盘 |
-| 备注 `remark` | 字符串 | 不加密；附属在**记录**上，每条记录最多一个 |
+| `idx` | 轻量索引 `[{id,title,tags,linkedInfos,lastUsedAt,status}]` | 搜索/列表只读它 |
+| `bm:<id>` | 条目详情 | 打开/编辑某条时读 |
+| `arc:<id>` | 归档条目 | 归档页专用，主搜索天然不污染 |
+| `meta:tags` / `meta:links` / `meta:settings` | 管理表与配置（含自动归档阈值） | 管理页 |
 
-- 加密格式自描述：`{"$enc":"v1","iv":<base64>,"data":<base64>}`，便于将来算法/密钥迁移
-- 标题、URL、name、remark 保持明文以支持检索；只有 `password` 与 `secret.content` 是密文
+### 归档
+
+- 手动归档 + 自动归档（lastUsedAt 超过阈值，**默认 180 天、可配置**）
+- 归档 = 数据从 `bm:` 挪到 `arc:` + `idx` 更新状态；**不做真实文件**
+- 归档页复用 launcher 布局与功能（archive 模式）
+
+### 导入导出
+
+- 导出：全量**明文 JSON**，需输入主密码确认（明文导出是有意设计，用于本地 git 备份）
+- 导入：读取 JSON 合并入库
+- 备份主路径 = 导出 JSON 提交本地 git；软链 LevelDB 目录可行但不推荐（二进制噪音、恢复脆弱）
 
 ### 安全模型（已确认）
 
@@ -85,8 +114,8 @@ vipper 是一个 Chrome MV3 扩展，目标用户是作者本人（Arch Linux + 
 
 ## 待定项（后续讨论后通过 spec-change 补充）
 
-- 书签/记录的**录入入口**（管理 UI 或快捷命令，当前只能脚本种子数据）
-- 是否要求用户可见的真实文件存储（需 native messaging，当前按 chrome.storage.local 设计）
+- 录入/编辑与管理 UI 的具体页面设计（编辑页布局已定分区，交互细节待定）
+- TOTP 二步验证种子、密码历史（评估后缓办）
 - 切组滚动动画的 UI 载体（第一版不做）
 
 ## 技术栈

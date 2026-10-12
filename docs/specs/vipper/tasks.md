@@ -34,17 +34,38 @@
 - [x] 验证：`scripts/m3-verify.mjs` 8/8 通过（聚焦/过滤/钻取/入组/关窗）；M1 回归 9/9、M2 回归 12/12
 - [ ] 待定（产品问题）：书签的**录入入口**未设计（当前只能靠测试脚本种子数据），后续讨论
 
-## M4：凭据库与解锁
+## M4：凭据库核心
 
-- [ ] 记录模型落地：account/note/secret 三模板鉴别联合 + remark 附属（spec 数据模型表）
+- [ ] 存储布局重构：单 key 改为 idx / bm:<id> / arc:<id> / meta:* 拆分（launcher 改读 idx），manifest 加 unlimitedStorage
+- [ ] 完整条目模型落地：基础信息（title/createdAt/updatedAt/lastUsedAt）、tags/linkedInfos 引用、urls 带 match 规则、accounts 带 label、records（note/secret）、remark、status
 - [ ] 主密码设置/验证流程，PBKDF2 派生密钥（WebCrypto）
 - [ ] AES-GCM 加密写入层：`account.password` 与 `secret.content` 加密落盘（自描述 `$enc` 信封），密钥仅存 storage.session
 - [ ] 锁定策略：重启锁定 + 30 分钟无操作锁定（时长可配置）
-- [ ] 验证：单测（加解密往返、错误密码拒绝）+ CDP 实测重启锁定
+- [ ] 验证：m4-verify.mjs CDP 验收（加解密往返、错密码拒绝、密文落盘、重启/超时锁定）+ m1-m3 回归
 
 ## M5：Alt+P 填充
 
 - [ ] content script 登录表单探测与填充（兼容受控组件：原生 setter + input 事件）
-- [ ] Alt+P 按当前 origin 匹配凭据并填充
-- [ ] 多账号/多 URL 二级菜单（↑/↓ + 回车）
-- [ ] 验证：真实登录页实测
+- [ ] Alt+P 按当前页面与书签 urls 的 match 规则匹配，默认 host
+- [ ] 多账号二级菜单（↑/↓ + 回车，显示 label 或 username）；锁定状态时引导输主密码解锁
+- [ ] 验证：m5-verify.mjs（本地测试登录页实测）
+
+## M6：书签编辑与管理 UI
+
+- [ ] 书签编辑页：基础信息区 / tag 栏 / 关联信息栏 / URL 区 / 账号区 / 记录区 / 备注区（分区布局见 spec）
+- [ ] tag 管理表 + 关联信息表的管理页（先建后选，不即输即建）
+- [ ] launcher 列表：按 lastUsedAt 降序、显示 favicon、打开/填充时更新 lastUsedAt
+- [ ] 验证：m6-verify.mjs + 手动 UI 验收
+
+## M7：归档
+
+- [ ] 手动归档/恢复（bm: ↔ arc: 数据迁移 + idx 状态更新）
+- [ ] 自动归档：lastUsedAt 超阈值（默认 180 天，meta:settings 可配）
+- [ ] 归档页：复用 launcher 布局（archive 模式）
+- [ ] 验证：m7-verify.mjs
+
+## M8：导入导出
+
+- [ ] 导出全量明文 JSON（需主密码确认）
+- [ ] 导入 JSON 合并入库
+- [ ] 验证：m8-verify.mjs（导出→清空→导入→数据一致）
