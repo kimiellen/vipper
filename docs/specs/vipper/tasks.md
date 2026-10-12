@@ -8,8 +8,8 @@
 - [x] manifest 声明 4 个导航命令（Alt+↑/↓、Alt+Shift+←/→）+ background `onCommand` 日志
 - [x] `pnpm build` 通过，产物 manifest 已核对 4 个命令齐全
 - [x] **R1 绑定验证（自动化）**：Chromium 153 + CDP 实测 `chrome.commands.getAll()`，4 键全部绑定成功（含 Alt+Shift+←/→）
-- [ ] **R1 真机按键确认（手动，不阻塞开发）**：用户在自己的 Chrome 154 中加载 `.output/chrome-mv3`，确认按键触发且无历史导航冲突
-  - 备注：品牌版 Chrome 154 已移除 `--load-extension`，自动化只能用 Chromium；真机按键行为仍需人工确认一次
+- [x] **R1 真机按键确认**：Chrome 154 真机实测 4 键全部触发 `onCommand`，Alt+Shift+←/→ 与历史导航无冲突。R1 关闭
+  - 备注：品牌版 Chrome 154 已移除 `--load-extension`，自动化用 Chromium 153；手动验收需先开 SW DevTools 再按键
 
 ## M1：标签组导航（Alt+↑/↓）
 
