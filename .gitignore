@@ -3,3 +3,5 @@ node_modules/
 .wxt/
 .pnpm-store/
 .pnpm-cache/
+.chrome-test-profile/
+.m0-check.mjs
