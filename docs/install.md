@@ -18,15 +18,30 @@
 
 > 手动验收按键时注意：先打开 vipper 卡片的 **Service Worker** DevTools 再按键。MV3 service worker 30 秒休眠会断开控制台，断开后日志不可见。
 
-## Hyprland 窗口规则（书签弹窗居中浮动）
+## Hyprland 窗口规则（弹窗居中浮动）
 
-Wayland 下窗口定位权在 compositor，Chrome 无法自己居中弹窗。在 `~/.config/hypr/hyprland.conf` 添加：
+Wayland 下窗口定位权在 compositor，Chrome 无法自己居中弹窗。
 
-```conf
-# vipper 书签弹窗：浮动 + 居中 + 固定大小（匹配窗口标题 Vipper）
-windowrulev2 = float, initialTitle:^(Vipper)$
-windowrulev2 = center, initialTitle:^(Vipper)$
-windowrulev2 = size 640 480, initialTitle:^(Vipper)$
+**关键：必须匹配 `class`，不能匹配标题。** 扩展弹窗映射时的 `initialTitle` 是 `_crx_<扩展id>`，页面标题（Vipper / Vipper 编辑 / Vipper 管理表）是加载后才设置的，窗口规则在创建时评估，按标题匹配一定错过。而 class `chrome-<扩展id>-Default` 在映射瞬间即确定。
+
+Lua 配置版（`hl.window_rule`，注意 `-` 要转义为 `%-`）：
+
+```lua
+-- vipper 弹窗：浮动 + 居中 + 固定大小（launcher/编辑页/管理表同一 class，一条规则全覆盖）
+hl.window_rule({
+	match = { class = "^chrome%-bfkbiapichhdhealeodggldhchmdlhhj%-Default$" },
+	float = true,
+	center = true,
+	size = { 640, 480 },
+})
 ```
 
-若你的 Chrome 窗口标题匹配不到 `initialTitle`，可改用 `title:^(Vipper)` 或先用 `hyprctl clients` 观察弹窗的实际字段。
+传统 conf 版（hyprland.conf）：
+
+```conf
+windowrulev2 = float, class:^chrome-bfkbiapichhdhealeodggldhchmdlhhj-Default$
+windowrulev2 = center, class:^chrome-bfkbiapichhdhealeodggldhchmdlhhj-Default$
+windowrulev2 = size 640 480, class:^chrome-bfkbiapichhdhealeodggldhchmdlhhj-Default$
+```
+
+注意：未打包扩展的 id 由扩展目录的**绝对路径**派生（当前对应 `.output/chrome-mv3` 的构建路径）。目录变动后 id 会变，用 `hyprctl clients` 查看弹窗的实际 `class` 字段更新规则。
