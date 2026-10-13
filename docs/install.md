@@ -24,17 +24,20 @@ Wayland 下窗口定位权在 compositor，Chrome 无法自己居中弹窗。
 
 **关键：必须匹配 `class`，不能匹配标题。** 扩展弹窗映射时的 `initialTitle` 是 `_crx_<扩展id>`，页面标题（Vipper / Vipper 编辑 / Vipper 管理表）是加载后才设置的，窗口规则在创建时评估，按标题匹配一定错过。而 class `chrome-<扩展id>-Default` 在映射瞬间即确定。
 
-Lua 配置版（`hl.window_rule`）——注意 match 字段是**正则表达式**（不是 Lua pattern，`-` 无需转义），且 `size` 是**字符串**表达式：
+Lua 配置版（`hl.window_rule`，Hyprland 0.56 真机验证通过）——注意 match 字段是**正则表达式**（不是 Lua pattern，`-` 无需转义），且 `size` 是**字符串**表达式：
 
 ```lua
 -- vipper 弹窗：浮动 + 居中 + 固定大小（launcher/编辑页/管理表同一 class，一条规则全覆盖）
 hl.window_rule({
+	name = "vipper-float",
 	match = { class = "^chrome-bfkbiapichhdhealeodggldhchmdlhhj-Default$" },
 	float = true,
 	center = true,
 	size = "640 480",
 })
 ```
+
+> 排障经验：effects 里字段类型写错（如 size 传了 table）会导致**整条规则静默失效**。验证方法：`hyprctl reload` 后重开弹窗，`hyprctl clients` 应看到 `floating: 1`。
 
 传统 conf 版（hyprland.conf）：
 
