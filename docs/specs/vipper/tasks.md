@@ -106,12 +106,13 @@
 - [x] idx 索引加 `accountCount`（仅计数，列表「账号数」列需要；spec 存储布局已同步）
 - [x] 验证：`scripts/m9c-verify.mjs` 11/11 通过；M1-M8 + M9b 全量回归通过
 
-## M9d：解锁页 + 入口切换
+## M9d：解锁页 + 入口切换 ✅（2026-10-14）
 
-- [ ] 解锁页实现：三态自动路由（isInitialized/isUnlocked）、PBKDF2 进度环动画、错误反馈；角落主题/语言切换
-- [ ] Alt+. 改指向 wui 页（来源标签记录保留）；"回车在来源组打开 + 多 URL 二级菜单"从 launcher 移植到 results
-- [ ] 淘汰 launcher / editor / manager 旧页面；重置方法（清扩展存储）写入 README/docs/install.md
-- [ ] 验证：`scripts/m9d-verify.mjs`（锁定→解锁→进主页面→回车打开入组）；M1-M8 回归通过
+- [x] 解锁门控（wui 页内覆盖层，与主页面同尺寸同窗口）：三态自动路由（isInitialized/isUnlocked），创建/解锁双模式，PBKDF2 进度环 + 锁扣弹开 + 涟漪动画 + 错误抖动；角落主题/语言切换（锁定态可用，持久化在 M9e）
+- [x] Alt+. 改指向 wui 页（来源标签记录保留）；键盘自 launcher 移植：↓ 进列表、↑/↓ 移动、回车打开（多 URL 弹二级菜单）、Esc 关窗
+- [x] 淘汰 launcher / editor / manager 旧页面（m3/m6/m7 验证脚本随页面退役删除；行为由 m9c/m9d 覆盖）；忘记密码重置方法写入 docs/install.md（清除扩展数据），windowrule 尺寸更新为 1280x860
+- [x] 验证：`scripts/m9d-verify.mjs` 12/12 通过（创建/解锁/直达三态 + 键盘打开入组 + 自动关窗）；M1/M2/M4/M5/M8/M9b/M9c 回归通过
+  - 踩坑：headless Chromium 有 popup 窗口在场时 `tabs.group` 必失败的 quirk——background 改为先关 wui 窗口再入组（真机顺序无关）；m9d 场景搭建须在任何 popup 打开前完成分组
 
 ## M9e：编辑模式 + Settings 完成
 

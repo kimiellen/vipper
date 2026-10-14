@@ -350,6 +350,108 @@
 
   /* favicon */
   .favicon { width: 16px; height: 16px; flex: none; vertical-align: -2px; }
+
+  /* ===== 解锁门控覆盖层（spec 安全模型：三态自动路由） ===== */
+  #unlock-overlay {
+    position: fixed; inset: 0; z-index: 100; background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+  }
+  #unlock-overlay .corner {
+    position: fixed; top: var(--space-4); right: var(--space-4);
+    display: flex; gap: var(--space-2); opacity: 0.55; transition: opacity var(--transition);
+  }
+  #unlock-overlay .corner:hover { opacity: 1; }
+  .stage { display: flex; flex-direction: column; align-items: center; gap: var(--space-5); }
+
+  /* 锁形图标与进度环 */
+  .logo-wrap { position: relative; width: 148px; height: 148px; display: grid; place-items: center; }
+  .logo-wrap .lock { width: 76px; height: 76px; transition: transform 600ms cubic-bezier(0.22, 1, 0.36, 1), filter 600ms ease; }
+  .lock .shackle {
+    fill: none; stroke: var(--accent); stroke-width: 5; stroke-linecap: round;
+    transform-box: view-box; transform-origin: 22px 32px;
+    transition: transform 500ms 250ms cubic-bezier(0.34, 1.56, 0.64, 1), stroke var(--transition);
+  }
+  .lock .lock-body { fill: var(--bg-subtle); stroke: var(--accent); stroke-width: 3; transition: stroke var(--transition); }
+  .lock .keyhole { fill: var(--accent); transition: fill var(--transition); }
+  .ring { position: absolute; inset: 0; transform: rotate(-90deg); }
+  .ring circle {
+    fill: none; stroke-width: 3; stroke-linecap: round;
+    stroke-dasharray: 439.8; stroke-dashoffset: 330; /* 周长 2π·70 ≈ 439.8 */
+    transition: stroke var(--transition), stroke-dashoffset 900ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .ring .track { stroke: var(--border); stroke-dashoffset: 0; opacity: 0.5; }
+  .ring .prog { stroke: var(--accent); }
+
+  #unlock-overlay[data-state="idle"] .ring-rot { animation: spin 9s linear infinite; }
+  #unlock-overlay[data-state="working"] .ring-rot { animation: spin 0.9s linear infinite; }
+  #unlock-overlay[data-state="working"] .prog { animation: sweep 1.4s ease-in-out infinite; }
+  #unlock-overlay[data-state="success"] .prog { stroke: var(--success); stroke-dashoffset: 0; animation: none; }
+  #unlock-overlay[data-state="success"] .ring-rot { animation: none; }
+  #unlock-overlay[data-state="success"] .lock .shackle,
+  #unlock-overlay[data-state="success"] .lock .lock-body { stroke: var(--success); }
+  #unlock-overlay[data-state="success"] .lock .keyhole { fill: var(--success); }
+  #unlock-overlay[data-state="success"] .lock .shackle { transform: rotate(-30deg); }
+  #unlock-overlay[data-state="success"] .logo-wrap .lock { transform: scale(1.12); filter: drop-shadow(0 0 18px var(--success)); }
+  #unlock-overlay[data-state="success"] .logo-wrap { animation: ringBurst 700ms 550ms cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+  #unlock-overlay[data-state="error"] .prog { stroke: var(--danger); }
+  #unlock-overlay[data-state="error"] .logo-wrap { animation: shake 500ms ease; }
+  #unlock-overlay[data-state="error"] .input { border-color: var(--danger); }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes sweep { 0% { stroke-dashoffset: 400; } 50% { stroke-dashoffset: 120; } 100% { stroke-dashoffset: 400; } }
+  @keyframes ringBurst { to { transform: scale(1.35); opacity: 0; } }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); } 20% { transform: translateX(-10px); }
+    40% { transform: translateX(9px); } 60% { transform: translateX(-6px); } 80% { transform: translateX(4px); }
+  }
+
+  .brand {
+    font-family: var(--font-mono); font-weight: var(--weight-bold);
+    font-size: var(--text-2xl); color: var(--accent); letter-spacing: 0.08em;
+  }
+  .unlock-card {
+    width: 380px; padding: var(--space-6);
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+    display: flex; flex-direction: column; gap: var(--space-4);
+    transition: opacity 400ms ease, transform 400ms ease;
+  }
+  .unlock-card h1 { margin: 0; font-size: var(--text-2xl); font-weight: var(--weight-semibold); }
+  .card-desc { color: var(--fg-secondary); font-size: var(--text-sm); margin: var(--space-1) 0 0; }
+  #unlock-overlay[data-state="success"] .stage { animation: stageOut 500ms 500ms ease forwards; }
+  @keyframes stageOut { to { opacity: 0; transform: scale(0.96) translateY(-8px); } }
+  #unlock-overlay[data-state="working"] .unlock-card { opacity: 0.6; pointer-events: none; }
+
+  .alert { padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); font-size: var(--text-sm); }
+  .alert-warning { background: var(--warning-soft); color: var(--warning); }
+  .alert-danger { background: var(--danger-soft); color: var(--danger); }
+
+  /* 成功涟漪：从中心扩散铺满，随后 overlay 移除露出主界面 */
+  .ripple {
+    position: fixed; left: 50%; top: 50%; z-index: 110;
+    width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: var(--radius-full);
+    background: var(--accent); opacity: 0; pointer-events: none;
+  }
+  #unlock-overlay[data-state="success"] .ripple { animation: rippleIn 900ms 700ms cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+  @keyframes rippleIn { 0% { transform: scale(0); opacity: 0.5; } 100% { transform: scale(160); opacity: 1; } }
+
+  /* ===== 多 URL 二级菜单（回车打开多 URL 书签时弹出） ===== */
+  #url-menu {
+    position: fixed; inset: 0; z-index: 90;
+    background: color-mix(in srgb, var(--bg) 70%, transparent);
+    display: flex; align-items: center; justify-content: center;
+  }
+  #url-menu .menu-card {
+    background: var(--bg-raised); border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+    padding: var(--space-2); min-width: 420px; max-width: 640px;
+  }
+  #url-menu .menu-item {
+    padding: var(--space-2) var(--space-3); border-radius: var(--radius-md);
+    font-family: var(--font-mono); font-size: var(--text-sm);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  #url-menu .menu-item.on { background: var(--accent-soft); color: var(--accent); }
 </style>
 </head>
 <body>
@@ -362,7 +464,7 @@
       <button class="seg-btn active" data-status="active">active</button>
       <button class="seg-btn" data-status="archived">archived</button>
     </div>
-    <input class="input t-search" id="search" type="text" placeholder="搜索书签名 / url / 备注…" autofocus />
+    <input class="input t-search" id="search" type="text" placeholder="搜索书签名 / url / 备注…" />
     <details class="msel" id="tag-filter">
       <summary>TAGS ▾</summary>
       <div class="msel-pop pop-row" id="tag-filter-pop"></div>
@@ -426,5 +528,58 @@
 </div>
 
 <script type="module" src="./main.ts"></script>
+
+<!-- 解锁门控覆盖层（未初始化 → 创建主密码；已锁定 → 解锁；已解锁 → 直接移除） -->
+<div id="unlock-overlay" data-state="idle" data-mode="unlock" hidden>
+  <div class="corner">
+    <div class="seg" id="ov-scheme-seg">
+      <button class="seg-btn active" data-scheme="dark">dark</button>
+      <button class="seg-btn" data-scheme="light">light</button>
+    </div>
+    <div class="seg" id="ov-lang-seg">
+      <button class="seg-btn" data-lang="en">en</button>
+      <button class="seg-btn active" data-lang="zh">中</button>
+    </div>
+  </div>
+  <div class="stage">
+    <div class="logo-wrap">
+      <svg class="ring" viewBox="0 0 148 148">
+        <g class="ring-rot" style="transform-origin: 74px 74px;">
+          <circle class="track" cx="74" cy="74" r="70"></circle>
+          <circle class="prog" cx="74" cy="74" r="70"></circle>
+        </g>
+      </svg>
+      <svg class="lock" viewBox="0 0 64 64" aria-hidden="true">
+        <path class="shackle" d="M22 32 V21 a10 10 0 0 1 20 0 V32"></path>
+        <rect class="lock-body" x="14" y="30" width="36" height="26" rx="5"></rect>
+        <circle class="keyhole" cx="32" cy="40" r="3.5"></circle>
+        <rect class="keyhole" x="30.5" y="41" width="3" height="7" rx="1.5"></rect>
+      </svg>
+    </div>
+    <div class="brand">vipper</div>
+    <div class="unlock-card">
+      <div>
+        <h1 id="ov-title" data-zh="解锁" data-en="Unlock">解锁</h1>
+        <p class="card-desc" id="ov-desc"
+           data-zh="输入主密码以解密书签库"
+           data-en="Enter your master password to decrypt the vault">输入主密码以解密书签库</p>
+      </div>
+      <input class="input" id="ov-pw1" type="password"
+             data-zh-ph="主密码" data-en-ph="Master password" placeholder="主密码" />
+      <input class="input" id="ov-pw2" type="password" hidden
+             data-zh-ph="确认主密码" data-en-ph="Confirm master password" placeholder="确认主密码" />
+      <div class="alert alert-warning" id="ov-warning" hidden
+           data-zh="主密码不会被存储，忘记后无法找回——没有密保问题，没有重置入口。"
+           data-en="The master password is never stored and cannot be recovered — no security questions, no reset.">主密码不会被存储，忘记后无法找回——没有密保问题，没有重置入口。</div>
+      <div class="alert alert-danger" id="ov-error" hidden></div>
+      <button class="btn btn-primary" id="ov-submit" data-zh="解锁" data-en="Unlock">解锁</button>
+    </div>
+  </div>
+  <div class="ripple"></div>
+</div>
+
+<!-- 多 URL 二级菜单 -->
+<div id="url-menu" hidden><div class="menu-card" id="url-menu-card"></div></div>
+
 </body>
 </html>

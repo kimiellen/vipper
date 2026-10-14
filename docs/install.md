@@ -27,13 +27,13 @@ Wayland 下窗口定位权在 compositor，Chrome 无法自己居中弹窗。
 Lua 配置版（`hl.window_rule`，Hyprland 0.56 真机验证通过）——注意 match 字段是**正则表达式**（不是 Lua pattern，`-` 无需转义），且 `size` 是**字符串**表达式：
 
 ```lua
--- vipper 弹窗：浮动 + 居中 + 固定大小（launcher/编辑页/管理表同一 class，一条规则全覆盖）
+-- vipper 弹窗：浮动 + 居中 + 固定大小（wui 管理页/解锁页同一 class，一条规则全覆盖）
 hl.window_rule({
 	name = "vipper-float",
 	match = { class = "^chrome-bfkbiapichhdhealeodggldhchmdlhhj-Default$" },
 	float = true,
 	center = true,
-	size = "640 480",
+	size = "1280 860",
 })
 ```
 
@@ -44,7 +44,17 @@ hl.window_rule({
 ```conf
 windowrulev2 = float, class:^chrome-bfkbiapichhdhealeodggldhchmdlhhj-Default$
 windowrulev2 = center, class:^chrome-bfkbiapichhdhealeodggldhchmdlhhj-Default$
-windowrulev2 = size 640 480, class:^chrome-bfkbiapichhdhealeodggldhchmdlhhj-Default$
+windowrulev2 = size 1280 860, class:^chrome-bfkbiapichhdhealeodggldhchmdlhhj-Default$
 ```
 
 注意：未打包扩展的 id 由扩展目录的**绝对路径**派生（当前对应 `.output/chrome-mv3` 的构建路径）。目录变动后 id 会变，用 `hyprctl clients` 查看弹窗的实际 `class` 字段更新规则。
+
+## 忘记主密码（重置）
+
+主密码不落盘、不可找回，vipper 页面**故意不提供**"忘记密码"入口（避免恶意清除数据）。确认要重置时手动清除扩展存储：
+
+1. 打开 `chrome://extensions` → vipper 卡片 → **详细信息**
+2. 拉到最下点 **清除数据**（Delete data），确认
+3. 重新打开 vipper（Alt+.）→ 进入「创建主密码」流程
+
+⚠️ 这会**永久删除全部书签/账号/记录**（加密数据没有主密码无法解密）。有导出 JSON 备份的话，重置后可经 设置→备份→导入 恢复。

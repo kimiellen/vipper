@@ -24,6 +24,8 @@ let query = '';
 const selTags = new Set<string>();
 const selLinks = new Set<string>();
 let selectedId: string | null = null;
+let filtered: IndexEntry[] = []; // 当前过滤结果（键盘导航用）
+let mainReady = false;           // 解锁后主界面才就绪
 
 // ---------- 工具 ----------
 
@@ -85,6 +87,7 @@ function applyFilters(): IndexEntry[] {
 
 function renderResults(): void {
   const entries = applyFilters();
+  filtered = entries;
   const tbody = $('#results-body');
   tbody.innerHTML = '';
   $('#results-empty').hidden = entries.length > 0;
@@ -319,10 +322,187 @@ document.querySelectorAll('.set-head').forEach((h) => {
   });
 });
 
-// ---------- 初始化 ----------
+// ---------- 打开书签（回车 → 经 background 在来源组打开并关窗） ----------
 
-[idx, tags, links] = await Promise.all([vault.listIndex(), vault.listTags(), vault.listLinkedInfos()]);
-renderFilterPops();
-renderResults();
-void renderDetail();
-void renderSettings();
+let submenu: { urls: vault.BookmarkUrl[]; idx: number; bookmarkId: string } | null = null;
+
+function openUrl(url: string, bookmarkId: string): void {
+  void chrome.runtime.sendMessage({ type: 'vipper:open', url, bookmarkId });
+  // 窗口由 background 收到消息后关闭
+}
+
+function showSubmenu(entry: IndexEntry): void {
+  submenu = { urls: entry.urls, idx: 0, bookmarkId: entry.id };
+  const card = $('#url-menu-card');
+  card.innerHTML = '';
+  entry.urls.forEach((u, i) => {
+    const item = el('div', `menu-item${i === 0 ? ' on' : ''}`, u.url);
+    card.append(item);
+  });
+  $('#url-menu').hidden = false;
+}
+
+function hideSubmenu(): void {
+  submenu = null;
+  $('#url-menu').hidden = true;
+}
+
+function moveSubmenu(delta: number): void {
+  if (!submenu) return;
+  submenu.idx = Math.min(submenu.urls.length - 1, Math.max(0, submenu.idx + delta));
+  document.querySelectorAll('#url-menu-card .menu-item').forEach((x, i) =>
+    x.classList.toggle('on', i === submenu!.idx),
+  );
+}
+
+function openSelected(): void {
+  const entry = filtered.find((e) => e.id === selectedId);
+  if (!entry) return;
+  if (entry.urls.length <= 1) {
+    openUrl(entry.urls[0]?.url ?? 'about:blank', entry.id);
+  } else {
+    showSubmenu(entry);
+  }
+}
+
+// ---------- 键盘导航（自 launcher 移植：↓ 进列表、↑/↓ 移动、回车打开、Esc 关闭） ----------
+
+function moveSelection(delta: number): void {
+  if (filtered.length === 0) return;
+  const cur = filtered.findIndex((e) => e.id === selectedId);
+  const next = Math.min(filtered.length - 1, Math.max(0, (cur === -1 ? 0 : cur) + delta));
+  selectedId = filtered[next]!.id;
+  renderResults();
+  void renderDetail();
+  document.querySelector('#results-body tr.row-selected')?.scrollIntoView({ block: 'nearest' });
+}
+
+document.addEventListener('keydown', (e) => {
+  if (!mainReady) return;
+  if (submenu) {
+    if (e.key === 'ArrowDown') moveSubmenu(1);
+    else if (e.key === 'ArrowUp') moveSubmenu(-1);
+    else if (e.key === 'Enter') openUrl(submenu.urls[submenu.idx]!.url, submenu.bookmarkId);
+    else if (e.key === 'Escape') hideSubmenu();
+    else return;
+    e.preventDefault();
+    return;
+  }
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    moveSelection(e.key === 'ArrowDown' ? 1 : -1);
+    e.preventDefault();
+  } else if (e.key === 'Enter') {
+    openSelected();
+  } else if (e.key === 'Escape') {
+    window.close();
+  }
+});
+
+// ---------- 解锁门控（spec 安全模型：三态自动路由） ----------
+
+const overlay = $('#unlock-overlay');
+let gateLang: 'zh' | 'en' = 'zh';
+
+const GATE_TEXT = {
+  wrong: { zh: '密码错误，请重试', en: 'Wrong password, try again' },
+  mismatch: { zh: '两次输入不一致', en: 'Passwords do not match' },
+  empty: { zh: '密码不能为空', en: 'Password must not be empty' },
+} as const;
+
+function gateApplyLang(): void {
+  overlay.querySelectorAll<HTMLElement>('[data-zh]').forEach((n) => {
+    n.textContent = gateLang === 'zh' ? n.dataset.zh! : n.dataset.en!;
+  });
+  overlay.querySelectorAll<HTMLInputElement>('[data-zh-ph]').forEach((n) => {
+    n.placeholder = gateLang === 'zh' ? n.dataset.zhPh! : n.dataset.enPh!;
+  });
+}
+
+function gateError(kind: keyof typeof GATE_TEXT): void {
+  const err = $('#ov-error');
+  err.textContent = GATE_TEXT[kind][gateLang];
+  err.hidden = false;
+  overlay.dataset.state = 'error';
+  setTimeout(() => {
+    overlay.dataset.state = 'idle';
+    $('#ov-pw1').focus();
+  }, 1200);
+}
+
+async function gateSubmit(): Promise<void> {
+  if (overlay.dataset.state !== 'idle') return;
+  const pw1 = ($('#ov-pw1') as HTMLInputElement).value;
+  const pw2 = ($('#ov-pw2') as HTMLInputElement).value;
+  const setup = overlay.dataset.mode === 'setup';
+  if (!pw1 || (setup && pw1 !== pw2)) {
+    gateError(!pw1 ? 'empty' : 'mismatch');
+    return;
+  }
+  overlay.dataset.state = 'working';
+  const ok = setup ? (await keychain.setupMasterPassword(pw1), true) : await keychain.unlock(pw1);
+  if (!ok) {
+    gateError('wrong');
+    return;
+  }
+  // 成功动画：环闭合变绿 → 锁扣弹开 → 涟漪铺满 → 移除覆盖层进主界面
+  overlay.dataset.state = 'success';
+  await new Promise((r) => setTimeout(r, 1800));
+  overlay.remove();
+  await initMain();
+}
+
+function showGate(mode: 'unlock' | 'setup'): void {
+  overlay.dataset.mode = mode;
+  const setup = mode === 'setup';
+  $('#ov-pw2').hidden = !setup;
+  $('#ov-warning').hidden = !setup;
+  $('#ov-title').dataset.zh = setup ? '创建主密码' : '解锁';
+  $('#ov-title').dataset.en = setup ? 'Create Master Password' : 'Unlock';
+  $('#ov-desc').dataset.zh = setup ? '首次使用：设置用于加密所有凭据的主密码' : '输入主密码以解密书签库';
+  $('#ov-desc').dataset.en = setup
+    ? 'First run: set the master password that encrypts all credentials'
+    : 'Enter your master password to decrypt the vault';
+  $('#ov-submit').dataset.zh = setup ? '创建并解锁' : '解锁';
+  ($('#ov-submit') as HTMLElement).dataset.en = setup ? 'Create & Unlock' : 'Unlock';
+  gateApplyLang();
+  overlay.hidden = false;
+  ($('#ov-pw1') as HTMLInputElement).focus();
+}
+
+$('#ov-submit').addEventListener('click', () => void gateSubmit());
+overlay.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') void gateSubmit();
+});
+$('#ov-scheme-seg').addEventListener('click', (e) => {
+  const btn = (e.target as HTMLElement).closest<HTMLElement>('.seg-btn');
+  if (!btn) return;
+  document.querySelectorAll('#ov-scheme-seg .seg-btn').forEach((x) => x.classList.toggle('active', x === btn));
+  if (btn.dataset.scheme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+  else document.documentElement.removeAttribute('data-theme');
+});
+$('#ov-lang-seg').addEventListener('click', (e) => {
+  const btn = (e.target as HTMLElement).closest<HTMLElement>('.seg-btn');
+  if (!btn) return;
+  document.querySelectorAll('#ov-lang-seg .seg-btn').forEach((x) => x.classList.toggle('active', x === btn));
+  gateLang = btn.dataset.lang === 'en' ? 'en' : 'zh';
+  gateApplyLang();
+});
+
+// ---------- 启动：三态路由 ----------
+
+async function initMain(): Promise<void> {
+  [idx, tags, links] = await Promise.all([vault.listIndex(), vault.listTags(), vault.listLinkedInfos()]);
+  renderFilterPops();
+  renderResults();
+  void renderDetail();
+  void renderSettings();
+  mainReady = true;
+  $('#search').focus();
+}
+
+if (!(await keychain.isInitialized())) showGate('setup');
+else if (!(await keychain.isUnlocked())) showGate('unlock');
+else {
+  overlay.remove(); // 已解锁：直接进主页面，无覆盖层闪烁
+  await initMain();
+}

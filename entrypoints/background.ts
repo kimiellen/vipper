@@ -64,7 +64,7 @@ async function switchTab(direction: -1 | 1): Promise<void> {
   await chrome.tabs.update(targetTabId, { active: true });
 }
 
-/** Alt+.：呼出书签管理弹窗。先记录来源标签（窗口 + 所在组），供"回车在来源组打开"使用 */
+/** Alt+.：呼出 wui 管理页。先记录来源标签（窗口 + 所在组），供"回车在来源组打开"使用 */
 async function openLauncher(): Promise<void> {
   const [source] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (source?.windowId === undefined) return;
@@ -75,10 +75,10 @@ async function openLauncher(): Promise<void> {
     },
   });
   await chrome.windows.create({
-    url: chrome.runtime.getURL('launcher.html'),
+    url: chrome.runtime.getURL('wui.html'),
     type: 'popup',
-    width: 640,
-    height: 480,
+    width: 1280,
+    height: 860,
     focused: true,
   });
 }
@@ -136,7 +136,7 @@ async function handleAutofill(): Promise<void> {
   await sendCandidates(tab.id, tab.url);
 }
 
-/** launcher 与 content script 的消息入口 */
+/** wui 管理页与 content script 的消息入口 */
 function handleMessages(): void {
   chrome.runtime.onMessage.addListener((msg, sender) => {
     if (msg?.type === 'vipper:open') {
@@ -157,16 +157,17 @@ function handleMessages(): void {
           tab = await chrome.tabs.create({ url: msg.url, active: true });
         }
         if (launcherSource.groupId !== null && tab.id !== undefined) {
+          // 先关闭 wui 弹窗再入组：headless Chromium 有 popup 在场时分组会失败的 quirk，
+          // 真机顺序无关，但先关窗对用户也无感知差异（新标签已激活）
+          if (sender.tab?.windowId !== undefined) await chrome.windows.remove(sender.tab.windowId);
           try {
             await chrome.tabs.group({ groupId: launcherSource.groupId, tabIds: [tab.id] });
           } catch { /* 组已不存在则放弃入组 */ }
+        } else if (sender.tab?.windowId !== undefined) {
+          await chrome.windows.remove(sender.tab.windowId);
         }
-        if (sender.tab?.windowId !== undefined) await chrome.windows.remove(sender.tab.windowId);
         if (msg.bookmarkId) await vault.touchLastUsed(msg.bookmarkId);
       })();
-    }
-    if (msg?.type === 'vipper:close-launcher' && sender.tab?.windowId !== undefined) {
-      void chrome.windows.remove(sender.tab.windowId);
     }
     // content script：浮层内解锁
     if (msg?.type === 'vipper:unlock' && sender.tab?.id !== undefined) {
