@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>原型 A · Raycast 风</title>
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { background: transparent; font: 14px/1.5 -apple-system, "Segoe UI", system-ui, sans-serif; }
+  .panel {
+    width: 640px; height: 480px; display: flex; flex-direction: column;
+    background: rgba(22,22,30,.92); backdrop-filter: blur(20px);
+    color: #e5e9f0; border: 1px solid rgba(255,255,255,.08);
+  }
+  .search {
+    display: flex; align-items: center; gap: 10px;
+    padding: 16px 18px; border-bottom: 1px solid rgba(255,255,255,.07);
+  }
+  .search .icon { font-size: 17px; opacity: .6; }
+  .search input {
+    flex: 1; background: none; border: none; outline: none;
+    color: inherit; font-size: 19px; font-weight: 500;
+  }
+  .search kbd {
+    font: 11px/1 inherit; padding: 4px 7px; border-radius: 5px;
+    background: rgba(255,255,255,.09); color: #9aa5b8;
+  }
+  .list { flex: 1; padding: 8px; overflow: hidden; }
+  .section { padding: 6px 12px 4px; font-size: 11px; color: #6b7486; letter-spacing: .08em; }
+  .row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 7px 12px; border-radius: 8px;
+  }
+  .row.selected { background: #5e6ad2; }
+  .row.selected .sub, .row.selected kbd { color: rgba(255,255,255,.75); }
+  .favicon {
+    width: 22px; height: 22px; border-radius: 6px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; color: #fff;
+  }
+  .title { font-weight: 550; }
+  .sub { color: #8b94a7; font-size: 12.5px; margin-left: 2px; }
+  .row kbd {
+    margin-left: auto; font: 11px/1 inherit; padding: 3px 6px;
+    border-radius: 4px; background: rgba(255,255,255,.07); color: #7d8698;
+  }
+  .footer {
+    display: flex; gap: 16px; padding: 10px 18px;
+    border-top: 1px solid rgba(255,255,255,.07);
+    font-size: 11.5px; color: #79839a;
+  }
+  .footer b { color: #aab3c5; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="panel">
+  <div class="search">
+    <span class="icon">⌕</span>
+    <input value="git" />
+    <kbd>esc</kbd>
+  </div>
+  <div class="list">
+    <div class="section">书签 · 4</div>
+    <div class="row selected">
+      <span class="favicon" style="background:#24292f">G</span>
+      <span class="title">GitHub</span><span class="sub">github.com/login</span>
+      <kbd>↵ 打开</kbd>
+    </div>
+    <div class="row">
+      <span class="favicon" style="background:#e24329">G</span>
+      <span class="title">GitLab</span><span class="sub">gitlab.com/sign_in</span>
+      <kbd>2 个 URL ›</kbd>
+    </div>
+    <div class="row">
+      <span class="favicon" style="background:#c71d23">码</span>
+      <span class="title">Gitee 码云</span><span class="sub">gitee.com/login</span>
+    </div>
+    <div class="row">
+      <span class="favicon" style="background:#3884ff">B</span>
+      <span class="title">GitBook</span><span class="sub">app.gitbook.com</span>
+    </div>
+  </div>
+  <div class="footer">
+    <span><b>↵</b> 打开</span><span><b>⌃E</b> 编辑</span><span><b>⌃N</b> 新建</span><span><b>⌃M</b> 管理表</span><span><b>⌃A</b> 归档</span>
+  </div>
+</div>
+</body>
+</html>
