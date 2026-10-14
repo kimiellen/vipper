@@ -393,6 +393,9 @@
   .pw-group .input { flex: 1; min-width: 0; }
   .edit-add { margin-top: var(--space-2); }
   .edit-actions { display: flex; gap: var(--space-3); justify-content: flex-end; margin-top: var(--space-4); }
+  /* 编辑态 status 行：键名与 seg 按钮等高居中 */
+  #contents-edit .kv:has(.seg) { align-items: center; }
+  #contents-edit .kv:has(.seg) .k { font-size: var(--text-sm); padding: var(--space-2) 0; }
 
   /* ===== Settings 行式列表与生成器 ===== */
   .rlist { border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
