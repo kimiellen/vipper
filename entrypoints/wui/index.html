@@ -194,6 +194,8 @@
     color: var(--fg); background: var(--bg); line-height: 1.6;
   }
   .mono { font-family: var(--font-mono); }
+  /* hidden 属性必须压过任何组件 display（#url-menu/#unlock-overlay 都是 display:flex） */
+  [hidden] { display: none !important; }
 
   /* ===== 组件：按钮 ===== */
   .btn {

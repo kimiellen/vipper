@@ -97,6 +97,9 @@ await sw(`__vipper.dispatch('open-launcher')`);
 page = await waitWui();
 check('Alt+. 已解锁直达主页面（无覆盖层）',
   await page(`!document.querySelector('#unlock-overlay') && document.activeElement?.id === 'search'`));
+// 回归：hidden 属性必须真实隐藏（display:flex 曾压过 hidden 导致遮罩常驻、页面不可操作）
+check('二级菜单遮罩初始不可见（计算样式 display:none）',
+  await page(`getComputedStyle(document.querySelector('#url-menu')).display === 'none'`));
 
 // 搜索 dev → ↓ 选中 → Enter → 二级菜单 → ↓ Enter 打开第 2 个 URL
 await page(`(() => { const s = document.querySelector('#search'); s.value = 'dev'; s.dispatchEvent(new Event('input')); })()`);
