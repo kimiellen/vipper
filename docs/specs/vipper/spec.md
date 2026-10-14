@@ -37,7 +37,7 @@ vipper 是一个 Chrome MV3 扩展，目标用户是作者本人（Arch Linux + 
 
 ### 交互流程（2026-10-14 改版：wui 管理页统一入口）
 
-1. **Alt+.** 打开 wui 管理页（浏览器窗口中心位置）：顶行工具栏（active/archived 切换 · 搜索 · TAGS/LINS 多选过滤 · 新增书签）+ 下区三块（Settings 手风琴 / results 结果表格 / contents 详情）
+1. **Alt+.** 呼出 wui 管理页（浏览器窗口中心位置）：顶行工具栏（active/archived 切换 · 搜索 · TAGS/LINS 多选过滤 · 新增书签）+ 下区三块（Settings 手风琴 / results 结果表格 / contents 详情）；已打开时为**混合 toggle**——未聚焦则唤回聚焦、已聚焦则关闭（2026-10-14 定稿，不再重复开多窗口）
 2. 锁定门控：未解锁时 Alt+. 打开的是**解锁页**（与主页面同尺寸），解密成功后才进入主页面；能进入主页面即有权解密 password 与 secret.content
 3. 搜索范围：书签名 / url / **备注**（remark 入 idx 索引，明文以支持检索）；结果表格首列为 favicon，时间字段格式化展示
 4. 选中条目回车在**来源标签所在的 tab group** 打开该书签（自 M3 launcher 移植；launcher 弹窗由本页面取代、淘汰）
