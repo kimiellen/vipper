@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>vipper · 解锁</title>
+<style>
+/* ==== @tokens:start 由 design-system/tokens.css 同步生成，请勿手改 ====
+/* ==========================================================================
+   设计 Token —— 所有页面的唯一样式来源
+   --------------------------------------------------------------------------
+   【当前风格】已定稿 v1（2026-10-11 与用户逐项确认）
+     · 整体氛围：深色科技感（GitHub Dark / 终端风）
+     · 配色方案：Catppuccin 家族 —— dark = Mocha（默认），light = Latte
+     · 主色：Mauve 紫
+     · 圆角：小圆角（4-6px）
+     · 密度：标准（正文 14px）
+     · 字体：中文 Alibaba PuHuiTi 3.0，英文/符号 CodeNewRoman Nerd Font Mono
+     · 布局：wui 侧边栏布局为主，内容区最大宽度 1200px
+   【双主题】默认 dark（Mocha）；<html data-theme="light"> 启用 light（Latte）。
+     两套主题变量名完全一致，页面无需任何改动即可切换。
+   【同步机制】页面/模板 html 不引用本文件，而是在 <style> 内联完整 token
+     块（@tokens 标记之间，由 scripts/sync-tokens.py 生成）。修改本文件后运行：
+       python3 scripts/sync-tokens.py
+     自动同步所有模板与 pages/ 下的页面。禁止手改 html 里的 token 块。
+   修改规则：组件样式只允许引用本文件的变量，禁止硬编码色值/字号/间距。
+   ========================================================================== */
+
+/* ===== 主题：dark（Catppuccin Mocha，默认） ===== */
+
+:root {
+  /* ---- 主色（accent）：Catppuccin Mocha Mauve ---- */
+  --accent: #cba6f7;                     /* mauve */
+  --accent-hover: #d9c2fa;               /* mauve 提亮（派生） */
+  --accent-active: #b793f0;              /* mauve 压暗（派生） */
+  --accent-fg: #11111b;                  /* 主色上的文字：crust */
+  --accent-soft: rgba(203, 166, 247, 0.14);  /* 主色浅底（选中行、tag 底） */
+
+  /* ---- 中性色：Catppuccin Mocha 底色阶梯 ---- */
+  --bg: #181825;                         /* mantle：页面底色 */
+  --bg-raised: #1e1e2e;                  /* base：卡片、侧边栏 */
+  --bg-subtle: #313244;                  /* surface0：表头、hover、输入框 */
+  --bg-hover: #45475a;                   /* surface1：强 hover */
+  --fg: #cdd6f4;                         /* text：主要文字 */
+  --fg-secondary: #bac2de;               /* subtext1：次要文字 */
+  --fg-muted: #7f849c;                   /* overlay1：弱化文字（占位、说明） */
+  --border: #313244;                     /* surface0：常规边框 */
+  --border-strong: #585b70;              /* surface2：强调边框（输入框） */
+
+  /* ---- 语义色（Catppuccin Mocha） ---- */
+  --success: #a6e3a1;                    /* green */
+  --success-soft: rgba(166, 227, 161, 0.12);
+  --warning: #f9e2af;                    /* yellow */
+  --warning-soft: rgba(249, 226, 175, 0.12);
+  --danger: #f38ba8;                     /* red */
+  --danger-hover: #f5a5bc;               /* red 提亮（派生） */
+  --danger-fg: #11111b;                  /* 危险按钮上的文字：crust */
+  --danger-soft: rgba(243, 139, 168, 0.12);
+  --info: #89dceb;                       /* sky */
+  --info-soft: rgba(137, 220, 235, 0.12);
+
+  /* ---- 标签彩色：Catppuccin Mocha 14 彩色（tag 颜色选择等场景） ---- */
+  --cat-rosewater: #f5e0dc;
+  --cat-flamingo: #f2cdcd;
+  --cat-pink: #f5c2e7;
+  --cat-mauve: #cba6f7;
+  --cat-red: #f38ba8;
+  --cat-maroon: #eba0ac;
+  --cat-peach: #fab387;
+  --cat-yellow: #f9e2af;
+  --cat-green: #a6e3a1;
+  --cat-teal: #94e2d5;
+  --cat-sky: #89dceb;
+  --cat-sapphire: #74c7ec;
+  --cat-blue: #89b4fa;
+  --cat-lavender: #b4befe;
+
+  /* ---- 字体 ---- */
+  /* 英文/数字/符号优先命中 CodeNewRoman（等宽 + Nerd Font 图标），
+     中文回退到阿里巴巴普惠体 3.0，最后是任意系统的通用回退。 */
+  --font-family: "CodeNewRoman Nerd Font Mono", "Alibaba PuHuiTi 3.0",
+    "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  --font-mono: "CodeNewRoman Nerd Font Mono", ui-monospace, "SF Mono",
+    "Cascadia Mono", Consolas, monospace;
+
+  /* ---- 字号（标准密度） ---- */
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  --text-3xl: 30px;
+
+  /* ---- 字重 ---- */
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* ---- 间距（4px 基准） ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ---- 圆角（小圆角） ---- */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 6px;
+  --radius-full: 9999px;
+
+  /* ---- 阴影（深色主题：压低、偏黑） ---- */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.45);
+
+  /* ---- 布局 ---- */
+  --content-max-width: 1200px;
+  --sidebar-width: 220px;
+  --header-height: 56px;
+
+  /* ---- 过渡 ---- */
+  --transition: 150ms ease;
+}
+
+/* ===== 主题：light（Catppuccin Latte，Mocha 的同族浅色款） =====
+   只覆盖随主题变化的变量（颜色与阴影）；字体/字号/间距/圆角等通用。 */
+:root[data-theme="light"] {
+  /* ---- 主色：Latte Mauve ---- */
+  --accent: #8839ef;                     /* mauve */
+  --accent-hover: #7c2fe4;               /* mauve 压暗（派生） */
+  --accent-active: #6d28c9;              /* mauve 再压暗（派生） */
+  --accent-fg: #eff1f5;                  /* 主色上的文字：base */
+  --accent-soft: rgba(136, 57, 239, 0.10);
+
+  /* ---- 中性色：Latte 底色阶梯 ---- */
+  --bg: #e6e9ef;                         /* mantle：页面底色 */
+  --bg-raised: #eff1f5;                  /* base：卡片、侧边栏 */
+  --bg-subtle: #dce0e8;                  /* crust：表头、hover、输入框 */
+  --bg-hover: #ccd0da;                   /* surface0：强 hover */
+  --fg: #4c4f69;                         /* text：主要文字 */
+  --fg-secondary: #5c5f77;               /* subtext1：次要文字 */
+  --fg-muted: #8c8fa1;                   /* overlay1：弱化文字 */
+  --border: #ccd0da;                     /* surface0：常规边框 */
+  --border-strong: #acb0be;              /* surface2：强调边框 */
+
+  /* ---- 语义色（Latte） ---- */
+  --success: #40a02b;                    /* green */
+  --success-soft: rgba(64, 160, 43, 0.10);
+  --warning: #df8e1d;                    /* yellow */
+  --warning-soft: rgba(223, 142, 29, 0.12);
+  --danger: #d20f39;                     /* red */
+  --danger-hover: #b30d31;               /* red 压暗（派生） */
+  --danger-fg: #eff1f5;
+  --danger-soft: rgba(210, 15, 57, 0.08);
+  --info: #04a5e5;                       /* sky */
+  --info-soft: rgba(4, 165, 229, 0.10);
+
+  /* ---- 标签彩色：Catppuccin Latte 14 彩色 ---- */
+  --cat-rosewater: #dc8a78;
+  --cat-flamingo: #dd7878;
+  --cat-pink: #ea76cb;
+  --cat-mauve: #8839ef;
+  --cat-red: #d20f39;
+  --cat-maroon: #e64553;
+  --cat-peach: #fe640b;
+  --cat-yellow: #df8e1d;
+  --cat-green: #40a02b;
+  --cat-teal: #179299;
+  --cat-sky: #04a5e5;
+  --cat-sapphire: #209fb5;
+  --cat-blue: #1e66f5;
+  --cat-lavender: #7287fd;
+
+  /* ---- 阴影（浅色主题：轻、偏冷灰） ---- */
+  --shadow-sm: 0 1px 2px rgba(76, 79, 105, 0.08);
+  --shadow-md: 0 2px 8px rgba(76, 79, 105, 0.10);
+  --shadow-lg: 0 8px 24px rgba(76, 79, 105, 0.14);
+}
+/* ==== @tokens:end ==== */
+</style>
+<style>
+  /* ===== 基础 ===== */
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: var(--font-family);
+    font-size: var(--text-base);
+    color: var(--fg);
+    background: var(--bg);
+    line-height: 1.6;
+    overflow: hidden;
+  }
+  h1 { margin: 0; font-size: var(--text-2xl); font-weight: var(--weight-semibold); }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1);
+    padding: var(--space-2) var(--space-3);
+    font: inherit; font-weight: var(--weight-medium); line-height: 1.5;
+    border: 1px solid transparent; border-radius: var(--radius-md);
+    cursor: pointer; transition: all var(--transition); white-space: nowrap;
+  }
+  .btn-primary { background: var(--accent); color: var(--accent-fg); }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-ghost { background: transparent; color: var(--fg-secondary); }
+  .btn-ghost:hover { background: var(--bg-subtle); color: var(--fg); }
+
+  .input {
+    width: 100%; padding: var(--space-2) var(--space-3);
+    font: inherit; color: var(--fg);
+    background: var(--bg-subtle); border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md); transition: border-color var(--transition), box-shadow var(--transition);
+  }
+  .input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .input::placeholder { color: var(--fg-muted); }
+
+  .alert { padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); font-size: var(--text-sm); }
+  .alert-warning { background: var(--warning-soft); color: var(--warning); }
+  .alert-danger { background: var(--danger-soft); color: var(--danger); }
+
+  .seg { display: inline-flex; flex-shrink: 0; border: 1px solid var(--border-strong); border-radius: var(--radius-md); overflow: hidden; }
+  .seg-btn {
+    padding: var(--space-1) var(--space-2); font: inherit; font-size: var(--text-sm); border: none; cursor: pointer;
+    background: transparent; color: var(--fg-muted); transition: all var(--transition);
+  }
+  .seg-btn + .seg-btn { border-left: 1px solid var(--border-strong); }
+  .seg-btn:hover { color: var(--fg); }
+  .seg-btn.active { background: var(--accent); color: var(--accent-fg); font-weight: var(--weight-medium); }
+
+  /* ===== 页面骨架：与主页面同尺寸（.page 1440px · min-height 100vh） ===== */
+  .page {
+    max-width: 1440px; min-height: 100vh; margin: 0 auto; padding: var(--space-6);
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+
+  /* 角落控件：主题 / 语言（低调，锁定态也可切换） */
+  .corner {
+    position: fixed; top: var(--space-4); right: var(--space-4); z-index: 30;
+    display: flex; gap: var(--space-2); opacity: 0.55; transition: opacity var(--transition);
+  }
+  .corner:hover { opacity: 1; }
+
+  /* ===== 中央堆叠：logo 环 + 品牌 + 卡片 ===== */
+  .stage { display: flex; flex-direction: column; align-items: center; gap: var(--space-5); }
+
+  /* 锁形图标与进度环 */
+  .logo-wrap { position: relative; width: 148px; height: 148px; display: grid; place-items: center; }
+  .logo-wrap .lock { width: 76px; height: 76px; transition: transform 600ms cubic-bezier(0.22, 1, 0.36, 1), filter 600ms ease; }
+  .lock .shackle {
+    fill: none; stroke: var(--accent); stroke-width: 5; stroke-linecap: round;
+    transform-box: view-box; transform-origin: 22px 32px;
+    transition: transform 500ms 250ms cubic-bezier(0.34, 1.56, 0.64, 1), stroke var(--transition);
+  }
+  .lock .lock-body { fill: var(--bg-subtle); stroke: var(--accent); stroke-width: 3; transition: stroke var(--transition); }
+  .lock .keyhole { fill: var(--accent); transition: fill var(--transition); }
+  .ring { position: absolute; inset: 0; transform: rotate(-90deg); }
+  .ring circle {
+    fill: none; stroke-width: 3; stroke-linecap: round;
+    /* 周长 2π·70 ≈ 439.8 */
+    stroke-dasharray: 439.8; stroke-dashoffset: 330;
+    transition: stroke var(--transition), stroke-dashoffset 900ms cubic-bezier(0.22, 1, 0.36, 1), opacity 400ms ease;
+  }
+  .ring .track { stroke: var(--border); stroke-dashoffset: 0; opacity: 0.5; }
+  .ring .prog { stroke: var(--accent); }
+
+  /* 状态：idle —— 环缓慢呼吸旋转 */
+  #app[data-state="idle"] .ring-rot { animation: spin 9s linear infinite; }
+  /* 状态：working —— 环加速旋转 + 弧长扫动（模拟 PBKDF2 派生） */
+  #app[data-state="working"] .ring-rot { animation: spin 0.9s linear infinite; }
+  #app[data-state="working"] .prog { animation: sweep 1.4s ease-in-out infinite; }
+  /* 状态：success —— 环闭合为满圆并变绿，锁扣弹开，随后整体扩散消失 */
+  #app[data-state="success"] .prog { stroke: var(--success); stroke-dashoffset: 0; animation: none; }
+  #app[data-state="success"] .ring-rot { animation: none; }
+  #app[data-state="success"] .lock .shackle,
+  #app[data-state="success"] .lock .lock-body { stroke: var(--success); }
+  #app[data-state="success"] .lock .keyhole { fill: var(--success); }
+  #app[data-state="success"] .lock .shackle { transform: rotate(-30deg); }
+  #app[data-state="success"] .logo-wrap .lock { transform: scale(1.12); filter: drop-shadow(0 0 18px var(--success)); }
+  #app[data-state="success"] .logo-wrap { animation: ringBurst 700ms 550ms cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+  /* 状态：error —— 环变红 + 抖动 */
+  #app[data-state="error"] .prog { stroke: var(--danger); }
+  #app[data-state="error"] .logo-wrap { animation: shake 500ms ease; }
+  #app[data-state="error"] .input { border-color: var(--danger); }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes sweep {
+    0%   { stroke-dashoffset: 400; }
+    50%  { stroke-dashoffset: 120; }
+    100% { stroke-dashoffset: 400; }
+  }
+  @keyframes ringBurst {
+    to { transform: scale(1.35); opacity: 0; }
+  }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-10px); }
+    40% { transform: translateX(9px); }
+    60% { transform: translateX(-6px); }
+    80% { transform: translateX(4px); }
+  }
+
+  .brand {
+    font-family: var(--font-mono); font-weight: var(--weight-bold);
+    font-size: var(--text-2xl); color: var(--accent); letter-spacing: 0.08em;
+  }
+
+  /* 卡片 */
+  .unlock-card {
+    width: 380px; padding: var(--space-6);
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+    display: flex; flex-direction: column; gap: var(--space-4);
+    transition: opacity 400ms ease, transform 400ms ease;
+  }
+  #app[data-state="success"] .stage { animation: stageOut 500ms 500ms ease forwards; }
+  @keyframes stageOut { to { opacity: 0; transform: scale(0.96) translateY(-8px); } }
+  #app[data-state="working"] .unlock-card { opacity: 0.6; pointer-events: none; }
+
+  .card-desc { color: var(--fg-secondary); font-size: var(--text-sm); margin: calc(-1 * var(--space-2)) 0 0; }
+  .error-msg { display: none; }
+  #app[data-state="error"] .error-msg { display: block; }
+
+  /* ===== 成功涟漪：从中心扩散的紫色圆形 ===== */
+  .ripple {
+    position: fixed; left: 50%; top: 50%; z-index: 40;
+    width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: var(--radius-full);
+    background: var(--accent); opacity: 0; pointer-events: none;
+  }
+  #app[data-state="success"] .ripple { animation: rippleIn 900ms 700ms cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+  @keyframes rippleIn {
+    0% { transform: scale(0); opacity: 0.5; }
+    100% { transform: scale(160); opacity: 1; }
+  }
+
+  /* ===== 主页面揭示层（原型用 iframe 演示过渡） ===== */
+  .reveal {
+    position: fixed; inset: 0; z-index: 50; border: none;
+    opacity: 0; pointer-events: none; transition: opacity 600ms 1200ms ease;
+    background: var(--bg);
+  }
+  #app[data-state="success"] .reveal { opacity: 1; pointer-events: auto; }
+
+  /* 重播按钮（原型演示用） */
+  .replay {
+    position: fixed; bottom: var(--space-4); right: var(--space-4); z-index: 60;
+    display: none;
+  }
+  #app[data-state="success"] .replay { display: inline-flex; }
+
+  /* 演示说明 */
+  .demo-note {
+    position: fixed; bottom: var(--space-4); left: 50%; transform: translateX(-50%);
+    color: var(--fg-muted); font-size: var(--text-xs); z-index: 30; text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<div id="app" data-mode="unlock" data-state="idle">
+<div class="page">
+
+  <!-- 角落：主题 / 语言 -->
+  <div class="corner">
+    <div class="seg" id="scheme-seg">
+      <button class="seg-btn active" data-scheme="dark" title="dark">dark</button>
+      <button class="seg-btn" data-scheme="light" title="light">light</button>
+    </div>
+    <div class="seg" id="lang-seg">
+      <button class="seg-btn" data-lang="en">en</button>
+      <button class="seg-btn active" data-lang="zh">中</button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <!-- 锁形图标 + 进度环 -->
+    <div class="logo-wrap">
+      <svg class="ring" viewBox="0 0 148 148">
+        <g class="ring-rot" style="transform-origin: 74px 74px;">
+          <circle class="track" cx="74" cy="74" r="70"></circle>
+          <circle class="prog" cx="74" cy="74" r="70"></circle>
+        </g>
+      </svg>
+      <svg class="lock" viewBox="0 0 64 64" aria-hidden="true">
+        <path class="shackle" d="M22 32 V21 a10 10 0 0 1 20 0 V32"></path>
+        <rect class="lock-body" x="14" y="30" width="36" height="26" rx="5"></rect>
+        <circle class="keyhole" cx="32" cy="40" r="3.5"></circle>
+        <rect class="keyhole" x="30.5" y="41" width="3" height="7" rx="1.5"></rect>
+      </svg>
+    </div>
+    <div class="brand">vipper</div>
+
+    <!-- 解锁卡片 -->
+    <div class="unlock-card">
+      <div>
+        <h1 id="form-title" data-zh="解锁" data-en="Unlock">解锁</h1>
+        <p class="card-desc" id="form-desc"
+           data-zh="输入主密码以解密书签库"
+           data-en="Enter your master password to decrypt the vault">输入主密码以解密书签库</p>
+      </div>
+
+      <input class="input" id="pw1" type="password" autofocus
+             data-zh-ph="主密码" data-en-ph="Master password" placeholder="主密码" />
+      <input class="input" id="pw2" type="password" style="display: none;"
+             data-zh-ph="确认主密码" data-en-ph="Confirm master password" placeholder="确认主密码" />
+
+      <div class="alert alert-warning" id="setup-warning" style="display: none;"
+           data-zh="主密码不会被存储，忘记后无法找回——没有密保问题，没有重置入口。"
+           data-en="The master password is never stored and cannot be recovered — no security questions, no reset.">
+        主密码不会被存储，忘记后无法找回——没有密保问题，没有重置入口。
+      </div>
+
+      <div class="alert alert-danger error-msg"
+           data-zh="密码错误，请重试"
+           data-en="Wrong password, try again">密码错误，请重试</div>
+
+      <button class="btn btn-primary" id="submit-btn"
+              data-zh="解锁" data-en="Unlock">解锁</button>
+    </div>
+  </div>
+
+  <!-- 成功涟漪 + 主页面揭示层 -->
+  <div class="ripple"></div>
+  <iframe class="reveal" id="reveal-frame" title="main page preview"></iframe>
+
+  <button class="btn btn-ghost replay" id="replay-btn">↺ <span data-zh="重播" data-en="Replay">重播</span></button>
+
+  <!-- 原型演示说明（实际产品中无此元素；模式由数据状态自动路由） -->
+  <div class="demo-note">
+    原型演示：任意密码 = 解锁成功 · 输入 <code>wrong</code> = 密码错误 ·
+    按 <code>1</code>/<code>2</code> 切换 解锁/创建 模式（实际产品由是否初始化自动路由，无切换入口）
+  </div>
+
+</div>
+</div>
+
+<script>
+(function () {
+  var app = document.getElementById('app');
+  var pw1 = document.getElementById('pw1');
+  var pw2 = document.getElementById('pw2');
+  var title = document.getElementById('form-title');
+  var desc = document.getElementById('form-desc');
+  var warning = document.getElementById('setup-warning');
+  var submitBtn = document.getElementById('submit-btn');
+  var frame = document.getElementById('reveal-frame');
+  var zh = true;
+
+  /* ---- 模式（解锁 / 创建）——原型用按键切换，实际由 isInitialized() 路由 ---- */
+  function setMode(mode) {
+    app.setAttribute('data-mode', mode);
+    var setup = mode === 'setup';
+    pw2.style.display = setup ? '' : 'none';
+    warning.style.display = setup ? '' : 'none';
+    title.setAttribute('data-zh', setup ? '创建主密码' : '解锁');
+    title.setAttribute('data-en', setup ? 'Create Master Password' : 'Unlock');
+    desc.setAttribute('data-zh', setup ? '首次使用：设置用于加密所有凭据的主密码' : '输入主密码以解密书签库');
+    desc.setAttribute('data-en', setup ? 'First run: set the master password that encrypts all credentials' : 'Enter your master password to decrypt the vault');
+    submitBtn.setAttribute('data-zh', setup ? '创建并解锁' : '解锁');
+    submitBtn.setAttribute('data-en', setup ? 'Create & Unlock' : 'Unlock');
+    applyLang(zh);
+    pw1.focus();
+  }
+
+  /* ---- 状态机：idle → working → success / error → idle ---- */
+  function submit() {
+    if (app.getAttribute('data-state') !== 'idle') return;
+    var setup = app.getAttribute('data-mode') === 'setup';
+    if (setup && pw1.value !== pw2.value) { return fail(); }
+    if (!setup && pw1.value === 'wrong') { return fail(); }
+    app.setAttribute('data-state', 'working');
+    setTimeout(function () {
+      app.setAttribute('data-state', 'success');
+      if (!frame.src) frame.src = 'd-bookmark-manager-wui.html';
+    }, 1600); /* 模拟 PBKDF2 60 万次派生耗时 */
+  }
+  function fail() {
+    app.setAttribute('data-state', 'error');
+    setTimeout(function () { app.setAttribute('data-state', 'idle'); pw1.select(); }, 1200);
+  }
+  submitBtn.addEventListener('click', submit);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') submit();
+    if (e.key === '1') setMode('unlock');
+    if (e.key === '2') setMode('setup');
+  });
+  document.getElementById('replay-btn').addEventListener('click', function () {
+    app.setAttribute('data-state', 'idle');
+    pw1.value = ''; pw2.value = '';
+    pw1.focus();
+  });
+
+  /* ---- 主题 / 语言 ---- */
+  document.getElementById('scheme-seg').addEventListener('click', function (e) {
+    var b = e.target.closest('.seg-btn'); if (!b) return;
+    if (b.getAttribute('data-scheme') === 'light') document.documentElement.setAttribute('data-theme', 'light');
+    else document.documentElement.removeAttribute('data-theme');
+  });
+  function applyLang(isZh) {
+    zh = isZh;
+    document.documentElement.lang = zh ? 'zh-CN' : 'en';
+    document.querySelectorAll('[data-zh]').forEach(function (el) {
+      el.textContent = zh ? el.getAttribute('data-zh') : el.getAttribute('data-en');
+    });
+    document.querySelectorAll('[data-zh-ph]').forEach(function (el) {
+      el.placeholder = zh ? el.getAttribute('data-zh-ph') : el.getAttribute('data-en-ph');
+    });
+  }
+  document.getElementById('lang-seg').addEventListener('click', function (e) {
+    var b = e.target.closest('.seg-btn'); if (b) applyLang(b.getAttribute('data-lang') === 'zh');
+  });
+})();
+</script>
+
+</body>
+</html>

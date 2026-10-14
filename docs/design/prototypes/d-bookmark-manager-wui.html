@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bookmark Manager · wui</title>
+<style>
+/* ==== @tokens:start 由 design-system/tokens.css 同步生成，请勿手改 ====
+/* ==========================================================================
+   设计 Token —— 所有页面的唯一样式来源
+   --------------------------------------------------------------------------
+   【当前风格】已定稿 v1（2026-10-11 与用户逐项确认）
+     · 整体氛围：深色科技感（GitHub Dark / 终端风）
+     · 配色方案：Catppuccin 家族 —— dark = Mocha（默认），light = Latte
+     · 主色：Mauve 紫
+     · 圆角：小圆角（4-6px）
+     · 密度：标准（正文 14px）
+     · 字体：中文 Alibaba PuHuiTi 3.0，英文/符号 CodeNewRoman Nerd Font Mono
+     · 布局：wui 侧边栏布局为主，内容区最大宽度 1200px
+   【双主题】默认 dark（Mocha）；<html data-theme="light"> 启用 light（Latte）。
+     两套主题变量名完全一致，页面无需任何改动即可切换。
+   【同步机制】页面/模板 html 不引用本文件，而是在 <style> 内联完整 token
+     块（@tokens 标记之间，由 scripts/sync-tokens.py 生成）。修改本文件后运行：
+       python3 scripts/sync-tokens.py
+     自动同步所有模板与 pages/ 下的页面。禁止手改 html 里的 token 块。
+   修改规则：组件样式只允许引用本文件的变量，禁止硬编码色值/字号/间距。
+   ========================================================================== */
+
+/* ===== 主题：dark（Catppuccin Mocha，默认） ===== */
+
+:root {
+  /* ---- 主色（accent）：Catppuccin Mocha Mauve ---- */
+  --accent: #cba6f7;                     /* mauve */
+  --accent-hover: #d9c2fa;               /* mauve 提亮（派生） */
+  --accent-active: #b793f0;              /* mauve 压暗（派生） */
+  --accent-fg: #11111b;                  /* 主色上的文字：crust */
+  --accent-soft: rgba(203, 166, 247, 0.14);  /* 主色浅底（选中行、tag 底） */
+
+  /* ---- 中性色：Catppuccin Mocha 底色阶梯 ---- */
+  --bg: #181825;                         /* mantle：页面底色 */
+  --bg-raised: #1e1e2e;                  /* base：卡片、侧边栏 */
+  --bg-subtle: #313244;                  /* surface0：表头、hover、输入框 */
+  --bg-hover: #45475a;                   /* surface1：强 hover */
+  --fg: #cdd6f4;                         /* text：主要文字 */
+  --fg-secondary: #bac2de;               /* subtext1：次要文字 */
+  --fg-muted: #7f849c;                   /* overlay1：弱化文字（占位、说明） */
+  --border: #313244;                     /* surface0：常规边框 */
+  --border-strong: #585b70;              /* surface2：强调边框（输入框） */
+
+  /* ---- 语义色（Catppuccin Mocha） ---- */
+  --success: #a6e3a1;                    /* green */
+  --success-soft: rgba(166, 227, 161, 0.12);
+  --warning: #f9e2af;                    /* yellow */
+  --warning-soft: rgba(249, 226, 175, 0.12);
+  --danger: #f38ba8;                     /* red */
+  --danger-hover: #f5a5bc;               /* red 提亮（派生） */
+  --danger-fg: #11111b;                  /* 危险按钮上的文字：crust */
+  --danger-soft: rgba(243, 139, 168, 0.12);
+  --info: #89dceb;                       /* sky */
+  --info-soft: rgba(137, 220, 235, 0.12);
+
+  /* ---- 标签彩色：Catppuccin Mocha 14 彩色（tag 颜色选择等场景） ---- */
+  --cat-rosewater: #f5e0dc;
+  --cat-flamingo: #f2cdcd;
+  --cat-pink: #f5c2e7;
+  --cat-mauve: #cba6f7;
+  --cat-red: #f38ba8;
+  --cat-maroon: #eba0ac;
+  --cat-peach: #fab387;
+  --cat-yellow: #f9e2af;
+  --cat-green: #a6e3a1;
+  --cat-teal: #94e2d5;
+  --cat-sky: #89dceb;
+  --cat-sapphire: #74c7ec;
+  --cat-blue: #89b4fa;
+  --cat-lavender: #b4befe;
+
+  /* ---- 字体 ---- */
+  /* 英文/数字/符号优先命中 CodeNewRoman（等宽 + Nerd Font 图标），
+     中文回退到阿里巴巴普惠体 3.0，最后是任意系统的通用回退。 */
+  --font-family: "CodeNewRoman Nerd Font Mono", "Alibaba PuHuiTi 3.0",
+    "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  --font-mono: "CodeNewRoman Nerd Font Mono", ui-monospace, "SF Mono",
+    "Cascadia Mono", Consolas, monospace;
+
+  /* ---- 字号（标准密度） ---- */
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  --text-3xl: 30px;
+
+  /* ---- 字重 ---- */
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* ---- 间距（4px 基准） ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ---- 圆角（小圆角） ---- */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 6px;
+  --radius-full: 9999px;
+
+  /* ---- 阴影（深色主题：压低、偏黑） ---- */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.45);
+
+  /* ---- 布局 ---- */
+  --content-max-width: 1200px;
+  --sidebar-width: 220px;
+  --header-height: 56px;
+
+  /* ---- 过渡 ---- */
+  --transition: 150ms ease;
+}
+
+/* ===== 主题：light（Catppuccin Latte，Mocha 的同族浅色款） =====
+   只覆盖随主题变化的变量（颜色与阴影）；字体/字号/间距/圆角等通用。 */
+:root[data-theme="light"] {
+  /* ---- 主色：Latte Mauve ---- */
+  --accent: #8839ef;                     /* mauve */
+  --accent-hover: #7c2fe4;               /* mauve 压暗（派生） */
+  --accent-active: #6d28c9;              /* mauve 再压暗（派生） */
+  --accent-fg: #eff1f5;                  /* 主色上的文字：base */
+  --accent-soft: rgba(136, 57, 239, 0.10);
+
+  /* ---- 中性色：Latte 底色阶梯 ---- */
+  --bg: #e6e9ef;                         /* mantle：页面底色 */
+  --bg-raised: #eff1f5;                  /* base：卡片、侧边栏 */
+  --bg-subtle: #dce0e8;                  /* crust：表头、hover、输入框 */
+  --bg-hover: #ccd0da;                   /* surface0：强 hover */
+  --fg: #4c4f69;                         /* text：主要文字 */
+  --fg-secondary: #5c5f77;               /* subtext1：次要文字 */
+  --fg-muted: #8c8fa1;                   /* overlay1：弱化文字 */
+  --border: #ccd0da;                     /* surface0：常规边框 */
+  --border-strong: #acb0be;              /* surface2：强调边框 */
+
+  /* ---- 语义色（Latte） ---- */
+  --success: #40a02b;                    /* green */
+  --success-soft: rgba(64, 160, 43, 0.10);
+  --warning: #df8e1d;                    /* yellow */
+  --warning-soft: rgba(223, 142, 29, 0.12);
+  --danger: #d20f39;                     /* red */
+  --danger-hover: #b30d31;               /* red 压暗（派生） */
+  --danger-fg: #eff1f5;
+  --danger-soft: rgba(210, 15, 57, 0.08);
+  --info: #04a5e5;                       /* sky */
+  --info-soft: rgba(4, 165, 229, 0.10);
+
+  /* ---- 标签彩色：Catppuccin Latte 14 彩色 ---- */
+  --cat-rosewater: #dc8a78;
+  --cat-flamingo: #dd7878;
+  --cat-pink: #ea76cb;
+  --cat-mauve: #8839ef;
+  --cat-red: #d20f39;
+  --cat-maroon: #e64553;
+  --cat-peach: #fe640b;
+  --cat-yellow: #df8e1d;
+  --cat-green: #40a02b;
+  --cat-teal: #179299;
+  --cat-sky: #04a5e5;
+  --cat-sapphire: #209fb5;
+  --cat-blue: #1e66f5;
+  --cat-lavender: #7287fd;
+
+  /* ---- 阴影（浅色主题：轻、偏冷灰） ---- */
+  --shadow-sm: 0 1px 2px rgba(76, 79, 105, 0.08);
+  --shadow-md: 0 2px 8px rgba(76, 79, 105, 0.10);
+  --shadow-lg: 0 8px 24px rgba(76, 79, 105, 0.14);
+}
+/* ==== @tokens:end ==== */
+</style>
+<style>
+  /* ===== 基础（所有页面共用，一般不用改） ===== */
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scrollbar-color: var(--bg-hover) var(--bg); }
+  body {
+    margin: 0;
+    font-family: var(--font-family);
+    font-size: var(--text-base);
+    color: var(--fg);
+    background: var(--bg);
+    line-height: 1.6;
+  }
+  ::selection { background: var(--accent-soft); color: var(--fg); }
+  h1, h2, h3 { margin: 0; font-weight: var(--weight-semibold); line-height: 1.3; }
+  h1 { font-size: var(--text-2xl); }
+  h2 { font-size: var(--text-xl); }
+  h3 { font-size: var(--text-lg); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code, .mono { font-family: var(--font-mono); }
+
+  /* ===== 布局骨架：侧边栏 + 内容区（默认布局） ===== */
+  .layout { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: var(--sidebar-width); flex-shrink: 0;
+    background: var(--bg-raised); border-right: 1px solid var(--border);
+    padding: var(--space-4);
+    display: flex; flex-direction: column;
+  }
+  .sidebar .brand {
+    font-family: var(--font-mono); font-weight: var(--weight-bold);
+    font-size: var(--text-lg); color: var(--accent);
+    padding: var(--space-2) var(--space-3); margin-bottom: var(--space-4);
+  }
+  .sidebar .nav-section {
+    font-size: var(--text-xs); color: var(--fg-muted);
+    padding: var(--space-3) var(--space-3) var(--space-1);
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .sidebar .nav-item {
+    display: block; padding: var(--space-2) var(--space-3); margin-bottom: var(--space-1);
+    border-radius: var(--radius-md); color: var(--fg-secondary); text-decoration: none;
+  }
+  .sidebar .nav-item:hover { background: var(--bg-subtle); color: var(--fg); text-decoration: none; }
+  .sidebar .nav-item.active { background: var(--accent-soft); color: var(--accent); font-weight: var(--weight-medium); }
+  .main { flex: 1; min-width: 0; padding: var(--space-6); }
+  .main-inner { max-width: var(--content-max-width); margin: 0 auto; }
+
+  /* 无侧边栏时的简单布局（需要时用） */
+  .page { max-width: var(--content-max-width); margin: 0 auto; padding: var(--space-6); }
+
+  /* ===== 组件：页头（标题 + 描述 + 右侧主操作） ===== */
+  .page-header {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--space-4); margin-bottom: var(--space-6);
+  }
+  .page-header .desc { color: var(--fg-secondary); font-size: var(--text-sm); margin: var(--space-1) 0 0; }
+
+  /* ===== 组件：按钮 ===== */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1);
+    padding: var(--space-1) var(--space-3);
+    font: inherit; font-size: var(--text-base); font-weight: var(--weight-medium);
+    line-height: 1.5;
+    border: 1px solid transparent; border-radius: var(--radius-md);
+    cursor: pointer; transition: all var(--transition); white-space: nowrap;
+  }
+  .btn-primary { background: var(--accent); color: var(--accent-fg); }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-secondary { background: var(--bg-raised); color: var(--fg); border-color: var(--border-strong); }
+  .btn-secondary:hover { background: var(--bg-subtle); }
+  .btn-danger { background: var(--danger); color: var(--danger-fg); }
+  .btn-danger:hover { background: var(--danger-hover); }
+  .btn-ghost { background: transparent; color: var(--fg-secondary); }
+  .btn-ghost:hover { background: var(--bg-subtle); color: var(--fg); }
+  .btn-sm { padding: 2px var(--space-2); font-size: var(--text-sm); }
+
+  /* ===== 组件：卡片 ===== */
+  .card {
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: var(--space-5);
+    box-shadow: var(--shadow-sm);
+  }
+  .card + .card { margin-top: var(--space-4); }
+  .card-title { font-size: var(--text-lg); font-weight: var(--weight-semibold); margin: 0 0 var(--space-3); }
+
+  /* 统计卡片组 */
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-4); }
+  .stat-card { background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: var(--space-4); }
+  .stat-card .label { font-size: var(--text-sm); color: var(--fg-secondary); }
+  .stat-card .value { font-family: var(--font-mono); font-size: var(--text-2xl); font-weight: var(--weight-bold); margin-top: var(--space-1); }
+
+  /* ===== 组件：表单 ===== */
+  .field { margin-bottom: var(--space-4); }
+  .field label { display: block; font-size: var(--text-sm); font-weight: var(--weight-medium); margin-bottom: var(--space-1); }
+  .input, .select, .textarea {
+    width: 100%; padding: var(--space-2) var(--space-3);
+    font: inherit; color: var(--fg);
+    background: var(--bg-subtle); border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md); transition: border-color var(--transition);
+  }
+  .input:focus, .select:focus, .textarea:focus { outline: none; border-color: var(--accent); }
+  .input::placeholder, .textarea::placeholder { color: var(--fg-muted); }
+  .textarea { min-height: 96px; resize: vertical; }
+  .form-actions { display: flex; gap: var(--space-3); justify-content: flex-end; margin-top: var(--space-5); }
+
+  /* 下拉弹出层深色化 + 紫色高亮：
+     支持 appearance: base-select 的浏览器（Chrome 135+）完全自定义弹出层；
+     不支持的浏览器忽略这些规则，由下面的 option 兜底深色。 */
+  .select { appearance: base-select; }
+  .select::picker(select) {
+    appearance: base-select;
+    background: var(--bg-raised); border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+    padding: var(--space-1);
+  }
+  .select::picker-icon { color: var(--fg-muted); transition: transform var(--transition); }
+  .select:open::picker-icon { transform: rotate(180deg); }
+  .select option {
+    padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm);
+    color: var(--fg); background: var(--bg-raised); /* 兜底：旧浏览器的原生弹出层底色 */
+  }
+  .select option:hover, .select option:focus-visible { background: var(--bg-subtle); }
+  .select option:checked { background: var(--accent-soft); color: var(--accent); }
+  .select option::checkmark { color: var(--accent); }
+
+  /* ===== 组件：表格 ===== */
+  .table-wrap { background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: var(--space-3) var(--space-4); text-align: left; }
+  thead th { background: var(--bg-subtle); font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--fg-secondary); }
+  tbody tr + tr { border-top: 1px solid var(--border); }
+  tbody tr:hover { background: var(--bg-subtle); }
+
+  /* ===== 组件：标签 ===== */
+  .tag {
+    display: inline-block; padding: 2px var(--space-2);
+    font-size: var(--text-xs); font-weight: var(--weight-medium);
+    border-radius: var(--radius-full);
+  }
+  .tag-accent { background: var(--accent-soft); color: var(--accent); }
+  .tag-success { background: var(--success-soft); color: var(--success); }
+  .tag-warning { background: var(--warning-soft); color: var(--warning); }
+  .tag-danger { background: var(--danger-soft); color: var(--danger); }
+  .tag-neutral { background: var(--bg-subtle); color: var(--fg-secondary); }
+
+  /* ===== 组件：空状态 ===== */
+  .empty { text-align: center; padding: var(--space-12) var(--space-6); color: var(--fg-muted); }
+  .empty .icon { font-size: 40px; margin-bottom: var(--space-3); }
+
+  /* ===== 组件：提示条 ===== */
+  .alert { padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); font-size: var(--text-sm); }
+  .alert-info { background: var(--info-soft); color: var(--info); }
+  .alert-warning { background: var(--warning-soft); color: var(--warning); }
+  .alert-danger { background: var(--danger-soft); color: var(--danger); }
+
+  /* ===== 页面专属：书签管理器 ===== */
+  input[type="checkbox"] { accent-color: var(--accent); }
+
+  /* 控件高度统一 ≈39px：按钮与输入框/开关/下拉对齐；图标按钮加大点击目标 */
+  .btn { padding: var(--space-2) var(--space-3); }
+  .btn-sm { padding: var(--space-1) var(--space-2); }
+
+  /* 顶行工具栏：active/archived · 搜索 · TAGS/LIS 过滤 · 新增书签（同行等间距） */
+  .toolbar { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-4); }
+  .toolbar .t-search { flex: 1; min-width: 200px; }
+
+  /* active/archived 切换（也复用于 language / interface / color scheme） */
+  .seg { display: inline-flex; flex-shrink: 0; border: 1px solid var(--border-strong); border-radius: var(--radius-md); overflow: hidden; }
+  .seg-btn {
+    padding: var(--space-2) var(--space-3); font: inherit; font-size: var(--text-sm); border: none; cursor: pointer;
+    background: transparent; color: var(--fg-muted); transition: all var(--transition);
+  }
+  .seg-btn + .seg-btn { border-left: 1px solid var(--border-strong); }
+  .seg-btn:hover { color: var(--fg); }
+  .seg-btn.active { background: var(--accent); color: var(--accent-fg); font-weight: var(--weight-medium); }
+
+  /* 多选过滤下拉（details 实现，无 JS 依赖） */
+  .msel { position: relative; flex-shrink: 0; }
+  .msel summary {
+    list-style: none; cursor: pointer; user-select: none;
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg-subtle); border: 1px solid var(--border-strong); border-radius: var(--radius-md);
+    color: var(--fg-secondary); font-size: var(--text-sm); transition: border-color var(--transition);
+  }
+  .msel summary::-webkit-details-marker { display: none; }
+  .msel summary:hover { color: var(--fg); }
+  .msel[open] summary { border-color: var(--accent); color: var(--fg); }
+  .msel-pop {
+    position: absolute; left: 0; top: calc(100% + var(--space-1)); z-index: 20;
+    min-width: 180px; display: grid; gap: var(--space-1);
+    background: var(--bg-raised); border: 1px solid var(--border-strong); border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg); padding: var(--space-2);
+    max-height: 320px; overflow: auto;
+  }
+  .msel-pop label { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); cursor: pointer; font-size: var(--text-sm); }
+  .msel-pop label:hover { background: var(--bg-subtle); }
+  /* TAGS 下拉：选项左右展开 */
+  .msel-pop.pop-row { display: flex; flex-wrap: wrap; max-width: 340px; }
+
+  /* 颜色圆点示例 */
+  .swatch { display: inline-block; width: var(--space-3); height: var(--space-3); border-radius: var(--radius-full); flex-shrink: 0; }
+
+  /* 下区三块：Settings / results / contents（等高块，底部对齐页面底） */
+  .page { display: flex; flex-direction: column; min-height: 100vh; max-width: 1440px; }
+  .blocks-grid { display: grid; grid-template-columns: 320px minmax(0, 1fr) 320px; gap: var(--space-4); align-items: stretch; flex: 1; }
+  .blk {
+    display: flex; flex-direction: column; min-height: 0;
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);
+  }
+  .blk-head {
+    background: var(--bg); padding: var(--space-2) var(--space-3);
+    font-size: var(--text-base); font-weight: var(--weight-semibold); letter-spacing: 0.03em;
+    color: var(--fg-secondary);
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .blk-body { flex: 1; min-height: 0; padding: var(--space-3); overflow: auto; }
+  @media (max-width: 1100px) {
+    .blocks-grid { grid-template-columns: 240px minmax(0, 1fr); }
+    .contents-col { grid-column: 1 / -1; }
+  }
+  @media (max-width: 800px) {
+    .blocks-grid { grid-template-columns: 1fr; }
+    .contents-col { grid-column: auto; }
+  }
+
+  /* Settings 手风琴（展开/折叠滑动动画） */
+  .set-group { border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: var(--bg-raised); }
+  .set-group + .set-group { margin-top: var(--space-2); }
+  .set-head {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    padding: var(--space-2) var(--space-3);
+    background: transparent; border: none; font: inherit; color: var(--fg-secondary);
+    cursor: pointer; transition: all var(--transition);
+  }
+  .set-head:hover { background: var(--bg-subtle); color: var(--fg); }
+  .set-group.open .set-head { color: var(--accent); font-weight: var(--weight-medium); }
+  .set-head .caret { color: var(--fg-muted); transition: transform var(--transition); }
+  .set-group.open .set-head .caret { transform: rotate(90deg); }
+  .set-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--transition); }
+  .set-group.open .set-body { grid-template-rows: 1fr; }
+  .set-body-inner { overflow: hidden; min-height: 0; }
+  /* 展开的二级菜单占满 Settings 块高 */
+  .settings-body { display: flex; flex-direction: column; }
+  .settings-body .set-group.open { flex: 1; display: flex; flex-direction: column; }
+  .settings-body .set-group.open .set-body { flex: 1; }
+  .set-body-pad { display: grid; gap: var(--space-4); padding: var(--space-3); border-top: 1px solid var(--border); }
+  .sub-title { font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--fg-muted); margin-top: var(--space-1); }
+  .inline-field { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+  .inline-field > label { font-size: var(--text-sm); font-weight: var(--weight-medium); }
+  .inline-ctrl { display: flex; align-items: center; gap: var(--space-2); }
+
+  /* general：选择按钮与输入栏使用紧凑 padding（上下 4px · 左右 8px） */
+  .set-group-general .seg-btn { padding: var(--space-1) var(--space-2); }
+  .set-group-general .input { padding: var(--space-1) var(--space-2); }
+  /* 生成/复制图标按钮与输入栏等高（≈32px） */
+  .set-group-general .gen-row .btn { padding: var(--space-1) var(--space-2); }
+
+  /* tags / linkedInfos：add 行紧凑 padding（与 general 一致，上下 4px · 左右 8px） */
+  .set-group-tags .input, .set-group-linked .input { padding: var(--space-1) var(--space-2); }
+  .set-group-tags .msel summary { padding: var(--space-1) var(--space-2); }
+  .set-group-tags .gen-row .btn, .set-group-linked .gen-row .btn { padding: var(--space-1) var(--space-2); }
+
+  /* 行式列表：行间用表格同款边框分割 */
+  .rlist { border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+  .rlist-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-2) var(--space-3); }
+  .rlist-row + .rlist-row { border-top: 1px solid var(--border); }
+  .rlist-row:hover { background: var(--bg-subtle); }
+  .rlist-main { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+  .rlist-main .sub { color: var(--fg-muted); font-size: var(--text-sm); }
+  .rlist-actions { display: flex; gap: var(--space-1); flex-shrink: 0; }
+
+  /* 分组分隔线：主色渐变、醒目、左右不贴边 */
+  .divider-strong {
+    height: 2px; border-radius: var(--radius-full);
+    margin: 0 var(--space-6);
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  }
+
+  /* 结果表格 */
+  tbody tr.row-selected, tbody tr.row-selected:hover { background: var(--accent-soft); }
+
+  /* contents 详情面板：正文 14px，键名 13px 弱化 */
+  .detail-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-3); }
+  .detail-actions { display: flex; gap: var(--space-1); }
+  .kv { display: flex; gap: var(--space-3); padding: var(--space-1) 0; font-size: var(--text-base); }
+  .kv .k { width: 96px; flex-shrink: 0; color: var(--fg-muted); font-size: var(--text-sm); }
+  .kv-block { padding: var(--space-1) 0; font-size: var(--text-base); }
+  .kv-block > .k, .box-head .k { display: block; color: var(--fg-muted); font-size: var(--text-sm); }
+  .box-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-1); }
+  .box {
+    background: var(--bg-subtle); border: 1px solid var(--border); border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-3); font-size: var(--text-base); color: var(--fg-secondary);
+  }
+  .copy-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+  .copy-row + .copy-row { margin-top: 2px; }
+
+  /* 生成器行 */
+  .gen-row { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
+  .gen-row .input { flex: 1; min-width: 0; }
+
+  /* ===== contents 编辑态（原地切换，字段顺序与展示态一致） ===== */
+  #contents-edit .input, #contents-edit .select, #contents-edit .textarea {
+    padding: var(--space-1) var(--space-2); font-size: var(--text-sm);
+  }
+  #contents-edit .kv-block { margin-bottom: var(--space-2); }
+  .chip-row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+  .tag { display: inline-flex; align-items: center; gap: var(--space-1); }
+  .tag .tag-x { border: none; background: none; color: inherit; cursor: pointer; font: inherit; font-size: var(--text-xs); padding: 0; opacity: 0.7; }
+  .tag .tag-x:hover { opacity: 1; }
+  /* 行式编辑（窄栏内允许换行堆叠） */
+  .frow { display: flex; gap: var(--space-1); align-items: center; flex-wrap: wrap; }
+  .frow + .frow { margin-top: var(--space-2); }
+  .frow .grow { flex: 1 1 130px; min-width: 0; }
+  .frow .fixed-sm { width: 96px; flex: 0 0 auto; }
+  .frow .select { width: auto; flex-shrink: 0; }
+  .frow .tail { display: flex; gap: var(--space-1); align-items: center; flex-shrink: 0; }
+  .pw-group { display: flex; gap: var(--space-1); flex: 1 1 130px; min-width: 0; }
+  .pw-group .input { flex: 1; min-width: 0; }
+  .edit-add { margin-top: var(--space-2); }
+  .edit-actions { display: flex; gap: var(--space-3); justify-content: flex-end; margin-top: var(--space-4); }
+  /* 编辑态的 match 下拉深色化（与全局 select 同款） */
+  #contents-edit .select { appearance: base-select; }
+  #contents-edit .select::picker(select) {
+    appearance: base-select;
+    background: var(--bg-raised); border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md); box-shadow: var(--shadow-lg); padding: var(--space-1);
+  }
+  #contents-edit .select option { padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm); color: var(--fg); background: var(--bg-raised); }
+  #contents-edit .select option:checked { background: var(--accent-soft); color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     页面：bookmark-manager · wui 版
+     上下结构：
+       顶行   active/archived 开关 · 居中搜索栏 · tags/linkedInfos 过滤 · 新增书签
+       下区   Settings（general/tags/linkedInfos/backup 手风琴）· results · contents
+     ══════════════════════════════════════════════════════════════════ -->
+
+<div class="page">
+
+  <!-- 顶行工具栏 -->
+  <div class="toolbar">
+    <div class="seg">
+      <button class="seg-btn active">active</button>
+      <button class="seg-btn">archived</button>
+    </div>
+    <input class="input t-search" type="text" placeholder="搜索书签名 / url / 备注…" data-zh-ph="搜索书签名 / url / 备注…" data-en-ph="Search name / url / remark…">
+    <details class="msel">
+      <summary>TAGS ▾</summary>
+      <div class="msel-pop pop-row">
+        <label><input type="checkbox" checked> <span class="tag tag-accent">dev</span></label>
+        <label><input type="checkbox"> <span class="tag tag-success">design</span></label>
+        <label><input type="checkbox"> <span class="tag tag-warning">阅读</span></label>
+        <label><input type="checkbox"> <span class="tag tag-danger">娱乐</span></label>
+        <label><input type="checkbox"> <span class="tag tag-neutral">运维</span></label>
+      </div>
+    </details>
+    <details class="msel">
+      <summary>LINS ▾</summary>
+      <div class="msel-pop">
+        <label><input type="checkbox" checked> 手机1</label>
+        <label><input type="checkbox"> 手机2</label>
+        <label><input type="checkbox"> 邮箱1</label>
+        <label><input type="checkbox"> 邮箱2</label>
+        <label><input type="checkbox"> 微信</label>
+      </div>
+    </details>
+    <button class="btn btn-primary" data-zh="＋ 新增书签" data-en="＋ New Bookmark">＋ 新增书签</button>
+  </div>
+
+  <!-- 下区三块 -->
+  <div class="blocks-grid">
+
+    <!-- Settings：二级菜单手风琴 -->
+    <div class="blk">
+      <div class="blk-head" data-zh="设置" data-en="Settings">设置</div>
+      <div class="blk-body settings-body">
+
+      <!-- general -->
+      <div class="set-group set-group-general open">
+        <button class="set-head"><span data-zh="常规" data-en="general">常规</span><span class="caret">▸</span></button>
+        <div class="set-body"><div class="set-body-inner"><div class="set-body-pad">
+
+          <div class="inline-field">
+            <label data-zh="语言" data-en="Language">语言</label>
+            <div class="seg" id="lang-seg">
+              <button class="seg-btn" data-lang="en">english</button>
+              <button class="seg-btn active" data-lang="zh">简体中文</button>
+            </div>
+          </div>
+
+          <div class="divider-strong"></div>
+
+          <div class="inline-field">
+            <label data-zh="配色方案" data-en="Color Scheme">配色方案</label>
+            <div class="seg" id="scheme-seg">
+              <button class="seg-btn active" data-scheme="dark">dark</button>
+              <button class="seg-btn" data-scheme="light">light</button>
+              <button class="seg-btn" data-scheme="system">system</button>
+            </div>
+          </div>
+
+          <div class="divider-strong"></div>
+
+          <div class="gen-row">
+            <input class="input mono" readonly value="mapleriver42">
+            <button class="btn btn-secondary" title="生成" data-zh-title="生成" data-en-title="Generate">⟳</button>
+            <button class="btn btn-secondary" title="复制" data-zh-title="复制" data-en-title="Copy">⧉</button>
+          </div>
+          <div class="inline-field">
+            <label data-zh="单词长度" data-en="Word length">单词长度</label>
+            <input class="input" type="number" value="8" min="1" style="width: 76px;">
+          </div>
+          <div class="inline-field">
+            <label data-zh="数字长度" data-en="Digit length">数字长度</label>
+            <input class="input" type="number" value="2" min="0" style="width: 76px;">
+          </div>
+
+          <div class="divider-strong"></div>
+
+          <div class="gen-row">
+            <input class="input mono" readonly value="K7#mQ2$xP9!v">
+            <button class="btn btn-secondary" title="生成" data-zh-title="生成" data-en-title="Generate">⟳</button>
+            <button class="btn btn-secondary" title="复制" data-zh-title="复制" data-en-title="Copy">⧉</button>
+          </div>
+          <div class="inline-field">
+            <label data-zh="密码长度" data-en="Password length">密码长度</label>
+            <input class="input" type="number" value="12" min="4" style="width: 76px;">
+          </div>
+          <div class="inline-field">
+            <label data-zh="包含符号" data-en="Include symbols">包含符号</label>
+            <input type="checkbox" checked>
+          </div>
+
+          <div class="divider-strong"></div>
+
+          <div class="inline-field">
+            <label data-zh="超时锁定" data-en="Auto-lock">超时锁定</label>
+            <div class="inline-ctrl">
+              <input class="input" type="number" value="15" min="1" style="width: 72px;"> <span data-zh="分钟" data-en="min">分钟</span>
+              <button class="btn btn-ghost btn-sm" title="保存修改" data-zh-title="保存修改" data-en-title="Save">✓</button>
+            </div>
+          </div>
+
+          <div class="divider-strong"></div>
+
+          <div class="inline-field">
+            <label data-zh="自动归档" data-en="Auto-archive">自动归档</label>
+            <div class="inline-ctrl">
+              <input class="input" type="number" value="30" min="1" style="width: 72px;"> <span data-zh="天" data-en="days">天</span>
+              <button class="btn btn-ghost btn-sm" title="保存修改" data-zh-title="保存修改" data-en-title="Save">✓</button>
+            </div>
+          </div>
+
+        </div></div></div>
+      </div>
+
+      <!-- tags -->
+      <div class="set-group set-group-tags">
+        <button class="set-head"><span data-zh="标签" data-en="tags">标签</span><span class="caret">▸</span></button>
+        <div class="set-body"><div class="set-body-inner"><div class="set-body-pad">
+
+          <div class="sub-title" data-zh="添加" data-en="add">添加</div>
+          <div class="gen-row">
+            <input class="input" type="text" placeholder="标签名称" data-zh-ph="标签名称" data-en-ph="Tag name">
+            <details class="msel">
+              <summary><span class="swatch" style="background: var(--cat-mauve);"></span> mauve ▾</summary>
+              <div class="msel-pop">
+                <label><input type="radio" name="tag-color"> <span class="swatch" style="background: var(--cat-rosewater);"></span> rosewater</label>
+                <label><input type="radio" name="tag-color"> <span class="swatch" style="background: var(--cat-flamingo);"></span> flamingo</label>
+                <label><input type="radio" name="tag-color"> <span class="swatch" style="background: var(--cat-pink);"></span> pink</label>
+                <label><input type="radio" name="tag-color" checked> <span class="swatch" style="background: var(--cat-mauve);"></span> mauve</label>
+                <label><input type="radio" name="tag-color"> <span class="swatch" style="background: var(--cat-red);"></span> red</label>
+                <label><input type="radio" name="tag-color"> <span class="swatch" style="background: var(--cat-maroon);"></span> maroon</label>
+                <label><input type="radio" name="tag-color"> <span class="swatch" style="background: var(--cat-peach);"></span> peach</label>
+                <label><input type="radio" name="tag-color"> <span class="swatch" style="background: var(--cat-yellow);"></span> yellow</label>
+                <label><input type="radio" name="tag-color"> <span class="swatch" style="background: var(--cat-green);"></span> green</label>
+                <label><input type="radio" name="tag-color"> <span class="swatch" style="background: var(--cat-teal);"></span> teal</label>
+                <label><input type="radio" name="tag-color"> <span class="swatch" style="background: var(--cat-sky);"></span> sky</label>
+                <label><input type="radio" name="tag-color"> <span class="swatch" style="background: var(--cat-sapphire);"></span> sapphire</label>
+                <label><input type="radio" name="tag-color"> <span class="swatch" style="background: var(--cat-blue);"></span> blue</label>
+                <label><input type="radio" name="tag-color"> <span class="swatch" style="background: var(--cat-lavender);"></span> lavender</label>
+              </div>
+            </details>
+            <button class="btn btn-primary" title="创建" data-zh-title="创建" data-en-title="Create">＋</button>
+          </div>
+
+          <div class="sub-title" data-zh="列表" data-en="list">列表</div>
+          <div class="rlist">
+            <div class="rlist-row">
+              <span class="tag tag-accent">dev</span>
+              <span class="rlist-actions"><button class="btn btn-ghost btn-sm" title="编辑" data-zh-title="编辑" data-en-title="Edit">✎</button><button class="btn btn-ghost btn-sm" title="删除" data-zh-title="删除" data-en-title="Delete" style="color: var(--danger);">✕</button></span>
+            </div>
+            <div class="rlist-row">
+              <span class="tag tag-success">design</span>
+              <span class="rlist-actions"><button class="btn btn-ghost btn-sm" title="编辑" data-zh-title="编辑" data-en-title="Edit">✎</button><button class="btn btn-ghost btn-sm" title="删除" data-zh-title="删除" data-en-title="Delete" style="color: var(--danger);">✕</button></span>
+            </div>
+            <div class="rlist-row">
+              <span class="tag tag-warning">阅读</span>
+              <span class="rlist-actions"><button class="btn btn-ghost btn-sm" title="编辑" data-zh-title="编辑" data-en-title="Edit">✎</button><button class="btn btn-ghost btn-sm" title="删除" data-zh-title="删除" data-en-title="Delete" style="color: var(--danger);">✕</button></span>
+            </div>
+            <div class="rlist-row">
+              <span class="tag tag-danger">娱乐</span>
+              <span class="rlist-actions"><button class="btn btn-ghost btn-sm" title="编辑" data-zh-title="编辑" data-en-title="Edit">✎</button><button class="btn btn-ghost btn-sm" title="删除" data-zh-title="删除" data-en-title="Delete" style="color: var(--danger);">✕</button></span>
+            </div>
+            <div class="rlist-row">
+              <span class="tag" style="background: var(--info-soft); color: var(--info);">运维</span>
+              <span class="rlist-actions"><button class="btn btn-ghost btn-sm" title="编辑" data-zh-title="编辑" data-en-title="Edit">✎</button><button class="btn btn-ghost btn-sm" title="删除" data-zh-title="删除" data-en-title="Delete" style="color: var(--danger);">✕</button></span>
+            </div>
+          </div>
+
+        </div></div></div>
+      </div>
+
+      <!-- linkedInfos -->
+      <div class="set-group set-group-linked">
+        <button class="set-head"><span data-zh="关联信息" data-en="linkedInfos">关联信息</span><span class="caret">▸</span></button>
+        <div class="set-body"><div class="set-body-inner"><div class="set-body-pad">
+
+          <div class="sub-title" data-zh="添加" data-en="add">添加</div>
+          <div class="gen-row">
+            <input class="input" type="text" placeholder="名称" data-zh-ph="名称" data-en-ph="Name" style="max-width: 100px;">
+            <input class="input" type="text" placeholder="内容" data-zh-ph="内容" data-en-ph="Content">
+            <button class="btn btn-primary" title="创建" data-zh-title="创建" data-en-title="Create">＋</button>
+          </div>
+
+          <div class="sub-title" data-zh="列表" data-en="list">列表</div>
+          <div class="rlist">
+            <div class="rlist-row">
+              <span class="rlist-main"><span>手机1</span><span class="sub mono">138****0001</span></span>
+              <span class="rlist-actions"><button class="btn btn-ghost btn-sm" title="编辑" data-zh-title="编辑" data-en-title="Edit">✎</button><button class="btn btn-ghost btn-sm" title="删除" data-zh-title="删除" data-en-title="Delete" style="color: var(--danger);">✕</button></span>
+            </div>
+            <div class="rlist-row">
+              <span class="rlist-main"><span>手机2</span><span class="sub mono">139****0002</span></span>
+              <span class="rlist-actions"><button class="btn btn-ghost btn-sm" title="编辑" data-zh-title="编辑" data-en-title="Edit">✎</button><button class="btn btn-ghost btn-sm" title="删除" data-zh-title="删除" data-en-title="Delete" style="color: var(--danger);">✕</button></span>
+            </div>
+            <div class="rlist-row">
+              <span class="rlist-main"><span>邮箱1</span><span class="sub mono">me@example.com</span></span>
+              <span class="rlist-actions"><button class="btn btn-ghost btn-sm" title="编辑" data-zh-title="编辑" data-en-title="Edit">✎</button><button class="btn btn-ghost btn-sm" title="删除" data-zh-title="删除" data-en-title="Delete" style="color: var(--danger);">✕</button></span>
+            </div>
+            <div class="rlist-row">
+              <span class="rlist-main"><span>邮箱2</span><span class="sub mono">work@example.com</span></span>
+              <span class="rlist-actions"><button class="btn btn-ghost btn-sm" title="编辑" data-zh-title="编辑" data-en-title="Edit">✎</button><button class="btn btn-ghost btn-sm" title="删除" data-zh-title="删除" data-en-title="Delete" style="color: var(--danger);">✕</button></span>
+            </div>
+            <div class="rlist-row">
+              <span class="rlist-main"><span>微信</span><span class="sub mono">wxid_abc123</span></span>
+              <span class="rlist-actions"><button class="btn btn-ghost btn-sm" title="编辑" data-zh-title="编辑" data-en-title="Edit">✎</button><button class="btn btn-ghost btn-sm" title="删除" data-zh-title="删除" data-en-title="Delete" style="color: var(--danger);">✕</button></span>
+            </div>
+          </div>
+
+        </div></div></div>
+      </div>
+
+      <!-- backup -->
+      <div class="set-group">
+        <button class="set-head"><span data-zh="备份" data-en="backup">备份</span><span class="caret">▸</span></button>
+        <div class="set-body"><div class="set-body-inner"><div class="set-body-pad">
+
+          <p style="margin: 0; color: var(--fg-secondary); font-size: var(--text-sm);" data-zh="数据导出为 JSON 文件，包含书签、tags、linkedInfos 与设置。" data-en="Export all data (bookmarks, tags, linkedInfos and settings) as a JSON file.">数据导出为 JSON 文件，包含书签、tags、linkedInfos 与设置。</p>
+          <div style="display: flex; gap: var(--space-3); flex-wrap: wrap;">
+            <button class="btn btn-secondary" data-zh="⇪ 导入数据" data-en="⇪ Import">⇪ 导入数据</button>
+            <button class="btn btn-primary" data-zh="⇓ 导出数据" data-en="⇓ Export">⇓ 导出数据</button>
+          </div>
+          <div class="alert alert-info" data-zh="上次导出：2026-10-01 09:12 · bookmarks-backup.json（48 KB）" data-en="Last export: 2026-10-01 09:12 · bookmarks-backup.json (48 KB)">上次导出：2026-10-01 09:12 · bookmarks-backup.json（48 KB）</div>
+
+        </div></div></div>
+      </div>
+
+      </div>
+    </div>
+
+    <!-- results -->
+    <div class="blk">
+      <div class="blk-head" data-zh="结果" data-en="results">结果</div>
+      <div class="blk-body" style="padding: 0;">
+      <table>
+        <thead>
+          <tr><th data-zh="书签名" data-en="Bookmark">书签名</th><th>tags</th><th>linkedInfos</th><th data-zh="url数" data-en="URLs">url数</th><th data-zh="账号数" data-en="Accounts">账号数</th></tr>
+        </thead>
+        <tbody>
+          <tr class="row-selected">
+            <td>github</td>
+            <td><span class="tag tag-accent">dev</span> <span class="tag tag-accent">git</span></td>
+            <td><span class="tag tag-neutral">邮箱1</span></td>
+            <td class="mono">3</td><td class="mono">2</td>
+          </tr>
+          <tr>
+            <td>figma</td>
+            <td><span class="tag tag-success">design</span></td>
+            <td><span class="tag tag-neutral">邮箱2</span></td>
+            <td class="mono">1</td><td class="mono">1</td>
+          </tr>
+          <tr>
+            <td>少数派</td>
+            <td><span class="tag tag-warning">阅读</span></td>
+            <td><span class="tag tag-neutral">微信</span></td>
+            <td class="mono">1</td><td class="mono">0</td>
+          </tr>
+          <tr>
+            <td>cloudflare</td>
+            <td><span class="tag tag-accent">dev</span> <span class="tag" style="background: var(--info-soft); color: var(--info);">运维</span></td>
+            <td><span class="tag tag-neutral">手机1</span></td>
+            <td class="mono">2</td><td class="mono">1</td>
+          </tr>
+          <tr>
+            <td>bilibili</td>
+            <td><span class="tag tag-danger">娱乐</span></td>
+            <td><span class="tag tag-neutral">手机2</span></td>
+            <td class="mono">1</td><td class="mono">1</td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+
+    <!-- contents：✎ 原地切换 展示态/编辑态（字段顺序一致，只读时间置底） -->
+    <div class="blk contents-col">
+      <div class="blk-head" id="contents-head" data-zh="详情" data-en="contents">详情</div>
+
+      <!-- ===== 展示态 ===== -->
+      <div class="blk-body" id="contents-view">
+      <div class="detail-head">
+        <h3 class="card-title" style="margin: 0;">github</h3>
+        <div class="detail-actions">
+          <button class="btn btn-ghost btn-sm" id="edit-enter-btn" title="编辑" data-zh-title="编辑" data-en-title="Edit">✎</button>
+          <button class="btn btn-ghost btn-sm" title="删除" data-zh-title="删除" data-en-title="Delete" style="color: var(--danger);">✕</button>
+        </div>
+      </div>
+      <div class="kv"><span class="k">tags</span><span><span class="tag tag-accent">dev</span> <span class="tag tag-accent">git</span></span></div>
+      <div class="kv"><span class="k">linkedInfos</span><span><span class="tag tag-neutral">邮箱1</span></span></div>
+
+      <div class="kv-block">
+        <div class="box-head"><span class="k">urls</span></div>
+        <div class="box mono">https://github.com<br>https://github.com/notifications<br>https://gist.github.com</div>
+      </div>
+
+      <div class="kv-block">
+        <div class="box-head"><span class="k">Accounts</span></div>
+        <div class="box mono">
+          <div class="copy-row"><span>user: octocat</span><button class="btn btn-ghost btn-sm" title="复制" data-zh-title="复制" data-en-title="Copy">⧉</button></div>
+          <div class="copy-row"><span>pass: ••••••••</span><button class="btn btn-ghost btn-sm" title="复制" data-zh-title="复制" data-en-title="Copy">⧉</button></div>
+        </div>
+      </div>
+
+      <div class="kv-block">
+        <div class="box-head"><span class="k">records</span></div>
+        <div class="box mono">
+          <div class="copy-row"><span data-zh="记录1: aaaaaaaaa" data-en="Record 1: aaaaaaaaa">记录1: aaaaaaaaa</span><button class="btn btn-ghost btn-sm" title="复制" data-zh-title="复制" data-en-title="Copy">⧉</button></div>
+          <div class="copy-row"><span data-zh="记录2: ***********" data-en="Record 2: ***********">记录2: ***********</span><button class="btn btn-ghost btn-sm" title="复制" data-zh-title="复制" data-en-title="Copy">⧉</button></div>
+        </div>
+      </div>
+
+      <div class="kv-block">
+        <div class="box-head"><span class="k">remark</span></div>
+        <div class="box">工作常用，绑定了二次验证</div>
+      </div>
+
+      <div class="kv"><span class="k">status</span><span><span class="tag tag-success">active</span></span></div>
+
+      <!-- 只读时间：置底 -->
+      <div class="kv"><span class="k">createdAt</span><span class="mono">2025-10-10 14:20</span></div>
+      <div class="kv"><span class="k">updatedAt</span><span class="mono">2025-10-17 09:12</span></div>
+      <div class="kv"><span class="k">lastUsedAt</span><span class="mono">2025-10-18 22:40</span></div>
+      </div>
+
+      <!-- ===== 编辑态（同字段顺序，时间只读置底） ===== -->
+      <div class="blk-body" id="contents-edit" style="display: none;">
+      <!-- title -->
+      <div class="kv-block">
+        <div class="box-head"><span class="k">title</span></div>
+        <input class="input" type="text" value="github" data-zh-ph="书签名" data-en-ph="Bookmark title" placeholder="书签名" />
+      </div>
+
+      <!-- tags -->
+      <div class="kv-block">
+        <div class="box-head"><span class="k">tags</span></div>
+        <div class="chip-row">
+          <span class="tag tag-accent">dev <button class="tag-x" title="移除">✕</button></span>
+          <span class="tag tag-accent">git <button class="tag-x" title="移除">✕</button></span>
+          <details class="msel">
+            <summary data-zh="＋ 添加" data-en="＋ Add">＋ 添加</summary>
+            <div class="msel-pop">
+              <label><input type="checkbox"> <span class="tag tag-success">design</span></label>
+              <label><input type="checkbox"> <span class="tag tag-warning">阅读</span></label>
+              <label><input type="checkbox"> <span class="tag tag-danger">娱乐</span></label>
+              <label><input type="checkbox"> <span class="tag tag-neutral">运维</span></label>
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <!-- linkedInfos -->
+      <div class="kv-block">
+        <div class="box-head"><span class="k">linkedInfos</span></div>
+        <div class="chip-row">
+          <span class="tag tag-neutral">邮箱1 <button class="tag-x" title="移除">✕</button></span>
+          <details class="msel">
+            <summary data-zh="＋ 添加" data-en="＋ Add">＋ 添加</summary>
+            <div class="msel-pop">
+              <label><input type="checkbox"> 手机1</label>
+              <label><input type="checkbox"> 手机2</label>
+              <label><input type="checkbox"> 邮箱2</label>
+              <label><input type="checkbox"> 微信</label>
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <!-- urls（match 规则只在编辑态可选） -->
+      <div class="kv-block">
+        <div class="box-head"><span class="k">urls</span></div>
+        <div class="frow">
+          <input class="input mono grow" type="text" value="https://github.com" placeholder="https://…" />
+          <select class="select mono"><option selected>host</option><option>exact</option><option>prefix</option></select>
+        </div>
+        <div class="frow">
+          <input class="input mono grow" type="text" value="https://github.com/notifications" placeholder="https://…" />
+          <span class="tail">
+            <select class="select mono"><option>host</option><option selected>exact</option><option>prefix</option></select>
+            <button class="btn btn-ghost btn-sm btn-del" title="删除" style="color: var(--danger);">✕</button>
+          </span>
+        </div>
+        <div class="frow">
+          <input class="input mono grow" type="text" value="https://gist.github.com" placeholder="https://…" />
+          <span class="tail">
+            <select class="select mono"><option selected>host</option><option>exact</option><option>prefix</option></select>
+            <button class="btn btn-ghost btn-sm btn-del" title="删除" style="color: var(--danger);">✕</button>
+          </span>
+        </div>
+        <div class="edit-add"><button class="btn btn-secondary btn-sm" data-zh="＋ 添加 URL" data-en="＋ Add URL">＋ 添加 URL</button></div>
+      </div>
+
+      <!-- accounts -->
+      <div class="kv-block">
+        <div class="box-head"><span class="k">Accounts</span></div>
+        <div class="frow">
+          <input class="input mono grow" type="text" value="octocat" data-zh-ph="用户名" data-en-ph="Username" placeholder="用户名" />
+          <div class="pw-group">
+            <input class="input mono" type="password" value="K7#mQ2$xP9!v" data-zh-ph="密码" data-en-ph="Password" placeholder="密码" />
+            <button class="btn btn-ghost btn-sm pw-eye" title="显示/隐藏">👁</button>
+            <button class="btn btn-ghost btn-sm pw-gen" title="生成" data-zh-title="生成" data-en-title="Generate">⟳</button>
+          </div>
+        </div>
+        <div class="frow">
+          <input class="input mono grow" type="text" value="octocat-work" data-zh-ph="用户名" data-en-ph="Username" placeholder="用户名" />
+          <div class="pw-group">
+            <input class="input mono" type="password" value="another-secret" data-zh-ph="密码" data-en-ph="Password" placeholder="密码" />
+            <button class="btn btn-ghost btn-sm pw-eye" title="显示/隐藏">👁</button>
+            <button class="btn btn-ghost btn-sm pw-gen" title="生成" data-zh-title="生成" data-en-title="Generate">⟳</button>
+            <button class="btn btn-ghost btn-sm btn-del" title="删除" style="color: var(--danger);">✕</button>
+          </div>
+        </div>
+        <div class="edit-add"><button class="btn btn-secondary btn-sm" data-zh="＋ 添加账号" data-en="＋ Add account">＋ 添加账号</button></div>
+      </div>
+
+      <!-- records -->
+      <div class="kv-block">
+        <div class="box-head"><span class="k">records</span></div>
+        <div class="frow">
+          <select class="select fixed-sm"><option selected>note</option><option>secret</option></select>
+          <input class="input fixed-sm" type="text" value="记录1" data-zh-ph="名称" data-en-ph="Name" placeholder="名称" />
+          <div class="pw-group">
+            <input class="input mono" type="text" value="aaaaaaaaa" data-zh-ph="内容" data-en-ph="Content" placeholder="内容" />
+            <button class="btn btn-ghost btn-sm btn-del" title="删除" style="color: var(--danger);">✕</button>
+          </div>
+        </div>
+        <div class="frow">
+          <select class="select fixed-sm"><option>note</option><option selected>secret</option></select>
+          <input class="input fixed-sm" type="text" value="记录2" data-zh-ph="名称" data-en-ph="Name" placeholder="名称" />
+          <div class="pw-group">
+            <input class="input mono" type="password" value="super-secret-content" data-zh-ph="内容" data-en-ph="Content" placeholder="内容" />
+            <button class="btn btn-ghost btn-sm pw-eye" title="显示/隐藏">👁</button>
+            <button class="btn btn-ghost btn-sm btn-del" title="删除" style="color: var(--danger);">✕</button>
+          </div>
+        </div>
+        <div class="edit-add"><button class="btn btn-secondary btn-sm" data-zh="＋ 添加记录" data-en="＋ Add record">＋ 添加记录</button></div>
+      </div>
+
+      <!-- remark -->
+      <div class="kv-block">
+        <div class="box-head"><span class="k">remark</span></div>
+        <textarea class="textarea" style="min-height: 56px;" data-zh-ph="备注（每条书签仅一个）" data-en-ph="Remark (one per bookmark)" placeholder="备注（每条书签仅一个）">工作常用，绑定了二次验证</textarea>
+      </div>
+
+      <!-- status -->
+      <div class="kv">
+        <span class="k">status</span>
+        <span class="seg" id="status-seg">
+          <button class="seg-btn active" data-status="active">active</button>
+          <button class="seg-btn" data-status="archived">archived</button>
+        </span>
+      </div>
+
+      <!-- 只读时间：置底，与展示态一致 -->
+      <div class="kv"><span class="k">createdAt</span><span class="mono">2025-10-10 14:20</span></div>
+      <div class="kv"><span class="k">updatedAt</span><span class="mono">2025-10-17 09:12</span></div>
+      <div class="kv"><span class="k">lastUsedAt</span><span class="mono">2025-10-18 22:40</span></div>
+
+      <div class="edit-actions">
+        <button class="btn btn-secondary btn-sm" id="edit-cancel-btn" data-zh="取消" data-en="Cancel">取消</button>
+        <button class="btn btn-primary btn-sm" id="edit-save-btn" data-zh="保存" data-en="Save">保存</button>
+      </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function () {
+  /* seg 切换按钮组（active/archived、language、interface、color scheme 通用） */
+  document.querySelectorAll('.seg').forEach(function (seg) {
+    seg.addEventListener('click', function (e) {
+      var b = e.target.closest('.seg-btn');
+      if (!b) return;
+      seg.querySelectorAll('.seg-btn').forEach(function (x) { x.classList.toggle('active', x === b); });
+    });
+  });
+
+  /* 语言切换：全中文 / 全英文 */
+  function applyLang(zh) {
+    document.documentElement.lang = zh ? 'zh-CN' : 'en';
+    document.title = zh ? '书签管理器 · wui' : 'Bookmark Manager · wui';
+    document.querySelectorAll('[data-zh]').forEach(function (el) {
+      el.textContent = zh ? el.getAttribute('data-zh') : el.getAttribute('data-en');
+    });
+    document.querySelectorAll('[data-zh-ph]').forEach(function (el) {
+      el.placeholder = zh ? el.getAttribute('data-zh-ph') : el.getAttribute('data-en-ph');
+    });
+    document.querySelectorAll('[data-zh-title]').forEach(function (el) {
+      el.title = zh ? el.getAttribute('data-zh-title') : el.getAttribute('data-en-title');
+    });
+  }
+  document.getElementById('lang-seg').addEventListener('click', function (e) {
+    var b = e.target.closest('.seg-btn');
+    if (b) applyLang(b.getAttribute('data-lang') === 'zh');
+  });
+
+  /* 配色切换：dark / light（system 暂不处理） */
+  document.getElementById('scheme-seg').addEventListener('click', function (e) {
+    var b = e.target.closest('.seg-btn');
+    if (!b) return;
+    var s = b.getAttribute('data-scheme');
+    if (s === 'light') document.documentElement.setAttribute('data-theme', 'light');
+    else if (s === 'dark') document.documentElement.removeAttribute('data-theme');
+  });
+
+  /* Settings 手风琴：展开一个，折叠其他（滑动动画见 .set-body） */
+  document.querySelectorAll('.set-head').forEach(function (h) {
+    h.addEventListener('click', function () {
+      var g = h.parentElement;
+      var wasOpen = g.classList.contains('open');
+      document.querySelectorAll('.set-group.open').forEach(function (x) { x.classList.remove('open'); });
+      if (!wasOpen) g.classList.add('open');
+    });
+  });
+
+  /* contents 展示态 ↔ 编辑态：原地切换，不跳页 */
+  var cView = document.getElementById('contents-view');
+  var cEdit = document.getElementById('contents-edit');
+  var cHead = document.getElementById('contents-head');
+  function setEditing(on) {
+    cView.style.display = on ? 'none' : '';
+    cEdit.style.display = on ? '' : 'none';
+    cHead.setAttribute('data-zh', on ? '编辑书签' : '详情');
+    cHead.setAttribute('data-en', on ? 'edit bookmark' : 'contents');
+    var zh = document.documentElement.lang !== 'en';
+    cHead.textContent = cHead.getAttribute(zh ? 'data-zh' : 'data-en');
+  }
+  document.getElementById('edit-enter-btn').addEventListener('click', function () { setEditing(true); });
+  document.getElementById('edit-cancel-btn').addEventListener('click', function () { setEditing(false); });
+  document.getElementById('edit-save-btn').addEventListener('click', function () { setEditing(false); });
+  if (location.hash === '#edit') setEditing(true); /* 原型预览入口：直接打开编辑态 */
+
+  /* 编辑态演示交互：密码显隐 / 生成 / chips·行删除 */
+  document.querySelectorAll('#contents-edit .pw-eye').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var input = btn.parentElement.querySelector('input');
+      input.type = input.type === 'password' ? 'text' : 'password';
+    });
+  });
+  document.querySelectorAll('#contents-edit .pw-gen').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var input = btn.parentElement.querySelector('input');
+      var chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789#$!%&*';
+      var s = '';
+      for (var i = 0; i < 12; i++) s += chars[Math.floor(Math.random() * chars.length)];
+      input.type = 'text';
+      input.value = s;
+    });
+  });
+  document.querySelectorAll('#contents-edit .tag-x, #contents-edit .btn-del').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var row = btn.closest('.frow') || btn.closest('.tag');
+      if (row) row.remove();
+    });
+  });
+})();
+</script>
+
+</body>
+</html>

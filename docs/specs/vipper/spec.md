@@ -35,34 +35,37 @@ vipper 是一个 Chrome MV3 扩展，目标用户是作者本人（Arch Linux + 
 
 ## Feature 2：书签 + 密码管理器
 
-### 交互流程
+### 交互流程（2026-10-14 改版：wui 管理页统一入口）
 
-1. **Alt+.** 呼出书签管理弹窗（浏览器窗口中心位置）
-2. 光标自动落在搜索栏，输入关键字检索
-3. `↓` 进入条目区域，方向键移动，回车在**来源标签所在的 tab group** 打开该书签
-4. 打开登录页后，**Alt+P** 主动填充账号密码（类 Bitwarden）
-5. 一条书签绑定多个 URL 或多组账号时，弹**二级菜单**（`↑/↓` 选择 + 回车确认）
+1. **Alt+.** 打开 wui 管理页（浏览器窗口中心位置）：顶行工具栏（active/archived 切换 · 搜索 · TAGS/LINS 多选过滤 · 新增书签）+ 下区三块（Settings 手风琴 / results 结果表格 / contents 详情）
+2. 锁定门控：未解锁时 Alt+. 打开的是**解锁页**（与主页面同尺寸），解密成功后才进入主页面；能进入主页面即有权解密 password 与 secret.content
+3. 搜索范围：书签名 / url / **备注**（remark 入 idx 索引，明文以支持检索）；结果表格首列为 favicon，时间字段格式化展示
+4. 选中条目回车在**来源标签所在的 tab group** 打开该书签（自 M3 launcher 移植；launcher 弹窗由本页面取代、淘汰）
+5. 打开登录页后，**Alt+P** 主动填充账号密码（类 Bitwarden）
+6. 一条书签绑定多个 URL 或多组账号时，弹**二级菜单**（`↑/↓` 选择 + 回车确认）
+7. 编辑：点击 contents 区域右上角 ✎（或「新增书签」），**contents 区域原地切换为编辑态**（不跳转页面）；编辑态字段顺序与展示态一致（title → tags → linkedInfos → urls → accounts → records → remark → status），URL 的 match 规则只在编辑态可选；`createdAt`/`updatedAt`/`lastUsedAt` 三个只读时间在展示态与编辑态均**置于区域最底部**（2026-10-14 定稿；M6 的独立 editor.html 淘汰）
 
-### 数据模型
+### 数据模型（2026-10-14 修订）
 
-完全独立于 Chrome 原生书签/密码系统，扩展自建存储。书签条目按页面布局分区（2026-10-13 定稿）：
+完全独立于 Chrome 原生书签/密码系统，扩展自建存储。书签条目按页面布局分区：
 
 - **基础信息区**：`title`（书签名）、`createdAt`、`updatedAt`、`lastUsedAt`（条目列表按 lastUsedAt **降序**）
 - **tag 栏**：`tags: TagId[]`，引用 tag 管理表，可多个
-- **关联信息栏**：`linkedInfos: LinkedInfoId[]`，引用关联信息表（手机号/微信号/邮箱等），可多个
-- **URL 区**：`urls: { url, match }[]`，默认 1 条可增；`match` 为匹配规则 `host | exact | prefix`（默认 `host`；`exact` = origin + pathname，忽略 query/hash），供 Alt+P 判定"当前页面是否适用此 URL"（学 Bitwarden）
-- **账号区**：`accounts: { username, password, label? }[]`，默认 1 对可增；`password` 加密落盘；`label` 用于多账号二级菜单辨识（如"主号/小号"），缺省显示 username
+- **关联信息栏**：`linkedInfos: LinkedInfoId[]`，引用关联信息表，可多个
+- **URL 区**：`urls: { url, match }[]`，默认 1 条可增；`match` 为匹配规则 `host | exact | prefix`（默认 `host`；`exact` = origin + pathname，忽略 query/hash），供 Alt+P 判定"当前页面是否适用此 URL"（学 Bitwarden）；match 只在编辑模式展示/选择
+- **账号区**：`accounts: { username, password }[]`，默认 1 对可增；`password` 加密落盘（2026-10-14 起删除 `label` 字段，多账号二级菜单直接显示 username）
 - **记录区**：`records: (Note | Secret)[]`，默认空、不限量；只有这两种是"模板"（可重复添加）：
   - `note` 明文记录：`{ name, content }`，不加密
-  - `secret` 私密记录：`{ name, content }`，`content` 加密落盘
-- **备注区**：`remark: string`，书签级固定唯一字段，不是模板，不加密
+  - `secret` 私密记录：`{ name, content }`，`content` 加密落盘，展示遮蔽为 `*`
+- **备注区**：`remark: string`，书签级固定唯一字段，不是模板，不加密；**入 idx 支持搜索**
 - **条目状态**：`status: 'active' | 'archived'`
 - **favicon**：展示层自动获取站点图标，不入数据模型
 
 两张全局管理表（均**只能先建后选**，不支持即输即建，防止相近语义重复添加）：
 
-- tag 管理表：`{ id, name }[]`
-- 关联信息表：`{ id, type, value }[]`（type 如手机号/邮箱/微信/自定义）
+- tag 管理表：`{ id, name, color }[]`（color 为 Catppuccin 14 彩色之一，2026-10-14 新增）
+- 关联信息表：`{ id, name, value }[]`（name 如"手机1/邮箱1/微信"，2026-10-14 起由 `{id,type,value}` 改为 name 自由命名）
+- 删除管理表条目时若被书签引用：**拒绝删除并提示被引用**
 
 加密格式自描述：`{"$enc":"v1","iv":<base64>,"data":<base64>}`，便于将来算法/密钥迁移。只有 `account.password` 与 `secret.content` 是密文，其余字段明文以支持检索。
 
@@ -72,16 +75,17 @@ chrome.storage.local 是 LevelDB 键值库（声明 `unlimitedStorage` 去配额
 
 | key | 内容 | 访问场景 |
 |---|---|---|
-| `idx` | 轻量索引 `[{id,title,tags,linkedInfos,lastUsedAt,status}]` | 搜索/列表只读它 |
+| `idx` | 轻量索引 `[{id,title,remark,tags,linkedInfos,urls,lastUsedAt,status}]` | 搜索/列表只读它 |
 | `bm:<id>` | 条目详情 | 打开/编辑某条时读 |
-| `arc:<id>` | 归档条目 | 归档页专用，主搜索天然不污染 |
-| `meta:tags` / `meta:links` / `meta:settings` | 管理表与配置（含自动归档阈值） | 管理页 |
+| `arc:<id>` | 归档条目 | 归档视图专用，active 搜索天然不污染 |
+| `meta:tags` / `meta:links` / `meta:settings` | 管理表与配置（锁定超时、自动归档阈值、主题、语言） | 管理页 |
 
 ### 归档
 
-- 手动归档 + 自动归档（lastUsedAt 超过阈值，**默认 180 天、可配置**）
+- 入口：管理页顶行 **active/archived seg 切换**——激活哪个就搜索/展示哪个状态的条目（2026-10-14 起取代 M7 的 launcher archive 独立窗口）
+- 归档操作仅两种：① Settings→general 配置**自动归档天数**；② 编辑模式中将 status 改为 archived（恢复同理）
+- 自动归档阈值：**默认 0 = 不开启**（2026-10-14 修订，原默认 180 天）；扫描仍由启动时 + 每日 alarm 执行
 - 归档 = 数据从 `bm:` 挪到 `arc:` + `idx` 更新状态；**不做真实文件**
-- 归档页复用 launcher 布局与功能（archive 模式）
 
 ### 导入导出
 
@@ -89,16 +93,25 @@ chrome.storage.local 是 LevelDB 键值库（声明 `unlimitedStorage` 去配额
 - 导入：读取 JSON 合并入库
 - 备份主路径 = 导出 JSON 提交本地 git；软链 LevelDB 目录可行但不推荐（二进制噪音、恢复脆弱）
 
-### 安全模型（已确认）
+### 安全模型（2026-10-14 修订）
 
 - **主密码 + WebCrypto**：PBKDF2 派生密钥，AES-GCM 加密
 - 密码字段与私密记录模板**加密后落盘**，密钥永不持久化
-- 解锁策略：**浏览器重启必锁 + 30 分钟无操作自动锁定**（超时时长可配置）
+- **解锁页三态自动路由**（同一页面，`isInitialized()` / `isUnlocked()` 判定）：
+  - 未初始化 → 「创建主密码」模式（两次输入 + 忘记无法找回警示），创建即解锁进主页面
+  - 已锁定 → 「解锁」模式，解密成功进主页面
+  - 已解锁 → 直接进主页面
+- 解锁策略：**浏览器重启必锁**；超时锁定**默认 0 = 不开启**（2026-10-14 修订，原默认 30 分钟），可配置
+- **不提供"忘记密码"入口**（避免恶意清除数据）；重置方法（清除扩展存储）写入 README/docs/install.md
 - 数据只能通过插件本身读取
 
-### UI 载体
+### UI 载体（2026-10-14 改版）
 
-- 管理弹窗：`chrome.windows.create({type: 'popup'})`，页面设固定标题，由 **Hyprland windowrule**（匹配 initialTitle）实现浮动居中——Wayland 下窗口定位权在 compositor，Chrome 的 left/top 不可靠
+- **wui 管理页**：`chrome.windows.create({type: 'popup'})`，页面设固定标题，由 **Hyprland windowrule**（匹配 initialTitle）实现浮动居中——Wayland 下窗口定位权在 compositor，Chrome 的 left/top 不可靠；解锁页与主页面**同尺寸**
+- **设计系统**：Catppuccin Mocha（dark，默认）/ Latte（light）双主题 token，`design-system/tokens.css` 为唯一来源，`scripts/sync-tokens.py` 同步到各页面；组件样式只许引用 token 变量
+- **解锁页**：中央为锁形图标 + 进度环（图标须语义明确可识别，不用抽象图形；2026-10-14 定稿），成功动画为锁扣弹开 + 涟漪过渡进入主页面；角落提供主题/语言切换（锁定态可用）
+- **主题切换**（dark/light/system）与**中英双语**（zh/en，data-zh/data-en 属性）为页面级能力，偏好持久化到 meta:settings
+- **用户名/密码生成器**：Settings→general 内置（单词组合 / 随机密码，长度与符号可配），纯前端
 - Alt+P 二级菜单：登录页内 content script 浮层（登录页均为普通网站，无注入限制）
 
 ## 关键约束（Chrome 平台限制）
@@ -114,7 +127,6 @@ chrome.storage.local 是 LevelDB 键值库（声明 `unlimitedStorage` 去配额
 
 ## 待定项（后续讨论后通过 spec-change 补充）
 
-- 录入/编辑与管理 UI 的具体页面设计（编辑页布局已定分区，交互细节待定）
 - TOTP 二步验证种子、密码历史（评估后缓办）
 - 切组滚动动画的 UI 载体（第一版不做）
 

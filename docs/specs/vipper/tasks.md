@@ -73,3 +73,47 @@
 - [x] 导出全量明文 JSON（管理页数据区，当场输主密码确认；含归档条目与管理表）
 - [x] 导入 JSON 合并入库：同 id updatedAt 新者胜；tag/关联信息按名去重 + 引用 id 重映射；明文敏感字段重新加密落盘
 - [x] 验证：`scripts/m8-verify.mjs` 10/10 通过（导出明文→清空→换主密码导入→解密一致；合并双向语义）；M1-M7 全量回归通过
+
+## M9a：wui 设计原型补全 ✅（2026-10-14）
+
+- [x] 解锁页原型：创建/解锁双模式自动路由、与主页面同尺寸、锁形图标 + 进度环动画（锁扣弹开 + 成功涟漪 + 错误抖动）、角落主题/语言切换
+- [x] 编辑态原型（并入主原型 contents 区域）：✎ 原地切换编辑态，字段顺序与展示态一致，三个只读时间置底；urls 带 match 选择、accounts 带显隐+生成、records 分 note/secret
+- [x] 验证：headless 截图自检（动画四态 × 双主题 × 双语、窄栏换行）+ 用户目检两轮（第一轮反馈：图标不可识别→锁形、编辑态原地化、时间置底，均已修复）
+
+## M9b：数据层 spec-change 落地
+
+- [ ] tag 管理表加 `color`（Catppuccin 14 色）；关联信息表 `{id,type,value}` → `{id,name,value}`
+- [ ] accounts 删除 `label` 字段（连带 Alt+P 二级菜单显示 username）；旧数据不迁移（开发期种子数据）
+- [ ] idx 索引加 `remark` 支持搜索；settings 默认值 0/0（0 = 禁用超时锁定/自动归档，keychain 与自动归档扫描适配 0 值语义）
+- [ ] 管理表删除查引用：被书签引用时拒绝并提示
+- [ ] 验证：`scripts/m9b-verify.mjs`；M1-M8 全量回归通过
+
+> 影响面（2026-10-14 盘点）：
+> - `utils/vault.ts`：`Account.label` 删除；`Tag` 加 color、`addTag(name,color)`；`LinkedInfo` 改 `{id,name,value}`、`addLinkedInfo(name,value)`、导入去重键 type+value→name+value；`deleteTag/deleteLinkedInfo` 加引用检查（扫 idx 的 tags/linkedInfos）；`IndexEntry` 加 remark、`toIndex` 同步、`filterIndex` 加 remark 匹配
+> - `utils/keychain.ts`：`DEFAULT_SETTINGS` 30/180→0/0；`getKey` 中 `lockTimeoutMin===0` 跳过超时判定
+> - `utils/vault.ts` `autoArchive`：`autoArchiveDays===0` 直接返回 []（否则 cutoff=now 会把全部条目归档——必须特判）
+> - `entrypoints/background.ts:106`：Alt+P 候选 `a.label || a.username` → `a.username`
+> - `entrypoints/editor/main.ts`：账号行删除 label 输入（此页 M9d 起被编辑模式取代，本里程碑仅保证编译通过）
+> - `entrypoints/manager/main.ts`：linkedInfo 表单 type/value → name/value（同上，M9e 重建）
+> - 种子/验证脚本：m3/m5/m8-verify 种子数据去 label；m4-verify 默认值断言改 0/0
+
+## M9c：设计系统入库 + wui 页面骨架
+
+- [ ] tokens.css / sync-tokens.py 从 tmp 正式入库（design-system/ + scripts/），抽共享 CSS 供各 entrypoint 引用
+- [ ] wui 管理页三栏骨架：顶行（active/archived seg、搜索、TAGS/LINS 多选过滤、新增按钮）+ Settings/results/contents
+- [ ] results 接通真实数据：favicon 首列、lastUsedAt 降序、时间格式化、tag 彩色渲染；contents 只读详情（secret 遮蔽）
+- [ ] 验证：`scripts/m9c-verify.mjs`（CDP）；M1-M8 回归通过
+
+## M9d：解锁页 + 入口切换
+
+- [ ] 解锁页实现：三态自动路由（isInitialized/isUnlocked）、PBKDF2 进度环动画、错误反馈；角落主题/语言切换
+- [ ] Alt+. 改指向 wui 页（来源标签记录保留）；"回车在来源组打开 + 多 URL 二级菜单"从 launcher 移植到 results
+- [ ] 淘汰 launcher / editor / manager 旧页面；重置方法（清扩展存储）写入 README/docs/install.md
+- [ ] 验证：`scripts/m9d-verify.mjs`（锁定→解锁→进主页面→回车打开入组）；M1-M8 回归通过
+
+## M9e：编辑模式 + Settings 完成
+
+- [ ] 编辑模式表单实现：保存/取消、status 切换归档、urls/accounts/records 行增删、match 选择；tag/linkedInfo 选择器（先建后选）
+- [ ] Settings 手风琴：tag/linkedInfo 管理（含 color 选择、引用拒绝删除）、超时锁定/自动归档天数配置、导入导出迁入（主密码确认）
+- [ ] 用户名/密码生成器（长度/符号可配，纯前端）；主题 dark/light/system 与 zh/en 双语切换持久化到 meta:settings
+- [ ] 验证：`scripts/m9e-verify.mjs`；M1-M8 全量回归通过

@@ -6,3 +6,5 @@ node_modules/
 .chrome-test-profile/
 .m0-check.mjs
 .fake-home/
+tmp/
+.chrome-shot-profile/
