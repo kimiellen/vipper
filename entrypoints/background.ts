@@ -64,18 +64,32 @@ async function switchTab(direction: -1 | 1): Promise<void> {
   await chrome.tabs.update(targetTabId, { active: true });
 }
 
-/** Alt+.：呼出 wui 管理页。先记录来源标签（窗口 + 所在组），供"回车在来源组打开"使用 */
+/** Alt+.：呼出 wui 管理页。已打开时混合 toggle：未聚焦 → 唤回聚焦；已聚焦 → 关闭（Raycast 式） */
 async function openLauncher(): Promise<void> {
+  const wuiUrl = chrome.runtime.getURL('wui.html');
+  const existing = (await chrome.windows.getAll({ populate: true }))
+    .find((w) => w.tabs?.some((t) => t.url === wuiUrl));
+  if (existing?.id !== undefined) {
+    if (existing.focused) {
+      await chrome.windows.remove(existing.id);
+      return;
+    }
+    await chrome.windows.update(existing.id, { focused: true });
+  }
+
+  // 记录来源标签（窗口 + 所在组），供"回车在来源组打开"使用
   const [source] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (source?.windowId === undefined) return;
-  await chrome.storage.session.set({
-    launcherSource: {
-      windowId: source.windowId,
-      groupId: source.groupId === UNGROUPED ? null : source.groupId,
-    },
-  });
+  if (source?.windowId !== undefined && source.url !== wuiUrl) {
+    await chrome.storage.session.set({
+      launcherSource: {
+        windowId: source.windowId,
+        groupId: source.groupId === UNGROUPED ? null : source.groupId,
+      },
+    });
+  }
+  if (existing) return; // 唤回已有窗口即可，不再新建
   await chrome.windows.create({
-    url: chrome.runtime.getURL('wui.html'),
+    url: wuiUrl,
     type: 'popup',
     width: 1280,
     height: 860,
