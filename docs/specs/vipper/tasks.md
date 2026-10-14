@@ -32,7 +32,7 @@
 - [x] Alt+. 呼出 popup 窗口（`open-launcher` 命令，无 suggested_key——配额已满）；安装说明 [docs/install.md](../../../docs/install.md) 含手动绑键步骤与 Hyprland windowrule
 - [x] 弹窗 UI：搜索栏自动聚焦、关键字检索、↓ 进入条目区、方向键导航、回车打开（多 URL 书签进入二级菜单选 URL）、Esc 返回/关闭；回车经 background 在来源组打开（tabs.create + tabs.group）并自动关弹窗
 - [x] 验证：`scripts/m3-verify.mjs` 8/8 通过（聚焦/过滤/钻取/入组/关窗）；M1 回归 9/9、M2 回归 12/12
-- [ ] 待定（产品问题）：书签的**录入入口**未设计（当前只能靠测试脚本种子数据），后续讨论
+- [x] ~~待定（产品问题）：书签的**录入入口**未设计~~ 已由 M9 解决：wui 管理页「＋ 新增书签」+ contents 编辑态（2026-10-14）
 
 ## M4：凭据库核心 ✅（2026-10-13）
 
