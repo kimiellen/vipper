@@ -98,12 +98,13 @@
 > - `entrypoints/manager/main.ts`：linkedInfo 表单 type/value → name/value（同上，M9e 重建）
 > - 种子/验证脚本：m3/m5/m8-verify 种子数据去 label；m4-verify 默认值断言改 0/0
 
-## M9c：设计系统入库 + wui 页面骨架
+## M9c：设计系统入库 + wui 页面骨架 ✅（2026-10-14）
 
-- [ ] tokens.css / sync-tokens.py 从 tmp 正式入库（design-system/ + scripts/），抽共享 CSS 供各 entrypoint 引用
-- [ ] wui 管理页三栏骨架：顶行（active/archived seg、搜索、TAGS/LINS 多选过滤、新增按钮）+ Settings/results/contents
-- [ ] results 接通真实数据：favicon 首列、lastUsedAt 降序、时间格式化、tag 彩色渲染；contents 只读详情（secret 遮蔽）
-- [ ] 验证：`scripts/m9c-verify.mjs`（CDP）；M1-M8 回归通过
+- [x] tokens.css / sync-tokens.py 正式入库（`design-system/` + `scripts/`），sync 目标改为 `docs/design/prototypes/` + `entrypoints/`（递归）；token 块按设计系统约定内联进 html（@tokens 标记），旧入口无标记仅告警（M9d 淘汰）
+- [x] wui 管理页三栏骨架（`entrypoints/wui/`）：顶行（active/archived seg、搜索、TAGS/LINS 多选过滤 AND 语义、新增按钮 M9e 接线）+ Settings 手风琴骨架（真实设置值与 tag/link 只读列表，交互 M9e）+ results + contents
+- [x] results 接通真实数据：favicon 首列、lastUsedAt 降序、时间格式化置底、tag 按 color 彩色渲染（color-mix + cat 变量）；contents 只读详情（password/secret 遮蔽、⧉ 复制真实值、无明文泄漏）
+- [x] idx 索引加 `accountCount`（仅计数，列表「账号数」列需要；spec 存储布局已同步）
+- [x] 验证：`scripts/m9c-verify.mjs` 11/11 通过；M1-M8 + M9b 全量回归通过
 
 ## M9d：解锁页 + 入口切换
 

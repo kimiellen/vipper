@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>vipper</title>
+<style>
+/* ==== @tokens:start 由 design-system/tokens.css 同步生成，请勿手改 ====
+/* ==========================================================================
+   设计 Token —— 所有页面的唯一样式来源
+   --------------------------------------------------------------------------
+   【当前风格】已定稿 v1（2026-10-11 与用户逐项确认）
+     · 整体氛围：深色科技感（GitHub Dark / 终端风）
+     · 配色方案：Catppuccin 家族 —— dark = Mocha（默认），light = Latte
+     · 主色：Mauve 紫
+     · 圆角：小圆角（4-6px）
+     · 密度：标准（正文 14px）
+     · 字体：中文 Alibaba PuHuiTi 3.0，英文/符号 CodeNewRoman Nerd Font Mono
+     · 布局：wui 侧边栏布局为主，内容区最大宽度 1200px
+   【双主题】默认 dark（Mocha）；<html data-theme="light"> 启用 light（Latte）。
+     两套主题变量名完全一致，页面无需任何改动即可切换。
+   【同步机制】页面/模板 html 不引用本文件，而是在 <style> 内联完整 token
+     块（@tokens 标记之间，由 scripts/sync-tokens.py 生成）。修改本文件后运行：
+       python3 scripts/sync-tokens.py
+     自动同步所有模板与 pages/ 下的页面。禁止手改 html 里的 token 块。
+   修改规则：组件样式只允许引用本文件的变量，禁止硬编码色值/字号/间距。
+   ========================================================================== */
+
+/* ===== 主题：dark（Catppuccin Mocha，默认） ===== */
+
+:root {
+  /* ---- 主色（accent）：Catppuccin Mocha Mauve ---- */
+  --accent: #cba6f7;                     /* mauve */
+  --accent-hover: #d9c2fa;               /* mauve 提亮（派生） */
+  --accent-active: #b793f0;              /* mauve 压暗（派生） */
+  --accent-fg: #11111b;                  /* 主色上的文字：crust */
+  --accent-soft: rgba(203, 166, 247, 0.14);  /* 主色浅底（选中行、tag 底） */
+
+  /* ---- 中性色：Catppuccin Mocha 底色阶梯 ---- */
+  --bg: #181825;                         /* mantle：页面底色 */
+  --bg-raised: #1e1e2e;                  /* base：卡片、侧边栏 */
+  --bg-subtle: #313244;                  /* surface0：表头、hover、输入框 */
+  --bg-hover: #45475a;                   /* surface1：强 hover */
+  --fg: #cdd6f4;                         /* text：主要文字 */
+  --fg-secondary: #bac2de;               /* subtext1：次要文字 */
+  --fg-muted: #7f849c;                   /* overlay1：弱化文字（占位、说明） */
+  --border: #313244;                     /* surface0：常规边框 */
+  --border-strong: #585b70;              /* surface2：强调边框（输入框） */
+
+  /* ---- 语义色（Catppuccin Mocha） ---- */
+  --success: #a6e3a1;                    /* green */
+  --success-soft: rgba(166, 227, 161, 0.12);
+  --warning: #f9e2af;                    /* yellow */
+  --warning-soft: rgba(249, 226, 175, 0.12);
+  --danger: #f38ba8;                     /* red */
+  --danger-hover: #f5a5bc;               /* red 提亮（派生） */
+  --danger-fg: #11111b;                  /* 危险按钮上的文字：crust */
+  --danger-soft: rgba(243, 139, 168, 0.12);
+  --info: #89dceb;                       /* sky */
+  --info-soft: rgba(137, 220, 235, 0.12);
+
+  /* ---- 标签彩色：Catppuccin Mocha 14 彩色（tag 颜色选择等场景） ---- */
+  --cat-rosewater: #f5e0dc;
+  --cat-flamingo: #f2cdcd;
+  --cat-pink: #f5c2e7;
+  --cat-mauve: #cba6f7;
+  --cat-red: #f38ba8;
+  --cat-maroon: #eba0ac;
+  --cat-peach: #fab387;
+  --cat-yellow: #f9e2af;
+  --cat-green: #a6e3a1;
+  --cat-teal: #94e2d5;
+  --cat-sky: #89dceb;
+  --cat-sapphire: #74c7ec;
+  --cat-blue: #89b4fa;
+  --cat-lavender: #b4befe;
+
+  /* ---- 字体 ---- */
+  /* 英文/数字/符号优先命中 CodeNewRoman（等宽 + Nerd Font 图标），
+     中文回退到阿里巴巴普惠体 3.0，最后是任意系统的通用回退。 */
+  --font-family: "CodeNewRoman Nerd Font Mono", "Alibaba PuHuiTi 3.0",
+    "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  --font-mono: "CodeNewRoman Nerd Font Mono", ui-monospace, "SF Mono",
+    "Cascadia Mono", Consolas, monospace;
+
+  /* ---- 字号（标准密度） ---- */
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  --text-3xl: 30px;
+
+  /* ---- 字重 ---- */
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* ---- 间距（4px 基准） ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ---- 圆角（小圆角） ---- */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 6px;
+  --radius-full: 9999px;
+
+  /* ---- 阴影（深色主题：压低、偏黑） ---- */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.45);
+
+  /* ---- 布局 ---- */
+  --content-max-width: 1200px;
+  --sidebar-width: 220px;
+  --header-height: 56px;
+
+  /* ---- 过渡 ---- */
+  --transition: 150ms ease;
+}
+
+/* ===== 主题：light（Catppuccin Latte，Mocha 的同族浅色款） =====
+   只覆盖随主题变化的变量（颜色与阴影）；字体/字号/间距/圆角等通用。 */
+:root[data-theme="light"] {
+  /* ---- 主色：Latte Mauve ---- */
+  --accent: #8839ef;                     /* mauve */
+  --accent-hover: #7c2fe4;               /* mauve 压暗（派生） */
+  --accent-active: #6d28c9;              /* mauve 再压暗（派生） */
+  --accent-fg: #eff1f5;                  /* 主色上的文字：base */
+  --accent-soft: rgba(136, 57, 239, 0.10);
+
+  /* ---- 中性色：Latte 底色阶梯 ---- */
+  --bg: #e6e9ef;                         /* mantle：页面底色 */
+  --bg-raised: #eff1f5;                  /* base：卡片、侧边栏 */
+  --bg-subtle: #dce0e8;                  /* crust：表头、hover、输入框 */
+  --bg-hover: #ccd0da;                   /* surface0：强 hover */
+  --fg: #4c4f69;                         /* text：主要文字 */
+  --fg-secondary: #5c5f77;               /* subtext1：次要文字 */
+  --fg-muted: #8c8fa1;                   /* overlay1：弱化文字 */
+  --border: #ccd0da;                     /* surface0：常规边框 */
+  --border-strong: #acb0be;              /* surface2：强调边框 */
+
+  /* ---- 语义色（Latte） ---- */
+  --success: #40a02b;                    /* green */
+  --success-soft: rgba(64, 160, 43, 0.10);
+  --warning: #df8e1d;                    /* yellow */
+  --warning-soft: rgba(223, 142, 29, 0.12);
+  --danger: #d20f39;                     /* red */
+  --danger-hover: #b30d31;               /* red 压暗（派生） */
+  --danger-fg: #eff1f5;
+  --danger-soft: rgba(210, 15, 57, 0.08);
+  --info: #04a5e5;                       /* sky */
+  --info-soft: rgba(4, 165, 229, 0.10);
+
+  /* ---- 标签彩色：Catppuccin Latte 14 彩色 ---- */
+  --cat-rosewater: #dc8a78;
+  --cat-flamingo: #dd7878;
+  --cat-pink: #ea76cb;
+  --cat-mauve: #8839ef;
+  --cat-red: #d20f39;
+  --cat-maroon: #e64553;
+  --cat-peach: #fe640b;
+  --cat-yellow: #df8e1d;
+  --cat-green: #40a02b;
+  --cat-teal: #179299;
+  --cat-sky: #04a5e5;
+  --cat-sapphire: #209fb5;
+  --cat-blue: #1e66f5;
+  --cat-lavender: #7287fd;
+
+  /* ---- 阴影（浅色主题：轻、偏冷灰） ---- */
+  --shadow-sm: 0 1px 2px rgba(76, 79, 105, 0.08);
+  --shadow-md: 0 2px 8px rgba(76, 79, 105, 0.10);
+  --shadow-lg: 0 8px 24px rgba(76, 79, 105, 0.14);
+}
+/* ==== @tokens:end ==== */
+</style>
+<style>
+  /* ===== 基础 ===== */
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scrollbar-color: var(--bg-hover) var(--bg); }
+  body {
+    margin: 0; font-family: var(--font-family); font-size: var(--text-base);
+    color: var(--fg); background: var(--bg); line-height: 1.6;
+  }
+  .mono { font-family: var(--font-mono); }
+
+  /* ===== 组件：按钮 ===== */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1);
+    padding: var(--space-2) var(--space-3);
+    font: inherit; font-size: var(--text-base); font-weight: var(--weight-medium); line-height: 1.5;
+    border: 1px solid transparent; border-radius: var(--radius-md);
+    cursor: pointer; transition: all var(--transition); white-space: nowrap;
+  }
+  .btn-primary { background: var(--accent); color: var(--accent-fg); }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-ghost { background: transparent; color: var(--fg-secondary); }
+  .btn-ghost:hover { background: var(--bg-subtle); color: var(--fg); }
+  .btn-sm { padding: var(--space-1) var(--space-2); font-size: var(--text-sm); }
+
+  /* ===== 组件：表单 ===== */
+  .input {
+    width: 100%; padding: var(--space-2) var(--space-3);
+    font: inherit; color: var(--fg);
+    background: var(--bg-subtle); border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md); transition: border-color var(--transition);
+  }
+  .input:focus { outline: none; border-color: var(--accent); }
+  .input::placeholder { color: var(--fg-muted); }
+  input[type="checkbox"] { accent-color: var(--accent); }
+
+  /* ===== 组件：表格 ===== */
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: var(--space-3) var(--space-4); text-align: left; }
+  thead th { background: var(--bg-subtle); font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--fg-secondary); }
+  tbody tr { cursor: pointer; }
+  tbody tr + tr { border-top: 1px solid var(--border); }
+  tbody tr:hover { background: var(--bg-subtle); }
+  tbody tr.row-selected, tbody tr.row-selected:hover { background: var(--accent-soft); }
+
+  /* ===== 组件：标签 ===== */
+  .tag {
+    display: inline-flex; align-items: center; gap: var(--space-1);
+    padding: 2px var(--space-2);
+    font-size: var(--text-xs); font-weight: var(--weight-medium);
+    border-radius: var(--radius-full);
+  }
+  .tag-neutral { background: var(--bg-subtle); color: var(--fg-secondary); }
+
+  /* ===== 组件：空状态 ===== */
+  .empty { text-align: center; padding: var(--space-12) var(--space-6); color: var(--fg-muted); }
+
+  /* ===== 顶行工具栏 ===== */
+  .page { display: flex; flex-direction: column; min-height: 100vh; max-width: 1440px; margin: 0 auto; padding: var(--space-6); }
+  .toolbar { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-4); }
+  .toolbar .t-search { flex: 1; min-width: 200px; }
+
+  /* active/archived 切换 */
+  .seg { display: inline-flex; flex-shrink: 0; border: 1px solid var(--border-strong); border-radius: var(--radius-md); overflow: hidden; }
+  .seg-btn {
+    padding: var(--space-2) var(--space-3); font: inherit; font-size: var(--text-sm); border: none; cursor: pointer;
+    background: transparent; color: var(--fg-muted); transition: all var(--transition);
+  }
+  .seg-btn + .seg-btn { border-left: 1px solid var(--border-strong); }
+  .seg-btn:hover { color: var(--fg); }
+  .seg-btn.active { background: var(--accent); color: var(--accent-fg); font-weight: var(--weight-medium); }
+
+  /* 多选过滤下拉（details 实现） */
+  .msel { position: relative; flex-shrink: 0; }
+  .msel summary {
+    list-style: none; cursor: pointer; user-select: none;
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg-subtle); border: 1px solid var(--border-strong); border-radius: var(--radius-md);
+    color: var(--fg-secondary); font-size: var(--text-sm); transition: border-color var(--transition);
+  }
+  .msel summary::-webkit-details-marker { display: none; }
+  .msel summary:hover { color: var(--fg); }
+  .msel[open] summary { border-color: var(--accent); color: var(--fg); }
+  .msel-pop {
+    position: absolute; left: 0; top: calc(100% + var(--space-1)); z-index: 20;
+    min-width: 180px; display: grid; gap: var(--space-1);
+    background: var(--bg-raised); border: 1px solid var(--border-strong); border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg); padding: var(--space-2);
+    max-height: 320px; overflow: auto;
+  }
+  .msel-pop label { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); cursor: pointer; font-size: var(--text-sm); }
+  .msel-pop label:hover { background: var(--bg-subtle); }
+  .msel-pop.pop-row { display: flex; flex-wrap: wrap; max-width: 340px; }
+  .none { color: var(--fg-muted); font-size: var(--text-sm); padding: var(--space-1) var(--space-2); }
+
+  /* ===== 下区三块 ===== */
+  .blocks-grid { display: grid; grid-template-columns: 320px minmax(0, 1fr) 320px; gap: var(--space-4); align-items: stretch; flex: 1; }
+  .blk {
+    display: flex; flex-direction: column; min-height: 0;
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);
+  }
+  .blk-head {
+    background: var(--bg); padding: var(--space-2) var(--space-3);
+    font-size: var(--text-base); font-weight: var(--weight-semibold); letter-spacing: 0.03em;
+    color: var(--fg-secondary);
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .blk-body { flex: 1; min-height: 0; padding: var(--space-3); overflow: auto; }
+  @media (max-width: 1100px) {
+    .blocks-grid { grid-template-columns: 240px minmax(0, 1fr); }
+    .contents-col { grid-column: 1 / -1; }
+  }
+  @media (max-width: 800px) {
+    .blocks-grid { grid-template-columns: 1fr; }
+    .contents-col { grid-column: auto; }
+  }
+
+  /* ===== Settings 手风琴 ===== */
+  .set-group { border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: var(--bg-raised); }
+  .set-group + .set-group { margin-top: var(--space-2); }
+  .set-head {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    padding: var(--space-2) var(--space-3);
+    background: transparent; border: none; font: inherit; color: var(--fg-secondary);
+    cursor: pointer; transition: all var(--transition);
+  }
+  .set-head:hover { background: var(--bg-subtle); color: var(--fg); }
+  .set-group.open .set-head { color: var(--accent); font-weight: var(--weight-medium); }
+  .set-head .caret { color: var(--fg-muted); transition: transform var(--transition); }
+  .set-group.open .set-head .caret { transform: rotate(90deg); }
+  .set-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--transition); }
+  .set-group.open .set-body { grid-template-rows: 1fr; }
+  .set-body-inner { overflow: hidden; min-height: 0; }
+  .settings-body { display: flex; flex-direction: column; }
+  .settings-body .set-group.open { flex: 1; display: flex; flex-direction: column; }
+  .settings-body .set-group.open .set-body { flex: 1; }
+  .set-body-pad { display: grid; gap: var(--space-2); padding: var(--space-3); border-top: 1px solid var(--border); }
+
+  /* 分组分隔线 */
+  .divider-strong {
+    height: 2px; border-radius: var(--radius-full);
+    margin: 0 var(--space-6);
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  }
+
+  /* ===== contents 详情面板 ===== */
+  .detail-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-3); }
+  .detail-head h3 { margin: 0; font-size: var(--text-lg); font-weight: var(--weight-semibold); }
+  .detail-actions { display: flex; gap: var(--space-1); }
+  .kv { display: flex; gap: var(--space-3); padding: var(--space-1) 0; font-size: var(--text-base); }
+  .kv .k { width: 96px; flex-shrink: 0; color: var(--fg-muted); font-size: var(--text-sm); }
+  .kv-block { padding: var(--space-1) 0; font-size: var(--text-base); }
+  .kv-block > .k, .box-head .k { display: block; color: var(--fg-muted); font-size: var(--text-sm); }
+  .box-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-1); }
+  .box {
+    background: var(--bg-subtle); border: 1px solid var(--border); border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-3); font-size: var(--text-base); color: var(--fg-secondary);
+  }
+  .copy-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+  .copy-row + .copy-row { margin-top: 2px; }
+  .copy-row .txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* favicon */
+  .favicon { width: 16px; height: 16px; flex: none; vertical-align: -2px; }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- 顶行工具栏 -->
+  <div class="toolbar">
+    <div class="seg" id="status-seg">
+      <button class="seg-btn active" data-status="active">active</button>
+      <button class="seg-btn" data-status="archived">archived</button>
+    </div>
+    <input class="input t-search" id="search" type="text" placeholder="搜索书签名 / url / 备注…" autofocus />
+    <details class="msel" id="tag-filter">
+      <summary>TAGS ▾</summary>
+      <div class="msel-pop pop-row" id="tag-filter-pop"></div>
+    </details>
+    <details class="msel" id="link-filter">
+      <summary>LINS ▾</summary>
+      <div class="msel-pop" id="link-filter-pop"></div>
+    </details>
+    <button class="btn btn-primary" id="new-btn">＋ 新增书签</button>
+  </div>
+
+  <!-- 下区三块 -->
+  <div class="blocks-grid">
+
+    <!-- Settings：手风琴骨架（交互在 M9e 接通） -->
+    <div class="blk">
+      <div class="blk-head">设置</div>
+      <div class="blk-body settings-body">
+        <div class="set-group set-group-general open">
+          <button class="set-head"><span>常规</span><span class="caret">▸</span></button>
+          <div class="set-body"><div class="set-body-inner"><div class="set-body-pad" id="settings-general"></div></div></div>
+        </div>
+        <div class="set-group set-group-tags">
+          <button class="set-head"><span>标签</span><span class="caret">▸</span></button>
+          <div class="set-body"><div class="set-body-inner"><div class="set-body-pad" id="settings-tags"></div></div></div>
+        </div>
+        <div class="set-group set-group-linked">
+          <button class="set-head"><span>关联信息</span><span class="caret">▸</span></button>
+          <div class="set-body"><div class="set-body-inner"><div class="set-body-pad" id="settings-links"></div></div></div>
+        </div>
+        <div class="set-group set-group-backup">
+          <button class="set-head"><span>备份</span><span class="caret">▸</span></button>
+          <div class="set-body"><div class="set-body-inner"><div class="set-body-pad" id="settings-backup"></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- results -->
+    <div class="blk">
+      <div class="blk-head">结果</div>
+      <div class="blk-body" style="padding: 0;">
+        <table>
+          <thead>
+            <tr><th></th><th>书签名</th><th>tags</th><th>linkedInfos</th><th>url数</th><th>账号数</th></tr>
+          </thead>
+          <tbody id="results-body"></tbody>
+        </table>
+        <div class="empty" id="results-empty" hidden>无匹配书签</div>
+      </div>
+    </div>
+
+    <!-- contents（M9c：只读展示；编辑态在 M9e） -->
+    <div class="blk contents-col">
+      <div class="blk-head" id="contents-head">详情</div>
+      <div class="blk-body" id="contents-view">
+        <div class="empty">← 选择一条书签</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script type="module" src="./main.ts"></script>
+</body>
+</html>

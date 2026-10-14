@@ -75,7 +75,7 @@ chrome.storage.local 是 LevelDB 键值库（声明 `unlimitedStorage` 去配额
 
 | key | 内容 | 访问场景 |
 |---|---|---|
-| `idx` | 轻量索引 `[{id,title,remark,tags,linkedInfos,urls,lastUsedAt,status}]` | 搜索/列表只读它 |
+| `idx` | 轻量索引 `[{id,title,remark,tags,linkedInfos,urls,accountCount,lastUsedAt,status}]`（accountCount 仅计数，供列表展示） | 搜索/列表只读它 |
 | `bm:<id>` | 条目详情 | 打开/编辑某条时读 |
 | `arc:<id>` | 归档条目 | 归档视图专用，active 搜索天然不污染 |
 | `meta:tags` / `meta:links` / `meta:settings` | 管理表与配置（锁定超时、自动归档阈值、主题、语言） | 管理页 |

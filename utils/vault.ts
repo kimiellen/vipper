@@ -36,7 +36,7 @@ export interface Bookmark {
   lastUsedAt: number;
 }
 
-/** 索引条目：只含搜索/列表/匹配需要的明文字段 */
+/** 索引条目：只含搜索/列表/匹配需要的明文字段（accountCount 仅计数，不含账号内容） */
 export interface IndexEntry {
   id: string;
   title: string;
@@ -44,6 +44,7 @@ export interface IndexEntry {
   tags: string[];
   linkedInfos: string[];
   urls: BookmarkUrl[];
+  accountCount: number;
   lastUsedAt: number;
   status: 'active' | 'archived';
 }
@@ -60,6 +61,7 @@ const toIndex = (b: Bookmark): IndexEntry => ({
   tags: b.tags,
   linkedInfos: b.linkedInfos,
   urls: b.urls,
+  accountCount: b.accounts.length,
   lastUsedAt: b.lastUsedAt,
   status: b.status,
 });
