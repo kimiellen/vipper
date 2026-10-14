@@ -25,10 +25,24 @@ interface KeyMeta {
 export interface VaultSettings {
   lockTimeoutMin: number;
   autoArchiveDays: number;
+  /** 主题：dark（默认）/ light / system */
+  theme: 'dark' | 'light' | 'system';
+  /** 界面语言：zh（默认）/ en */
+  lang: 'zh' | 'en';
+  /** 用户名生成器：单词长度 / 数字长度 */
+  genWordLen: number;
+  genDigitLen: number;
+  /** 密码生成器：长度 / 是否含符号 */
+  genPassLen: number;
+  genPassSymbols: boolean;
 }
 
 /** 0 = 不开启（超时锁定/自动归档默认关闭，spec 2026-10-14 修订） */
-const DEFAULT_SETTINGS: VaultSettings = { lockTimeoutMin: 0, autoArchiveDays: 0 };
+const DEFAULT_SETTINGS: VaultSettings = {
+  lockTimeoutMin: 0, autoArchiveDays: 0,
+  theme: 'dark', lang: 'zh',
+  genWordLen: 8, genDigitLen: 2, genPassLen: 12, genPassSymbols: true,
+};
 
 export async function isInitialized(): Promise<boolean> {
   return (await chrome.storage.local.get(META_KEY))[META_KEY] !== undefined;

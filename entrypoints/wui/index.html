@@ -218,6 +218,25 @@
   }
   .input:focus { outline: none; border-color: var(--accent); }
   .input::placeholder { color: var(--fg-muted); }
+  .textarea {
+    width: 100%; padding: var(--space-2) var(--space-3); min-height: 56px; resize: vertical;
+    font: inherit; color: var(--fg);
+    background: var(--bg-subtle); border: 1px solid var(--border-strong); border-radius: var(--radius-md);
+  }
+  .textarea:focus { outline: none; border-color: var(--accent); }
+  .select {
+    padding: var(--space-2) var(--space-3); font: inherit; color: var(--fg);
+    background: var(--bg-subtle); border: 1px solid var(--border-strong); border-radius: var(--radius-md);
+    appearance: base-select;
+  }
+  .select:focus { outline: none; border-color: var(--accent); }
+  .select::picker(select) {
+    appearance: base-select;
+    background: var(--bg-raised); border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md); box-shadow: var(--shadow-lg); padding: var(--space-1);
+  }
+  .select option { padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm); color: var(--fg); background: var(--bg-raised); }
+  .select option:checked { background: var(--accent-soft); color: var(--accent); }
   input[type="checkbox"] { accent-color: var(--accent); }
 
   /* ===== 组件：表格 ===== */
@@ -351,6 +370,42 @@
   /* favicon */
   .favicon { width: 16px; height: 16px; flex: none; vertical-align: -2px; }
 
+  /* ===== contents 编辑态（原地切换，字段顺序与展示态一致） ===== */
+  #contents-edit .input, #contents-edit .select, #contents-edit .textarea {
+    padding: var(--space-1) var(--space-2); font-size: var(--text-sm);
+  }
+  #contents-edit .kv-block { margin-bottom: var(--space-2); }
+  .chip-row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+  .tag .tag-x { border: none; background: none; color: inherit; cursor: pointer; font: inherit; font-size: var(--text-xs); padding: 0; opacity: 0.7; }
+  .tag .tag-x:hover { opacity: 1; }
+  .frow { display: flex; gap: var(--space-1); align-items: center; flex-wrap: wrap; }
+  .frow + .frow { margin-top: var(--space-2); }
+  .frow .grow { flex: 1 1 130px; min-width: 0; }
+  .frow .fixed-sm { width: 96px; flex: 0 0 auto; }
+  .frow .tail { display: flex; gap: var(--space-1); align-items: center; flex-shrink: 0; }
+  .pw-group { display: flex; gap: var(--space-1); flex: 1 1 130px; min-width: 0; }
+  .pw-group .input { flex: 1; min-width: 0; }
+  .edit-add { margin-top: var(--space-2); }
+  .edit-actions { display: flex; gap: var(--space-3); justify-content: flex-end; margin-top: var(--space-4); }
+
+  /* ===== Settings 行式列表与生成器 ===== */
+  .rlist { border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+  .rlist-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-2) var(--space-3); }
+  .rlist-row + .rlist-row { border-top: 1px solid var(--border); }
+  .rlist-row:hover { background: var(--bg-subtle); }
+  .rlist-main { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+  .rlist-main .sub { color: var(--fg-muted); font-size: var(--text-sm); }
+  .rlist-actions { display: flex; gap: var(--space-1); flex-shrink: 0; }
+  .gen-row { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
+  .gen-row .input { flex: 1; min-width: 0; padding: var(--space-1) var(--space-2); }
+  .inline-field { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+  .inline-field > label { font-size: var(--text-sm); font-weight: var(--weight-medium); }
+  .inline-field .input { width: 72px; padding: var(--space-1) var(--space-2); }
+  .inline-ctrl { display: flex; align-items: center; gap: var(--space-2); }
+  .sub-title { font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--fg-muted); margin-top: var(--space-1); }
+  .swatch { display: inline-block; width: var(--space-3); height: var(--space-3); border-radius: var(--radius-full); flex-shrink: 0; }
+  .err-text { color: var(--danger); font-size: var(--text-sm); }
+
   /* ===== 解锁门控覆盖层（spec 安全模型：三态自动路由） ===== */
   #unlock-overlay {
     position: fixed; inset: 0; z-index: 100; background: var(--bg);
@@ -464,7 +519,9 @@
       <button class="seg-btn active" data-status="active">active</button>
       <button class="seg-btn" data-status="archived">archived</button>
     </div>
-    <input class="input t-search" id="search" type="text" placeholder="搜索书签名 / url / 备注…" />
+    <input class="input t-search" id="search" type="text"
+           placeholder="搜索书签名 / url / 备注…"
+           data-zh-ph="搜索书签名 / url / 备注…" data-en-ph="Search name / url / remark…" />
     <details class="msel" id="tag-filter">
       <summary>TAGS ▾</summary>
       <div class="msel-pop pop-row" id="tag-filter-pop"></div>
@@ -473,30 +530,30 @@
       <summary>LINS ▾</summary>
       <div class="msel-pop" id="link-filter-pop"></div>
     </details>
-    <button class="btn btn-primary" id="new-btn">＋ 新增书签</button>
+    <button class="btn btn-primary" id="new-btn" data-zh="＋ 新增书签" data-en="＋ New Bookmark">＋ 新增书签</button>
   </div>
 
   <!-- 下区三块 -->
   <div class="blocks-grid">
 
-    <!-- Settings：手风琴骨架（交互在 M9e 接通） -->
+    <!-- Settings：手风琴（内容由 JS 按真实数据渲染） -->
     <div class="blk">
-      <div class="blk-head">设置</div>
+      <div class="blk-head" data-zh="设置" data-en="Settings">设置</div>
       <div class="blk-body settings-body">
         <div class="set-group set-group-general open">
-          <button class="set-head"><span>常规</span><span class="caret">▸</span></button>
+          <button class="set-head"><span data-zh="常规" data-en="General">常规</span><span class="caret">▸</span></button>
           <div class="set-body"><div class="set-body-inner"><div class="set-body-pad" id="settings-general"></div></div></div>
         </div>
         <div class="set-group set-group-tags">
-          <button class="set-head"><span>标签</span><span class="caret">▸</span></button>
+          <button class="set-head"><span data-zh="标签" data-en="Tags">标签</span><span class="caret">▸</span></button>
           <div class="set-body"><div class="set-body-inner"><div class="set-body-pad" id="settings-tags"></div></div></div>
         </div>
         <div class="set-group set-group-linked">
-          <button class="set-head"><span>关联信息</span><span class="caret">▸</span></button>
+          <button class="set-head"><span data-zh="关联信息" data-en="Linked Infos">关联信息</span><span class="caret">▸</span></button>
           <div class="set-body"><div class="set-body-inner"><div class="set-body-pad" id="settings-links"></div></div></div>
         </div>
         <div class="set-group set-group-backup">
-          <button class="set-head"><span>备份</span><span class="caret">▸</span></button>
+          <button class="set-head"><span data-zh="备份" data-en="Backup">备份</span><span class="caret">▸</span></button>
           <div class="set-body"><div class="set-body-inner"><div class="set-body-pad" id="settings-backup"></div></div></div>
         </div>
       </div>
@@ -504,24 +561,25 @@
 
     <!-- results -->
     <div class="blk">
-      <div class="blk-head">结果</div>
+      <div class="blk-head" data-zh="结果" data-en="Results">结果</div>
       <div class="blk-body" style="padding: 0;">
         <table>
           <thead>
-            <tr><th></th><th>书签名</th><th>tags</th><th>linkedInfos</th><th>url数</th><th>账号数</th></tr>
+            <tr><th></th><th data-zh="书签名" data-en="Bookmark">书签名</th><th>tags</th><th>linkedInfos</th><th data-zh="url数" data-en="URLs">url数</th><th data-zh="账号数" data-en="Accounts">账号数</th></tr>
           </thead>
           <tbody id="results-body"></tbody>
         </table>
-        <div class="empty" id="results-empty" hidden>无匹配书签</div>
+        <div class="empty" id="results-empty" hidden data-zh="无匹配书签" data-en="No matching bookmarks">无匹配书签</div>
       </div>
     </div>
 
-    <!-- contents（M9c：只读展示；编辑态在 M9e） -->
+    <!-- contents：展示态 / 编辑态（原地切换，DOM 由 JS 渲染） -->
     <div class="blk contents-col">
-      <div class="blk-head" id="contents-head">详情</div>
+      <div class="blk-head" id="contents-head" data-zh="详情" data-en="Contents">详情</div>
       <div class="blk-body" id="contents-view">
-        <div class="empty">← 选择一条书签</div>
+        <div class="empty" data-zh="← 选择一条书签" data-en="← Select a bookmark">← 选择一条书签</div>
       </div>
+      <div class="blk-body" id="contents-edit" hidden></div>
     </div>
 
   </div>

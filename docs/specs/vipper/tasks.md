@@ -114,9 +114,11 @@
 - [x] 验证：`scripts/m9d-verify.mjs` 12/12 通过（创建/解锁/直达三态 + 键盘打开入组 + 自动关窗）；M1/M2/M4/M5/M8/M9b/M9c 回归通过
   - 踩坑：headless Chromium 有 popup 窗口在场时 `tabs.group` 必失败的 quirk——background 改为先关 wui 窗口再入组（真机顺序无关）；m9d 场景搭建须在任何 popup 打开前完成分组
 
-## M9e：编辑模式 + Settings 完成
+## M9e：编辑态 + Settings 完成 ✅（2026-10-14）
 
-- [ ] 编辑模式表单实现：保存/取消、status 切换归档、urls/accounts/records 行增删、match 选择；tag/linkedInfo 选择器（先建后选）
-- [ ] Settings 手风琴：tag/linkedInfo 管理（含 color 选择、引用拒绝删除）、超时锁定/自动归档天数配置、导入导出迁入（主密码确认）
-- [ ] 用户名/密码生成器（长度/符号可配，纯前端）；主题 dark/light/system 与 zh/en 双语切换持久化到 meta:settings
-- [ ] 验证：`scripts/m9e-verify.mjs`；M1-M8 全量回归通过
+- [x] contents 编辑态：✎/新增书签原地切换，字段顺序与展示态一致（title→tags→linkedInfos→urls→accounts→records→remark→status→只读时间置底）；urls/accounts/records 行增删、match 选择、密码显隐/生成、tag/linkedInfo 选择器（先建后选 chips+下拉）；保存/取消/Esc；删除带 confirm
+- [x] Settings：tags/linkedInfos 管理（颜色选择、行内编辑、引用拒删提示）；超时锁定/自动归档天数保存（0=关闭）；用户名/密码生成器（`utils/generator.ts`，规则持久化）；主题 dark/light/system 与 zh/en 双语切换持久化到 meta:settings（解锁页角落同步生效）
+- [x] 备份迁入：导入 JSON 合并、导出需当场主密码确认
+- [x] vault 补充 updateTag / updateLinkedInfo（重名重值拒绝，排除自身）
+- [x] 验证：`scripts/m9e-verify.mjs` 17/17 通过；全量回归 m1/m2/m4/m5/m8/m9b/m9c/m9d 通过（m9c 的 Settings 断言随表单化更新）
+  - 未做（YAGNI）：backup 组的"上次导出时间"展示（需额外存储字段，原型有但未入 spec）

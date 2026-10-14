@@ -235,6 +235,31 @@ export async function addLinkedInfo(name: string, value: string): Promise<Linked
   return link;
 }
 
+/** 更新 tag（重名拒绝，排除自身） */
+export async function updateTag(id: string, patch: { name?: string; color?: TagColor }): Promise<void> {
+  const tags = await listTags();
+  const tag = tags.find((t) => t.id === id);
+  if (!tag) throw new Error('tag 不存在');
+  if (patch.name && tags.some((t) => t.id !== id && t.name === patch.name)) {
+    throw new Error(`tag 已存在: ${patch.name}`);
+  }
+  if (patch.color && !TAG_COLORS.includes(patch.color)) throw new Error(`非法 tag 颜色: ${patch.color}`);
+  Object.assign(tag, patch);
+  await chrome.storage.local.set({ [META_TAGS]: tags });
+}
+
+/** 更新关联信息（重名/重值拒绝，排除自身） */
+export async function updateLinkedInfo(id: string, patch: { name?: string; value?: string }): Promise<void> {
+  const links = await listLinkedInfos();
+  const link = links.find((l) => l.id === id);
+  if (!link) throw new Error('关联信息不存在');
+  if (links.some((l) => l.id !== id && (l.name === patch.name || l.value === patch.value))) {
+    throw new Error('关联信息已存在（重名或重值）');
+  }
+  Object.assign(link, patch);
+  await chrome.storage.local.set({ [META_LINKS]: links });
+}
+
 /** 被书签引用的管理表条目拒绝删除 */
 async function assertNotReferenced(kind: 'tags' | 'linkedInfos', id: string): Promise<void> {
   const refs = (await listIndex()).filter((e) => e[kind].includes(id));

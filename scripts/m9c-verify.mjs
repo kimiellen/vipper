@@ -105,13 +105,13 @@ check('contents：标题 + 密码/secret 遮蔽（无明文泄漏）',
 check('contents：remark 展示、时间格式化且置底',
   detail.remarkShown && detail.timeFormatted && detail.timesLast, detail);
 
-// ---- Settings 骨架 ----
+// ---- Settings 骨架（M9e 起 general 为可编辑表单：默认 0 = 关闭） ----
 const settings = JSON.parse(await page(`JSON.stringify({
-  general: document.querySelector('#settings-general').textContent.includes('关闭'),
-  tagChip: !!document.querySelector('#settings-tags .tag'),
+  general: document.querySelector('#set-lock-timeout')?.value === '0' && document.querySelector('#set-auto-archive')?.value === '0',
+  tagChip: !!document.querySelector('#settings-tags .tag, #settings-tag-list .tag'),
   linkRow: document.querySelector('#settings-links').textContent.includes('me@example.com'),
 })`));
-check('Settings 骨架：真实设置值（默认关闭）+ tag/linkedInfo 只读列表',
+check('Settings：真实设置值（默认 0=关闭）+ tag/linkedInfo 列表',
   settings.general && settings.tagChip && settings.linkRow, settings);
 
 summary();
