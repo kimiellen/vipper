@@ -82,6 +82,8 @@ check('删除书签后从 idx 消失', await sw(`__vipper.vault.listIndex().then
 await page(`[...document.querySelectorAll('.set-head')].find((h) => h.textContent.includes('标签') || h.textContent.includes('Tags')).click()`);
 await sleep(300);
 await page(`(() => { document.querySelector('#new-tag-name').value = '运维'; document.querySelector('#new-tag-color').value = 'sky'; })()`);
+check('颜色下拉选项前置色块（swatch）',
+  await page(`document.querySelectorAll('#new-tag-color option .swatch').length === 14`));
 await page(`document.querySelector('#add-tag-btn').click()`);
 await sleep(400);
 const tagAdded = JSON.parse(await sw(`__vipper.vault.listTags().then((ts) => JSON.stringify(ts.find((x) => x.name === '运维')))`));

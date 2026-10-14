@@ -798,8 +798,16 @@ function errLine(id: string): HTMLDivElement {
   return err;
 }
 
-function renderSettingsTags(): void {
-  const box = $('#settings-tags');
+/** 颜色下拉选项：圆形色块 + 名称（base-select 支持 option 内任意内容） */
+function colorOption(c: TagColor, selected: boolean): HTMLOptionElement {
+  const opt = new Option(c, c, false, selected);
+  const sw = el('span', 'swatch');
+  sw.style.background = `var(--cat-${c})`;
+  opt.prepend(sw);
+  return opt;
+}
+
+function renderSettingsTags(): void {  const box = $('#settings-tags');
   box.innerHTML = '';
   box.append(el('div', 'sub-title', t('add')));
 
@@ -810,7 +818,7 @@ function renderSettingsTags(): void {
   name.placeholder = t('addTagPh');
   const color = el('select', 'select') as HTMLSelectElement;
   color.id = 'new-tag-color';
-  for (const c of vault.TAG_COLORS) color.append(new Option(c, c, false, c === 'mauve'));
+  for (const c of vault.TAG_COLORS) color.append(colorOption(c, c === 'mauve'));
   const add = el('button', 'btn btn-primary btn-sm', '＋') as HTMLButtonElement;
   add.id = 'add-tag-btn';
   add.addEventListener('click', () => void (async () => {
@@ -847,7 +855,7 @@ function renderSettingsTags(): void {
         nameIn.value = tag.name;
         nameIn.style.maxWidth = '100px';
         const colorIn = el('select', 'select') as HTMLSelectElement;
-        for (const c of vault.TAG_COLORS) colorIn.append(new Option(c, c, false, c === tag.color));
+        for (const c of vault.TAG_COLORS) colorIn.append(colorOption(c, c === tag.color));
         const ok = ghostBtn('✓', '保存', () => void (async () => {
           await vault.updateTag(tag.id, { name: nameIn.value.trim(), color: colorIn.value as TagColor });
           await reloadData();
