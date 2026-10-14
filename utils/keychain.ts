@@ -27,7 +27,8 @@ export interface VaultSettings {
   autoArchiveDays: number;
 }
 
-const DEFAULT_SETTINGS: VaultSettings = { lockTimeoutMin: 30, autoArchiveDays: 180 };
+/** 0 = 不开启（超时锁定/自动归档默认关闭，spec 2026-10-14 修订） */
+const DEFAULT_SETTINGS: VaultSettings = { lockTimeoutMin: 0, autoArchiveDays: 0 };
 
 export async function isInitialized(): Promise<boolean> {
   return (await chrome.storage.local.get(META_KEY))[META_KEY] !== undefined;
@@ -76,13 +77,14 @@ export async function setSettings(patch: Partial<VaultSettings>): Promise<void> 
 
 /**
  * 取当前密钥。未解锁或超时返回 null；成功则刷新活跃时间（惰性滑动锁定）。
+ * lockTimeoutMin 为 0 时不做超时判定（默认关闭，spec 2026-10-14）。
  */
 export async function getKey(): Promise<CryptoKey | null> {
   const s = await chrome.storage.session.get([SESSION_KEY, SESSION_LAST]);
   const keyB64 = s[SESSION_KEY] as string | undefined;
   if (!keyB64) return null;
   const { lockTimeoutMin } = await getSettings();
-  if (Date.now() - ((s[SESSION_LAST] as number | undefined) ?? 0) > lockTimeoutMin * 60_000) {
+  if (lockTimeoutMin > 0 && Date.now() - ((s[SESSION_LAST] as number | undefined) ?? 0) > lockTimeoutMin * 60_000) {
     await lock();
     return null;
   }

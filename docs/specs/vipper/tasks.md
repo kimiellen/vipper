@@ -80,13 +80,14 @@
 - [x] 编辑态原型（并入主原型 contents 区域）：✎ 原地切换编辑态，字段顺序与展示态一致，三个只读时间置底；urls 带 match 选择、accounts 带显隐+生成、records 分 note/secret
 - [x] 验证：headless 截图自检（动画四态 × 双主题 × 双语、窄栏换行）+ 用户目检两轮（第一轮反馈：图标不可识别→锁形、编辑态原地化、时间置底，均已修复）
 
-## M9b：数据层 spec-change 落地
+## M9b：数据层 spec-change 落地 ✅（2026-10-14）
 
-- [ ] tag 管理表加 `color`（Catppuccin 14 色）；关联信息表 `{id,type,value}` → `{id,name,value}`
-- [ ] accounts 删除 `label` 字段（连带 Alt+P 二级菜单显示 username）；旧数据不迁移（开发期种子数据）
-- [ ] idx 索引加 `remark` 支持搜索；settings 默认值 0/0（0 = 禁用超时锁定/自动归档，keychain 与自动归档扫描适配 0 值语义）
-- [ ] 管理表删除查引用：被书签引用时拒绝并提示
-- [ ] 验证：`scripts/m9b-verify.mjs`；M1-M8 全量回归通过
+- [x] tag 管理表加 `color`（Catppuccin 14 色，非法颜色拒绝）；关联信息表 `{id,type,value}` → `{id,name,value}`（重名/重值均拒绝）
+- [x] accounts 删除 `label` 字段（Alt+P 二级菜单直接显示 username）；旧数据不迁移（开发期种子数据）
+- [x] idx 索引加 `remark` 支持搜索（filterIndex 含旧数据兜底）；settings 默认值 0/0（getKey 0 跳过超时判定；autoArchive 0 短路）
+- [x] 管理表删除查引用：被书签引用时拒绝并报引用数与条目标题
+- [x] 验证：`scripts/m9b-verify.mjs` 8/8 通过；M1-M8 全量回归通过（m4 超时锁断言改为默认关闭+显式开启两态；m7 自动归档显式设阈值）
+  - self-review 修复：content.ts 残留 label 注释；filterIndex 对旧 idx 无 remark 的 `?? ''` 兜底
 
 > 影响面（2026-10-14 盘点）：
 > - `utils/vault.ts`：`Account.label` 删除；`Tag` 加 color、`addTag(name,color)`；`LinkedInfo` 改 `{id,name,value}`、`addLinkedInfo(name,value)`、导入去重键 type+value→name+value；`deleteTag/deleteLinkedInfo` 加引用检查（扫 idx 的 tags/linkedInfos）；`IndexEntry` 加 remark、`toIndex` 同步、`filterIndex` 加 remark 匹配

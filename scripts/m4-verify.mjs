@@ -26,7 +26,7 @@ check('设置后处于解锁状态', await sw(`__vipper.keychain.isUnlocked()`) 
 const id = await sw(`(async () => {
   const b = await __vipper.vault.addBookmark({
     title: 'Bank', urls: [{ url: 'https://bank.example.com/login', match: 'host' }],
-    accounts: [{ username: 'alice', password: 's3cret!', label: '主号' }],
+    accounts: [{ username: 'alice', password: 's3cret!' }],
     records: [{ template: 'secret', name: '密保问题', content: '第一只宠物叫旺财' },
               { template: 'note', name: '备注记录', content: '明文内容' }],
     remark: '常用',
@@ -45,13 +45,12 @@ const rawCheck = JSON.parse(await sw(`(async () => {
     notePlain: raw.records[1].content === '明文内容',
     titlePlain: raw.title === 'Bank',
     remarkPlain: raw.remark === '常用',
-    labelPlain: raw.accounts[0].label === '主号',
   });
 })()`));
 check('password 以 $enc 信封落盘', rawCheck.pwEnvelope, rawCheck);
 check('secret.content 以 $enc 信封落盘', rawCheck.secretEnvelope, rawCheck);
 check('落盘数据不含明文密码/私密内容', rawCheck.noPlainPw && rawCheck.noPlainSecret, rawCheck);
-check('note 记录与 title/remark/label 保持明文', rawCheck.notePlain && rawCheck.titlePlain && rawCheck.remarkPlain && rawCheck.labelPlain, rawCheck);
+check('note 记录与 title/remark 保持明文', rawCheck.notePlain && rawCheck.titlePlain && rawCheck.remarkPlain, rawCheck);
 
 // ---- 解密往返 ----
 const round = JSON.parse(await sw(`(async () => {
@@ -82,10 +81,13 @@ check('正确密码解锁', await sw(`__vipper.keychain.unlock('correct-horse')`
 await sw(`chrome.storage.session.clear()`);
 check('模拟重启后锁定（storage.session 清空）', await sw(`__vipper.keychain.isUnlocked()`) === false);
 
-// ---- 惰性超时锁 ----
+// ---- 惰性超时锁（M9b 起默认 0 = 关闭；显式设置后生效）----
 await sw(`__vipper.keychain.unlock('correct-horse')`);
 await sw(`chrome.storage.session.set({ 'key:lastActive': Date.now() - 31 * 60 * 1000 })`);
-check('31 分钟无操作后自动锁定', await sw(`__vipper.keychain.isUnlocked()`) === false);
+check('默认关闭超时锁：31 分钟无操作仍保持解锁', await sw(`__vipper.keychain.isUnlocked()`) === true);
+await sw(`__vipper.keychain.setSettings({ lockTimeoutMin: 30 })`);
+await sw(`chrome.storage.session.set({ 'key:lastActive': Date.now() - 31 * 60 * 1000 })`);
+check('设置 30 分钟超时后自动锁定', await sw(`__vipper.keychain.isUnlocked()`) === false);
 
 summary();
 close();

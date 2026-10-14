@@ -9,7 +9,7 @@
 interface Candidate {
   bookmarkId: string;
   accountIndex: number;
-  text: string; // "书签名 · label/username"
+  text: string; // "书签名 · username"
 }
 
 type Msg =

@@ -57,8 +57,8 @@ const bmA = await sw(`(async () => {
     title: 'LocalExact',
     urls: [{ url: 'http://127.0.0.1:8377/login', match: 'exact' }],
     accounts: [
-      { username: 'alice', password: 'p1', label: '主号' },
-      { username: 'bob', password: 'p2', label: '小号' },
+      { username: 'alice', password: 'p1' },
+      { username: 'bob', password: 'p2' },
     ],
   });
   return b.id;

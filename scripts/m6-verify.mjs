@@ -32,7 +32,7 @@ const bmId = await sw(`(async () => {
   const b = await __vipper.vault.addBookmark({
     title: 'GitHub',
     urls: [{ url: 'https://github.com/login', match: 'host' }],
-    accounts: [{ username: 'alice', password: 'p1', label: '主号' }],
+    accounts: [{ username: 'alice', password: 'p1' }],
     remark: '初始备注',
   });
   return b.id;
@@ -57,7 +57,7 @@ await mgr(`(() => {
 await mgr(`document.querySelector('#add-link').click()`);
 await sleep(300);
 const links = JSON.parse(await sw(`__vipper.vault.listLinkedInfos().then(ls=>JSON.stringify(ls))`));
-check('管理表：添加关联信息', links[0]?.type === '邮箱' && links[0]?.value === 'a@b.c', links);
+check('管理表：添加关联信息', links[0]?.name === '邮箱' && links[0]?.value === 'a@b.c', links);
 
 // ---- 2. 编辑既有条目 ----
 const editor = await openExtPage(`editor.html?id=${bmId}`, 'editor.html');

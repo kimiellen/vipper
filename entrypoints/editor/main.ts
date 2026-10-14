@@ -64,8 +64,7 @@ function addUrlRow(u: vault.BookmarkUrl): void {
 function addAccountRow(a: vault.Account): void {
   const username = inputEl(a.username, '账号');
   const password = inputEl(a.password, '密码');
-  const label = inputEl(a.label ?? '', '标签（可选，如：主号）');
-  $('#account-rows').append(rowEl([username, password, label], () => {}));
+  $('#account-rows').append(rowEl([username, password], () => {}));
 }
 
 function addRecordRow(r: vault.VaultRecord): void {
@@ -99,7 +98,7 @@ function renderChips(): void {
   for (const l of allLinks) {
     const chip = document.createElement('button');
     chip.className = `chip${selectedLinks.has(l.id) ? ' on' : ''}`;
-    chip.textContent = `${l.type}: ${l.value}`;
+    chip.textContent = `${l.name}: ${l.value}`;
     chip.addEventListener('click', () => {
       if (selectedLinks.has(l.id)) selectedLinks.delete(l.id);
       else selectedLinks.add(l.id);
@@ -153,10 +152,8 @@ async function save(): Promise<void> {
     .filter((u) => u.url !== '');
   const accounts = [...document.querySelectorAll('#account-rows .row')]
     .map((row) => {
-      const [username, password, label] = [...row.querySelectorAll('input')] as [
-        HTMLInputElement, HTMLInputElement, HTMLInputElement,
-      ];
-      return { username: username!.value.trim(), password: password!.value, label: label!.value.trim() || undefined };
+      const [username, password] = [...row.querySelectorAll('input')] as [HTMLInputElement, HTMLInputElement];
+      return { username: username!.value.trim(), password: password!.value };
     })
     .filter((a) => a.username !== '' || a.password !== '');
   const records = [...document.querySelectorAll('#record-rows .row')]

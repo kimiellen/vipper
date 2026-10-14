@@ -16,7 +16,7 @@ import { getKey, getSettings } from './keychain';
 
 export type UrlMatch = 'host' | 'exact' | 'prefix';
 export interface BookmarkUrl { url: string; match: UrlMatch }
-export interface Account { username: string; password: string; label?: string }
+export interface Account { username: string; password: string }
 export interface NoteRecord { template: 'note'; name: string; content: string }
 export interface SecretRecord { template: 'secret'; name: string; content: string }
 export type VaultRecord = NoteRecord | SecretRecord;
@@ -40,6 +40,7 @@ export interface Bookmark {
 export interface IndexEntry {
   id: string;
   title: string;
+  remark: string;
   tags: string[];
   linkedInfos: string[];
   urls: BookmarkUrl[];
@@ -55,6 +56,7 @@ const keyOf = (b: Pick<Bookmark, 'id' | 'status'>) => (b.status === 'archived' ?
 const toIndex = (b: Bookmark): IndexEntry => ({
   id: b.id,
   title: b.title,
+  remark: b.remark,
   tags: b.tags,
   linkedInfos: b.linkedInfos,
   urls: b.urls,
@@ -150,13 +152,16 @@ export async function touchLastUsed(id: string): Promise<void> {
   await saveBookmark({ ...b, lastUsedAt: Date.now() }); // 敏感字段已是密文，无需解锁
 }
 
-/** 索引级检索：标题或任一 URL 包含查询串（大小写不敏感）；空查询返回全部（按 lastUsedAt 降序） */
+/** 索引级检索：标题、备注或任一 URL 包含查询串（大小写不敏感）；空查询返回全部（按 lastUsedAt 降序） */
 export function filterIndex(entries: IndexEntry[], query: string): IndexEntry[] {
   const sorted = [...entries].sort((a, b) => b.lastUsedAt - a.lastUsedAt);
   const q = query.trim().toLowerCase();
   if (!q) return sorted;
   return sorted.filter(
-    (e) => e.title.toLowerCase().includes(q) || e.urls.some((u) => u.url.toLowerCase().includes(q)),
+    (e) =>
+      e.title.toLowerCase().includes(q) ||
+      (e.remark ?? '').toLowerCase().includes(q) || // ?? 兜底 M9b 前旧 idx 无 remark 的残留数据
+      e.urls.some((u) => u.url.toLowerCase().includes(q)),
   );
 }
 
@@ -175,9 +180,10 @@ export async function restoreBookmark(id: string): Promise<void> {
   await saveBookmark({ ...b, status: 'active' });
 }
 
-/** 自动归档：lastUsedAt 超过阈值（meta:settings，默认 180 天）的活跃条目归档。返回归档的 id 列表 */
+/** 自动归档：lastUsedAt 超过阈值（meta:settings，默认 0 = 不开启）的活跃条目归档。返回归档的 id 列表 */
 export async function autoArchive(): Promise<string[]> {
   const { autoArchiveDays } = await getSettings();
+  if (autoArchiveDays <= 0) return []; // 0 = 不开启（必须短路，否则 cutoff=now 会归档全部）
   const cutoff = Date.now() - autoArchiveDays * 86_400_000;
   const stale = (await listIndex()).filter((e) => e.status === 'active' && e.lastUsedAt < cutoff);
   for (const e of stale) await archiveBookmark(e.id);
@@ -186,8 +192,15 @@ export async function autoArchive(): Promise<string[]> {
 
 // ---------- 管理表：tag / 关联信息（先建后选，不即输即建） ----------
 
-export interface Tag { id: string; name: string }
-export interface LinkedInfo { id: string; type: string; value: string }
+/** Catppuccin 14 彩色：tag 的可选颜色 */
+export const TAG_COLORS = [
+  'rosewater', 'flamingo', 'pink', 'mauve', 'red', 'maroon', 'peach',
+  'yellow', 'green', 'teal', 'sky', 'sapphire', 'blue', 'lavender',
+] as const;
+export type TagColor = (typeof TAG_COLORS)[number];
+
+export interface Tag { id: string; name: string; color: TagColor }
+export interface LinkedInfo { id: string; name: string; value: string }
 
 const META_TAGS = 'meta:tags';
 const META_LINKS = 'meta:links';
@@ -199,30 +212,42 @@ async function listTable<T>(key: string): Promise<T[]> {
 export const listTags = () => listTable<Tag>(META_TAGS);
 export const listLinkedInfos = () => listTable<LinkedInfo>(META_LINKS);
 
-/** 重名/重值拒绝（防语义重复） */
-export async function addTag(name: string): Promise<Tag> {
+/** 重名拒绝（防语义重复）；color 缺省 mauve */
+export async function addTag(name: string, color: TagColor = 'mauve'): Promise<Tag> {
   const tags = await listTags();
   if (tags.some((t) => t.name === name)) throw new Error(`tag 已存在: ${name}`);
-  const tag: Tag = { id: crypto.randomUUID(), name };
+  if (!TAG_COLORS.includes(color)) throw new Error(`非法 tag 颜色: ${color}`);
+  const tag: Tag = { id: crypto.randomUUID(), name, color };
   await chrome.storage.local.set({ [META_TAGS]: [...tags, tag] });
   return tag;
 }
 
-export async function addLinkedInfo(type: string, value: string): Promise<LinkedInfo> {
+/** 重名/重值拒绝 */
+export async function addLinkedInfo(name: string, value: string): Promise<LinkedInfo> {
   const links = await listLinkedInfos();
-  if (links.some((l) => l.type === type && l.value === value)) {
-    throw new Error(`关联信息已存在: ${type} ${value}`);
+  if (links.some((l) => l.name === name || l.value === value)) {
+    throw new Error(`关联信息已存在: ${name} ${value}`);
   }
-  const link: LinkedInfo = { id: crypto.randomUUID(), type, value };
+  const link: LinkedInfo = { id: crypto.randomUUID(), name, value };
   await chrome.storage.local.set({ [META_LINKS]: [...links, link] });
   return link;
 }
 
+/** 被书签引用的管理表条目拒绝删除 */
+async function assertNotReferenced(kind: 'tags' | 'linkedInfos', id: string): Promise<void> {
+  const refs = (await listIndex()).filter((e) => e[kind].includes(id));
+  if (refs.length > 0) {
+    throw new Error(`被 ${refs.length} 条书签引用（${refs.map((e) => e.title).join('、')}），不能删除`);
+  }
+}
+
 export async function deleteTag(id: string): Promise<void> {
+  await assertNotReferenced('tags', id);
   await chrome.storage.local.set({ [META_TAGS]: (await listTags()).filter((t) => t.id !== id) });
 }
 
 export async function deleteLinkedInfo(id: string): Promise<void> {
+  await assertNotReferenced('linkedInfos', id);
   await chrome.storage.local.set({ [META_LINKS]: (await listLinkedInfos()).filter((l) => l.id !== id) });
 }
 
@@ -252,7 +277,7 @@ export async function exportAll(): Promise<VaultExport> {
 }
 
 /**
- * 导入合并：同 id 条目 updatedAt 新者胜；tag/关联信息按 name / type+value 去重，
+ * 导入合并：同 id 条目 updatedAt 新者胜；tag 按 name 去重、关联信息按 name 或 value 去重，
  * 并据此重映射条目里的引用 id。需已解锁——导入的明文敏感字段要重新加密落盘。
  */
 export async function importAll(data: VaultExport): Promise<{ added: number; updated: number; skipped: number }> {
@@ -270,7 +295,7 @@ export async function importAll(data: VaultExport): Promise<{ added: number; upd
   const linkMap = new Map<string, string>();
   for (const l of data.linkedInfos ?? []) {
     const links = await listLinkedInfos();
-    const hit = links.find((x) => x.type === l.type && x.value === l.value);
+    const hit = links.find((x) => x.name === l.name || x.value === l.value);
     if (hit) linkMap.set(l.id, hit.id);
     else { await chrome.storage.local.set({ [META_LINKS]: [...links, l] }); linkMap.set(l.id, l.id); }
   }

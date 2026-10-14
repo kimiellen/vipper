@@ -23,7 +23,7 @@ const seed = JSON.parse(await sw(`(async () => {
     title: 'Bank', remark: '主用',
     tags: [tag.id], linkedInfos: [link.id],
     urls: [{ url: 'https://bank.example.com/login', match: 'host' }],
-    accounts: [{ username: 'alice', password: 's3cret!', label: '主号' }],
+    accounts: [{ username: 'alice', password: 's3cret!' }],
     records: [{ template: 'secret', name: '密保', content: '旺财' }],
   });
   return JSON.stringify({ bm: b.id, tag: tag.id, link: link.id });

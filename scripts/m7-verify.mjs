@@ -74,6 +74,8 @@ check('编辑页归档后 idx 状态 archived',
   JSON.parse(await sw(`__vipper.vault.listIndex().then(i=>JSON.stringify(i.find(e=>e.id==='${ids.B}').status))`)) === 'archived');
 
 // ---- 5. 自动归档（B 已归档；C 设为 200 天前活跃；A 刚恢复不动）----
+// M9b 起默认阈值 0 = 关闭，此处显式设置 180 天阈值再测
+await sw(`__vipper.keychain.setSettings({ autoArchiveDays: 180 })`);
 await sw(`(async () => {
   const c = await __vipper.vault.getBookmark('${ids.C}');
   c.lastUsedAt = Date.now() - 200 * 86400000;

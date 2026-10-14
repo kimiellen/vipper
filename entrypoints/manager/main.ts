@@ -21,7 +21,13 @@ async function render(): Promise<void> {
     val.textContent = t.name;
     const del = document.createElement('button');
     del.textContent = '删除';
-    del.addEventListener('click', () => void vault.deleteTag(t.id).then(render));
+    del.addEventListener('click', () =>
+      void vault.deleteTag(t.id).then(render).catch((e) => {
+        const err = $('#tag-err');
+        err.textContent = String(e);
+        err.hidden = false;
+      }),
+    );
     row.append(val, del);
     tagList.append(row);
   }
@@ -33,10 +39,16 @@ async function render(): Promise<void> {
     row.className = 'row';
     const val = document.createElement('span');
     val.className = 'val';
-    val.textContent = `${l.type}: ${l.value}`;
+    val.textContent = `${l.name}: ${l.value}`;
     const del = document.createElement('button');
     del.textContent = '删除';
-    del.addEventListener('click', () => void vault.deleteLinkedInfo(l.id).then(render));
+    del.addEventListener('click', () =>
+      void vault.deleteLinkedInfo(l.id).then(render).catch((e) => {
+        const err = $('#link-err');
+        err.textContent = String(e);
+        err.hidden = false;
+      }),
+    );
     row.append(val, del);
     linkList.append(row);
   }
@@ -57,12 +69,12 @@ async function addTag(): Promise<void> {
 }
 
 async function addLink(): Promise<void> {
-  const type = $('#new-link-type') as HTMLInputElement;
+  const name = $('#new-link-type') as HTMLInputElement; // M9e 重建时改为名称字段
   const value = $('#new-link-value') as HTMLInputElement;
   const err = $('#link-err');
   try {
-    await vault.addLinkedInfo(type.value.trim(), value.value.trim());
-    type.value = '';
+    await vault.addLinkedInfo(name.value.trim(), value.value.trim());
+    name.value = '';
     value.value = '';
     err.hidden = true;
     await render();

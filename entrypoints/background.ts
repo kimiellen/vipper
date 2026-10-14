@@ -103,7 +103,7 @@ async function sendCandidates(tabId: number, pageUrl: string): Promise<void> {
     const b = await vault.getBookmark(e.id); // 密文形态即可：仅需账号数与展示名
     if (!b) continue;
     b.accounts.forEach((a, i) =>
-      candidates.push({ bookmarkId: b.id, accountIndex: i, text: `${b.title} · ${a.label || a.username}` }),
+      candidates.push({ bookmarkId: b.id, accountIndex: i, text: `${b.title} · ${a.username}` }),
     );
   }
   if (candidates.length === 0) {
