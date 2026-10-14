@@ -156,5 +156,14 @@ await page(`document.querySelector('#export-btn').click()`);
 await sleep(500);
 check('导出：正确密码导出成功', await page(`document.querySelector('#backup-status').textContent.includes('已导出') || document.querySelector('#backup-status').textContent.includes('Exported')`));
 
+// ---- 8. 手动锁定 ----
+await page(`[...document.querySelectorAll('.set-head')].find((h) => h.textContent.includes('常规') || h.textContent.includes('General')).click()`);
+await sleep(300);
+await page(`document.querySelector('#lock-btn').click()`);
+await sleep(2000); // location.reload() + 门控路由
+check('手动锁定：回到解锁页（覆盖层出现、解锁模式）',
+  await page(`!document.querySelector('#unlock-overlay').hidden && document.querySelector('#ov-pw2').hidden`));
+check('手动锁定：密钥已清除', await sw(`__vipper.keychain.isUnlocked()`) === false);
+
 summary();
 close();

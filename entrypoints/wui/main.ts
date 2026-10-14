@@ -51,6 +51,7 @@ const T = {
   passSymbols: { zh: '包含符号', en: 'Include symbols' },
   lockTimeout: { zh: '超时锁定', en: 'Auto-lock' },
   autoArchive: { zh: '自动归档', en: 'Auto-archive' },
+  lockNow: { zh: '立即锁定', en: 'Lock now' },
   minute: { zh: '分钟', en: 'min' },
   day: { zh: '天', en: 'days' },
   off: { zh: '关闭', en: 'off' },
@@ -740,6 +741,15 @@ function renderSettings(): void {
 
   g.append(numSetting(t('lockTimeout'), settings.lockTimeoutMin, (v) => { settings.lockTimeoutMin = v; void keychain.setSettings({ lockTimeoutMin: v }); }, 'set-lock-timeout', t('minute')));
   g.append(numSetting(t('autoArchive'), settings.autoArchiveDays, (v) => { settings.autoArchiveDays = v; void keychain.setSettings({ autoArchiveDays: v }); }, 'set-auto-archive', t('day')));
+
+  g.append(divider());
+
+  // 手动锁定：立即清除会话密钥并回到解锁页（重载走门控路由）
+  const lockBtn = el('button', 'btn btn-ghost btn-sm', t('lockNow')) as HTMLButtonElement;
+  lockBtn.id = 'lock-btn';
+  lockBtn.style.color = 'var(--warning)';
+  lockBtn.addEventListener('click', () => void keychain.lock().then(() => location.reload()));
+  g.append(lockBtn);
 
   // ---- tags ----
   renderSettingsTags();
