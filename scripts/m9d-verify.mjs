@@ -101,10 +101,10 @@ check('Alt+. 已解锁直达主页面（无覆盖层）',
 check('二级菜单遮罩初始不可见（计算样式 display:none）',
   await page(`getComputedStyle(document.querySelector('#url-menu')).display === 'none'`));
 
-// ---- Alt+. 混合 toggle：已聚焦时再按 = 关闭；再按 = 重开 ----
+// ---- Alt+. 纯 toggle：已打开（无论聚焦与否）再按 = 关闭；再按 = 重开 ----
 await sw(`__vipper.dispatch('open-launcher')`);
 await sleep(500);
-check('已聚焦时再按 Alt+.：关闭窗口（toggle）', !hasPage('wui.html'));
+check('已打开时再按 Alt+.：关闭窗口（纯 toggle）', !hasPage('wui.html'));
 await sw(`__vipper.dispatch('open-launcher')`);
 await sleep(300);
 page = await waitWui();
