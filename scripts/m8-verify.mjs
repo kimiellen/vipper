@@ -2,11 +2,12 @@
  * M8 自动化验收：导入导出。
  * 前置：按 AGENTS.md「自动化测试回路」启动 Chromium（加载 .output/chrome-mv3，端口 9333）。
  *
- * 断言：
+ * 断言（2026-10-15 spec-change：导入 = 全量恢复，不再增量合并）：
  * - 导出：全量明文（密码/私密内容可读）、含管理表
- * - 锁定状态导出被拒
+ * - 锁定状态导出/导入均被拒
  * - 清空后导入：数据完整还原（新主密码下可解密——重新加密落盘）；tag 引用 id 保留
- * - 合并语义：同 id updatedAt 新者胜；本地较新时导入被跳过
+ * - 全量替换：导入后本地独有的旧条目被清除
+ * - 非法文件：拒绝导入且现有数据不受影响
  */
 
 import { connectSW, createChecker } from './lib/sw-driver.mjs';
@@ -47,7 +48,7 @@ await sw(`__vipper.keychain.unlock('m8-old')`);
 await sw(`chrome.storage.local.clear()`);
 await sw(`__vipper.keychain.setupMasterPassword('m8-new')`);
 const importRes = await sw(`__vipper.vault.importAll(${JSON.stringify(exported)}).then((r) => JSON.stringify(r), (e) => 'ERR:' + e)`);
-check('导入结果：added=1', importRes === JSON.stringify({ added: 1, updated: 0, skipped: 0 }), importRes);
+check('导入结果：added=1', importRes === JSON.stringify({ added: 1 }), importRes);
 
 const restored = JSON.parse(await sw(`(async () => {
   const b = await __vipper.vault.getBookmarkDecrypted('${seed.bm}');
@@ -60,25 +61,22 @@ const restored = JSON.parse(await sw(`(async () => {
 check('还原后可解密（新主密码下重新加密落盘）', restored.pw === 's3cret!' && restored.secret === '旺财', restored);
 check('还原后 tag 引用一致（id 保留）', restored.tagRefWorks, restored);
 
-// ---- 4. 合并语义：本地较新则导入跳过 ----
-await sw(`(async () => {
-  const b = await __vipper.vault.getBookmark('${seed.bm}');
-  await new Promise((r) => setTimeout(r, 10));
-  await __vipper.vault.saveBookmark({ ...b, title: 'Bank-本地改' });  // updatedAt 变新
-})()`);
-const mergeRes = await sw(`__vipper.vault.importAll(${JSON.stringify(exported)}).then((r) => JSON.stringify(r))`);
-check('合并：本地较新条目被跳过', mergeRes === JSON.stringify({ added: 0, updated: 0, skipped: 1 }), mergeRes);
-const titleNow = await sw(`__vipper.vault.getBookmark('${seed.bm}').then((b) => b.title)`);
-check('合并：本地标题未被旧导出覆盖', titleNow === 'Bank-本地改', titleNow);
+// ---- 4. 全量替换语义：本地独有条目被清除 ----
+await sw(`__vipper.vault.addBookmark({ title: 'LocalOnly', urls: [{ url: 'https://local.example.com', match: 'host' }] })`);
+const replaceRes = await sw(`__vipper.vault.importAll(${JSON.stringify(exported)}).then((r) => JSON.stringify(r))`);
+check('恢复结果：added=1（导入文件只有 1 条）', replaceRes === JSON.stringify({ added: 1 }), replaceRes);
+const afterReplace = JSON.parse(await sw(`__vipper.vault.listIndex().then((i) => JSON.stringify(i.map((e) => e.title)))`));
+check('全量替换：LocalOnly 被清除、导入条目在', !afterReplace.includes('LocalOnly') && afterReplace.includes('Bank'), afterReplace);
 
-// 反向：导出文件更新（模拟 updatedAt 更新）→ 导入应覆盖
-const newerExport = JSON.parse(JSON.stringify(exported));
-newerExport.bookmarks[0].title = 'Bank-备份较新';
-newerExport.bookmarks[0].updatedAt = Date.now() + 10_000;
-const mergeRes2 = await sw(`__vipper.vault.importAll(${JSON.stringify(newerExport)}).then((r) => JSON.stringify(r))`);
-check('合并：导出较新则覆盖本地', mergeRes2 === JSON.stringify({ added: 0, updated: 1, skipped: 0 }), mergeRes2);
-const title2 = await sw(`__vipper.vault.getBookmark('${seed.bm}').then((b) => b.title)`);
-check('合并：标题被较新导出覆盖', title2 === 'Bank-备份较新', title2);
+// ---- 5. 非法文件：拒绝且不动现有数据 ----
+const badRes = await sw(`__vipper.vault.importAll({ app: 'other', data: [] }).then(() => 'resolved', (e) => String(e))`);
+check('非法文件被拒绝', badRes.includes('不是有效'), badRes);
+check('非法文件未影响现有数据', await sw(`__vipper.vault.listIndex().then((i) => i.length)`) === 1);
+
+// ---- 6. 锁定导入被拒 ----
+await sw(`__vipper.keychain.lock()`);
+check('锁定状态导入被拒',
+  await sw(`__vipper.vault.importAll(${JSON.stringify(exported)}).then(() => 'resolved', (e) => String(e))`).then((s) => s.includes('locked')));
 
 summary();
 close();

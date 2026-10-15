@@ -59,16 +59,16 @@ const T = {
   list: { zh: '列表', en: 'List' },
   importBtn: { zh: '⇪ 导入数据', en: '⇪ Import' },
   exportBtn: { zh: '⇓ 导出数据', en: '⇓ Export' },
-  exportPwPh: { zh: '输入主密码确认导出', en: 'Master password to confirm export' },
+  exportPwPh: { zh: '输入主密码确认导出/导入', en: 'Master password to confirm export/import' },
   exportDone: { zh: (n: number) => `已导出 ${n} 条书签`, en: (n: number) => `Exported ${n} bookmarks` },
   importDone: {
-    zh: (r: { added: number; updated: number; skipped: number }) => `导入完成：新增 ${r.added} · 更新 ${r.updated} · 跳过 ${r.skipped}`,
-    en: (r: { added: number; updated: number; skipped: number }) => `Import: ${r.added} added, ${r.updated} updated, ${r.skipped} skipped`,
+    zh: (r: { added: number }) => `恢复完成：${r.added} 条书签（已全量替换本地数据）`,
+    en: (r: { added: number }) => `Restore complete: ${r.added} bookmarks (local data fully replaced)`,
   },
   wrongPw: { zh: '主密码错误', en: 'Wrong master password' },
   backupDesc: {
-    zh: '数据导出为明文 JSON 文件（用于本地 git 备份），包含书签、tags、linkedInfos 与设置。',
-    en: 'Export all data (bookmarks, tags, linkedInfos, settings) as plain JSON for local git backup.',
+    zh: '数据导出为明文 JSON 文件（用于本地 git 备份）。导入 = 全量恢复：清空本地数据后写入备份内容，需谨慎操作。',
+    en: 'Export all data (bookmarks, tags, linkedInfos) as plain JSON for local git backup. Import = full restore: local data is replaced entirely.',
   },
 } as const;
 
@@ -996,6 +996,13 @@ function renderSettingsBackup(): void {
     if (!f) return;
     const status = $('#backup-status');
     try {
+      // 导入 = 全量恢复（spec 2026-10-15），先验证主密码防恶意覆盖
+      if (!(await keychain.unlock(pw.value))) {
+        status.textContent = t('wrongPw');
+        status.hidden = false;
+        return;
+      }
+      pw.value = '';
       const result = await vault.importAll(JSON.parse(await f.text()));
       status.textContent = T.importDone[lang](result);
       status.hidden = false;

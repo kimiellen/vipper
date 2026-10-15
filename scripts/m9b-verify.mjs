@@ -95,9 +95,8 @@ check('被引用的 tag/linkedInfo 拒绝删除（报引用数），解除引用
   refCheck.delTag.includes('被 1 条书签引用') && refCheck.delTag.includes('RefHolder')
   && refCheck.delLink.includes('被 1 条书签引用') && refCheck.tagGone, refCheck);
 
-// ---- 7. 导入合并：linkedInfo 按 name 去重并重映射引用 ----
+// ---- 7. 导入 = 全量恢复（2026-10-15 spec-change）：管理表整表替换、引用 id 原样保留 ----
 const importCheck = JSON.parse(await sw(`(async () => {
-  const local = (await __vipper.vault.listLinkedInfos()).find((l) => l.name === '手机1');
   const data = {
     app: 'vipper', version: 1, exportedAt: Date.now(), tags: [],
     linkedInfos: [{ id: 'ext-link-1', name: '手机1', value: '000-不同值' }],
@@ -108,12 +107,19 @@ const importCheck = JSON.parse(await sw(`(async () => {
       createdAt: Date.now(), updatedAt: Date.now(), lastUsedAt: Date.now(),
     }],
   };
-  await __vipper.vault.importAll(data);
+  const res = await __vipper.vault.importAll(data);
   const b = await __vipper.vault.getBookmark('ext-bm-1');
   const links = await __vipper.vault.listLinkedInfos();
-  return JSON.stringify({ remapped: b.linkedInfos[0] === local.id, noDup: links.filter((l) => l.name === '手机1').length === 1 });
+  const idx = await __vipper.vault.listIndex();
+  return JSON.stringify({
+    added: res.added,
+    refKept: b.linkedInfos[0] === 'ext-link-1',           // 引用 id 原样保留（无重映射）
+    tableReplaced: links.length === 1 && links[0].id === 'ext-link-1' && links[0].value === '000-不同值',
+    localWiped: idx.every((e) => e.id === 'ext-bm-1'),     // 本地旧条目全部清除
+  });
 })()`));
-check('导入：同名 linkedInfo 去重且引用重映射到本地 id', importCheck.remapped && importCheck.noDup, importCheck);
+check('导入全量恢复：管理表替换、引用 id 保留、本地旧数据清除',
+  importCheck.added === 1 && importCheck.refKept && importCheck.tableReplaced && importCheck.localWiped, importCheck);
 
 summary();
 close();
