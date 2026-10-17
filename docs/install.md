@@ -33,7 +33,7 @@ hl.window_rule({
 	match = { class = "^chrome-bfkbiapichhdhealeodggldhchmdlhhj-Default$" },
 	float = true,
 	center = true,
-	size = "1280 860",
+	size = "1600 900",
 })
 ```
 
@@ -44,7 +44,7 @@ hl.window_rule({
 ```conf
 windowrulev2 = float, class:^chrome-bfkbiapichhdhealeodggldhchmdlhhj-Default$
 windowrulev2 = center, class:^chrome-bfkbiapichhdhealeodggldhchmdlhhj-Default$
-windowrulev2 = size 1280 860, class:^chrome-bfkbiapichhdhealeodggldhchmdlhhj-Default$
+windowrulev2 = size 1600 900, class:^chrome-bfkbiapichhdhealeodggldhchmdlhhj-Default$
 ```
 
 注意：未打包扩展的 id 由扩展目录的**绝对路径**派生（当前对应 `.output/chrome-mv3` 的构建路径）。目录变动后 id 会变，用 `hyprctl clients` 查看弹窗的实际 `class` 字段更新规则。

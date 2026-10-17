@@ -216,12 +216,22 @@ function renderResults(): void {
       img.alt = '';
       tdFav.append(img);
     }
+    // 基础信息列：单行裁切，完整内容放 title 悬停提示
     const tdTitle = document.createElement('td');
-    tdTitle.textContent = e.title;
+    tdTitle.title = e.title;
+    tdTitle.append(el('span', 'cell-clip', e.title));
+    const rowTags = e.tags.map(tagById).filter((x): x is Tag => !!x);
     const tdTags = document.createElement('td');
-    e.tags.map(tagById).filter((x): x is Tag => !!x).forEach((x) => tdTags.append(tagChip(x), ' '));
+    const tagsCell = el('span', 'cell-clip chips');
+    rowTags.forEach((x) => tagsCell.append(tagChip(x)));
+    tdTags.append(tagsCell);
+    if (rowTags.length) tdTags.title = rowTags.map((x) => x.name).join(', ');
+    const rowLinks = e.linkedInfos.map(linkById).filter((x): x is LinkedInfo => !!x);
     const tdLinks = document.createElement('td');
-    e.linkedInfos.map(linkById).filter((x): x is LinkedInfo => !!x).forEach((x) => tdLinks.append(linkChip(x), ' '));
+    const linksCell = el('span', 'cell-clip chips');
+    rowLinks.forEach((x) => linksCell.append(linkChip(x)));
+    tdLinks.append(linksCell);
+    if (rowLinks.length) tdLinks.title = rowLinks.map((x) => x.name).join(', ');
     const tdUrls = el('td', 'mono', String(e.urls.length));
     const tdAccounts = el('td', 'mono', String(e.accountCount ?? 0)); // ?? 兜底 M9c 前无该字段的 idx
 

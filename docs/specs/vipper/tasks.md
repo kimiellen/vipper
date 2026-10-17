@@ -124,3 +124,10 @@
 - [x] vault 补充 updateTag / updateLinkedInfo（重名重值拒绝，排除自身）
 - [x] 验证：`scripts/m9e-verify.mjs` 17/17 通过；全量回归 m1/m2/m4/m5/m8/m9b/m9c/m9d 通过（m9c 的 Settings 断言随表单化更新）
   - 未做（YAGNI）：backup 组的"上次导出时间"展示（需额外存储字段，原型有但未入 spec）
+
+## M10：wui 主页面固定高度 + 加宽（2026-10-17）
+
+- [x] 页面锁定视口高度、整页不滚动；Settings / results / contents 三块同高，各自内部滚动（results 表头吸顶）
+- [x] 窗口默认尺寸 1280×860 → 1600×900（`background.ts` + `docs/install.md` windowrule）
+- [x] results 固定列宽：加宽书签名/tags/linkedInfos 列；内容超出时单元格两侧渐隐裁切，不换行、不撑宽表格；悬停显示完整内容
+- [x] 验证：新增 `scripts/m10-verify.mjs` 14/14 通过（页面/三块无整页滚动、内部滚动、列宽与单行裁切、表头吸顶、Settings/contents 内部滚动）+ 截图自检 + `pnpm typecheck`/`pnpm build` + m9c（11/11）/m9d（15/15）/m9e（20/20）回归

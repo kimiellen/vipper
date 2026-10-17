@@ -87,8 +87,8 @@ async function openLauncher(): Promise<void> {
   await chrome.windows.create({
     url: wuiUrl,
     type: 'popup',
-    width: 1280,
-    height: 860,
+    width: 1600,
+    height: 900,
     focused: true,
   });
 }

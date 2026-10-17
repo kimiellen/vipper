@@ -43,7 +43,7 @@ const seed = JSON.parse(await sw(`(async () => {
 })()`));
 
 // ---- 打开 wui 页 ----
-await sw(`chrome.windows.create({ url: chrome.runtime.getURL('wui.html'), type: 'popup', width: 1440, height: 900 })`);
+await sw(`chrome.windows.create({ url: chrome.runtime.getURL('wui.html'), type: 'popup', width: 1600, height: 900 })`);
 const page = await attachPage('wui.html');
 for (let i = 0; i < 20; i++) {
   if (await page(`document.querySelectorAll('#results-body tr').length > 0`).catch(() => false)) break;

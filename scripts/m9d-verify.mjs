@@ -35,7 +35,7 @@ async function waitWui() {
 }
 
 // ---- 1. 首次打开：创建主密码模式 ----
-await sw(`chrome.windows.create({ url: chrome.runtime.getURL('wui.html'), type: 'popup', width: 1280, height: 860 })`);
+await sw(`chrome.windows.create({ url: chrome.runtime.getURL('wui.html'), type: 'popup', width: 1600, height: 900 })`);
 let page = await waitWui();
 check('未初始化：显示覆盖层且为创建模式（确认框 + 警示可见）',
   await page(`!document.querySelector('#unlock-overlay').hidden
@@ -67,7 +67,7 @@ await sw(`(async () => {
   for (const w of wins) if (w.tabs?.some((t) => t.url?.includes('wui.html'))) await chrome.windows.remove(w.id);
 })()`);
 await sleep(500);
-await sw(`chrome.windows.create({ url: chrome.runtime.getURL('wui.html'), type: 'popup', width: 1280, height: 860 })`);
+await sw(`chrome.windows.create({ url: chrome.runtime.getURL('wui.html'), type: 'popup', width: 1600, height: 900 })`);
 page = await waitWui();
 // 找到显示覆盖层的那个 wui 页面
 const gateState = JSON.parse(await page(`JSON.stringify({

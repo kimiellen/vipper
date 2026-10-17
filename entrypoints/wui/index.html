@@ -188,9 +188,10 @@
 <style>
   /* ===== 基础 ===== */
   *, *::before, *::after { box-sizing: border-box; }
-  html { scrollbar-color: var(--bg-hover) var(--bg); }
+  html { height: 100%; scrollbar-color: var(--bg-hover) var(--bg); }
   body {
-    margin: 0; font-family: var(--font-family); font-size: var(--text-base);
+    height: 100%; margin: 0; overflow: hidden;
+    font-family: var(--font-family); font-size: var(--text-base);
     color: var(--fg); background: var(--bg); line-height: 1.6;
   }
   .mono { font-family: var(--font-mono); }
@@ -267,8 +268,9 @@
   .empty { text-align: center; padding: var(--space-12) var(--space-6); color: var(--fg-muted); }
 
   /* ===== 顶行工具栏 ===== */
-  .page { display: flex; flex-direction: column; min-height: 100vh; max-width: 1440px; margin: 0 auto; padding: var(--space-6); }
-  .toolbar { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-4); }
+  /* 整页锁定视口高度：只有下区三块内部滚动，页面本身不滚动 */
+  .page { display: flex; flex-direction: column; height: 100vh; width: 100%; padding: var(--space-6); }
+  .toolbar { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-4); flex-shrink: 0; }
   .toolbar .t-search { flex: 1; min-width: 200px; }
 
   /* active/archived 切换 */
@@ -305,10 +307,14 @@
   .msel-pop.pop-row { display: flex; flex-wrap: wrap; max-width: 340px; }
   .none { color: var(--fg-muted); font-size: var(--text-sm); padding: var(--space-1) var(--space-2); }
 
-  /* ===== 下区三块 ===== */
-  .blocks-grid { display: grid; grid-template-columns: 320px minmax(0, 1fr) 320px; gap: var(--space-4); align-items: stretch; flex: 1; }
+  /* ===== 下区三块：同高、各自内部滚动 ===== */
+  .blocks-grid {
+    display: grid; min-height: 0; flex: 1;
+    grid-template-columns: 300px minmax(0, 1fr) 360px; gap: var(--space-4);
+    align-items: stretch;
+  }
   .blk {
-    display: flex; flex-direction: column; min-height: 0;
+    display: flex; flex-direction: column; min-height: 0; min-width: 0;
     background: var(--bg-raised); border: 1px solid var(--border);
     border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);
   }
@@ -319,14 +325,42 @@
     border-bottom: 1px solid var(--border); flex-shrink: 0;
   }
   .blk-body { flex: 1; min-height: 0; padding: var(--space-3); overflow: auto; }
-  @media (max-width: 1100px) {
-    .blocks-grid { grid-template-columns: 240px minmax(0, 1fr); }
-    .contents-col { grid-column: 1 / -1; }
+  @media (max-width: 1200px) {
+    .blocks-grid { grid-template-columns: 260px minmax(0, 1fr) 300px; gap: var(--space-3); }
   }
-  @media (max-width: 800px) {
-    .blocks-grid { grid-template-columns: 1fr; }
+  @media (max-width: 900px) {
+    .page { padding: var(--space-4); }
+    .blocks-grid { grid-template-columns: 1fr; grid-template-rows: repeat(3, minmax(0, 1fr)); }
     .contents-col { grid-column: auto; }
   }
+
+  /* ===== results 表：固定列宽 + 单行两侧渐隐 ===== */
+  .results-body { padding: 0; }
+  .results-table { table-layout: fixed; }
+  .results-table col.c-fav { width: 28px; }
+  .results-table col.c-title { width: 24%; }
+  .results-table col.c-tags { width: 25%; }
+  .results-table col.c-links { width: 25%; }
+  .results-table col.c-urls { width: 56px; }
+  .results-table col.c-accts { width: 64px; }
+  .results-table th, .results-table td {
+    padding: var(--space-2) var(--space-3); white-space: nowrap; overflow: hidden;
+  }
+  .results-table tbody tr { height: 38px; }
+  /* 表头在 results 内部滚动时吸顶 */
+  .results-table thead th {
+    position: sticky; top: 0; z-index: 2;
+    box-shadow: 0 1px 0 var(--border);
+  }
+  /* 单元格内容单行裁切：两端留出渐隐区，不换行、不撑开表格 */
+  .cell-clip {
+    display: block; overflow: hidden; white-space: nowrap;
+    padding-inline: var(--space-2);
+    mask-image: linear-gradient(to right, transparent 0, #000 var(--space-2),
+      #000 calc(100% - var(--space-2)), transparent 100%);
+  }
+  .cell-clip.chips { display: flex; align-items: center; gap: var(--space-1); }
+  .cell-clip.chips .tag { flex-shrink: 0; }
 
   /* ===== Settings 手风琴 ===== */
   .set-group { border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: var(--bg-raised); }
@@ -344,9 +378,9 @@
   .set-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--transition); }
   .set-group.open .set-body { grid-template-rows: 1fr; }
   .set-body-inner { overflow: hidden; min-height: 0; }
+  /* 设置项保持自然高度，由 .blk-body 内部滚动（不压缩内容） */
   .settings-body { display: flex; flex-direction: column; }
-  .settings-body .set-group.open { flex: 1; display: flex; flex-direction: column; }
-  .settings-body .set-group.open .set-body { flex: 1; }
+  .settings-body .set-group { flex-shrink: 0; }
   .set-body-pad { display: grid; gap: var(--space-2); padding: var(--space-3); border-top: 1px solid var(--border); }
 
   /* 分组分隔线 */
@@ -574,8 +608,12 @@
     <!-- results -->
     <div class="blk">
       <div class="blk-head" data-zh="结果" data-en="Results">结果</div>
-      <div class="blk-body" style="padding: 0;">
-        <table>
+      <div class="blk-body results-body">
+        <table class="results-table">
+          <colgroup>
+            <col class="c-fav"><col class="c-title"><col class="c-tags">
+            <col class="c-links"><col class="c-urls"><col class="c-accts">
+          </colgroup>
           <thead>
             <tr><th></th><th data-zh="书签名" data-en="Bookmark">书签名</th><th>tags</th><th>linkedInfos</th><th data-zh="url数" data-en="URLs">url数</th><th data-zh="账号数" data-en="Accounts">账号数</th></tr>
           </thead>
