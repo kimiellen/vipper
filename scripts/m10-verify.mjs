@@ -25,7 +25,7 @@ const seed = JSON.parse(await sw(`(async () => {
   const longTitle = '这是一个非常长的书签名称用于验证单行两侧渐隐裁切不会换行也不会撑开表格';
   await __vipper.vault.addBookmark({
     title: longTitle,
-    remark: '超长详情验证：'.repeat(30),
+    remarks: '超长详情验证：'.repeat(30),
     tags: tags.map((t) => t.id),
     linkedInfos: links.map((l) => l.id),
     urls: Array.from({ length: 16 }, (_, i) => ({ url: 'https://example.com/path/' + i, match: 'host' })),

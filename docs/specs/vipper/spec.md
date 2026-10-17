@@ -39,13 +39,13 @@ vipper 是一个 Chrome MV3 扩展，目标用户是作者本人（Arch Linux + 
 
 1. **Alt+.** 呼出 wui 管理页（浏览器窗口中心位置）：顶行工具栏（active/archived 切换 · 搜索 · TAGS/LINS 多选过滤 · 新增书签）+ 下区三块（Settings 手风琴 / results 结果表格 / contents 详情）；已打开时**纯 toggle 关闭**（2026-10-15 定稿：Wayland 下唤回聚焦不可靠，纯 toggle 更简单，失焦时连按两次即可关+开重获焦点；原混合 toggle 作废）
 2. 锁定门控：未解锁时 Alt+. 打开的是**解锁页**（与主页面同尺寸），解密成功后才进入主页面；能进入主页面即有权解密 password 与 secret.content
-3. 搜索范围：书签名 / url / **备注**（remark 入 idx 索引，明文以支持检索）；结果表格首列为 favicon，时间字段格式化展示
+3. 搜索范围：书签名 / url / **备注**（remarks 入 idx 索引，明文以支持检索）；结果表格首列为 favicon，时间字段格式化展示
 4. 选中条目回车在**来源标签所在的 tab group** 打开该书签（自 M3 launcher 移植；launcher 弹窗由本页面取代、淘汰）
 5. 打开登录页后，**Alt+P** 主动填充账号密码（类 Bitwarden）
 6. 一条书签绑定多个 URL 或多组账号时，弹**二级菜单**（`↑/↓` 选择 + 回车确认）
-7. 编辑：点击 contents 区域右上角 ✎（或「新增书签」），**contents 区域原地切换为编辑态**（不跳转页面）；编辑态字段顺序与展示态一致（title → tags → linkedInfos → urls → accounts → records → remark → status），URL 的 match 规则只在编辑态可选；`createdAt`/`updatedAt`/`lastUsedAt` 三个只读时间在展示态与编辑态均**置于区域最底部**（2026-10-14 定稿；M6 的独立 editor.html 淘汰）
+7. 编辑：点击 contents 区域右上角 ✎（或「新增书签」），**contents 区域原地切换为编辑态**（不跳转页面）；编辑态字段顺序与展示态一致（title → tags → linkedInfos → urls → accounts → records → remarks → status），URL 的 match 规则只在编辑态可选；`createdAt`/`updatedAt`/`lastUsedAt` 三个只读时间在展示态与编辑态均**置于区域最底部**（2026-10-14 定稿；M6 的独立 editor.html 淘汰）
 
-### 数据模型（2026-10-14 修订）
+### 数据模型（2026-10-17 修订）
 
 完全独立于 Chrome 原生书签/密码系统，扩展自建存储。书签条目按页面布局分区：
 
@@ -57,7 +57,7 @@ vipper 是一个 Chrome MV3 扩展，目标用户是作者本人（Arch Linux + 
 - **记录区**：`records: (Note | Secret)[]`，默认空、不限量；只有这两种是"模板"（可重复添加）：
   - `note` 明文记录：`{ name, content }`，不加密
   - `secret` 私密记录：`{ name, content }`，`content` 加密落盘，展示遮蔽为 `*`
-- **备注区**：`remark: string`，书签级固定唯一字段，不是模板，不加密；**入 idx 支持搜索**
+- **备注区**：`remarks: string`，书签级固定唯一字段，不是模板，不加密；**入 idx 支持搜索**。2026-10-17 由 `remark` 更名；旧 `bm:`/`arc:`/`idx` 数据首次访问时自动迁移，导入兼容旧版导出文件的 `remark` 字段
 - **条目状态**：`status: 'active' | 'archived'`
 - **favicon**：展示层自动获取站点图标，不入数据模型
 
@@ -75,7 +75,7 @@ chrome.storage.local 是 LevelDB 键值库（声明 `unlimitedStorage` 去配额
 
 | key | 内容 | 访问场景 |
 |---|---|---|
-| `idx` | 轻量索引 `[{id,title,remark,tags,linkedInfos,urls,accountCount,lastUsedAt,status}]`（accountCount 仅计数，供列表展示） | 搜索/列表只读它 |
+| `idx` | 轻量索引 `[{id,title,remarks,tags,linkedInfos,urls,accountCount,lastUsedAt,status}]`（accountCount 仅计数，供列表展示） | 搜索/列表只读它 |
 | `bm:<id>` | 条目详情 | 打开/编辑某条时读 |
 | `arc:<id>` | 归档条目 | 归档视图专用，active 搜索天然不污染 |
 | `meta:tags` / `meta:links` / `meta:settings` | 管理表与配置（锁定超时、自动归档阈值、主题、语言） | 管理页 |
@@ -87,9 +87,10 @@ chrome.storage.local 是 LevelDB 键值库（声明 `unlimitedStorage` 去配额
 - 自动归档阈值：**默认 0 = 不开启**（2026-10-14 修订，原默认 180 天）；扫描仍由启动时 + 每日 alarm 执行
 - 归档 = 数据从 `bm:` 挪到 `arc:` + `idx` 更新状态；**不做真实文件**
 
-### 导入导出（2026-10-15 修订）
+### 导入导出（2026-10-17 修订）
 
-- 导出：全量**明文 JSON**，需输入主密码确认（明文导出是有意设计，用于本地 git 备份）
+- 导出：全量**明文 JSON**，需输入主密码确认（明文导出是有意设计，用于本地 git 备份）；`remarks` 改名后导出版本为 **2**
+- 导入**兼容 version 1**：旧文件里的 `remark` 字段自动读取为 `remarks`（旧备份不失效）
 - 导入 = **数据恢复**：校验文件结构后**全量替换**（清空现有书签与管理表再写入），不做增量合并；同样**需输入主密码确认**（防恶意覆盖）。原"增量合并"语义作废
 - 备份主路径 = 导出 JSON 提交本地 git；软链 LevelDB 目录可行但不推荐（二进制噪音、恢复脆弱）
 

@@ -131,3 +131,11 @@
 - [x] 窗口默认尺寸 1280×860 → 1600×900（`background.ts` + `docs/install.md` windowrule）
 - [x] results 固定列宽：加宽书签名/tags/linkedInfos 列；内容超出时单元格两侧渐隐裁切，不换行、不撑宽表格；悬停显示完整内容
 - [x] 验证：新增 `scripts/m10-verify.mjs` 14/14 通过（页面/三块无整页滚动、内部滚动、列宽与单行裁切、表头吸顶、Settings/contents 内部滚动）+ 截图自检 + `pnpm typecheck`/`pnpm build` + m9c（11/11）/m9d（15/15）/m9e（20/20）回归
+
+## M11：备注字段改名 remark → remarks（2026-10-17）
+
+- [x] 数据模型 / 索引 / UI 字段统一为 `remarks`；contents 展示态与编辑态标签同步
+- [x] 旧数据自动迁移：首次访问把 `idx`、`bm:`、`arc:` 的 `remark` 改名为 `remarks`，完成后写 `meta:migrations` 标记
+- [x] 导出格式升到 version 2（使用 `remarks`）；导入兼容 version 1 的 `remark` 字段
+- [x] 同步 keeper 转换器、设计原型标签
+- [x] 验证：`scripts/m11-verify.mjs` 8/8 通过（迁移 / v1 导入 / UI 标签）+ keeper 转换器 191 条烟测 + `pnpm typecheck`/`pnpm build` + m4/m5/m8/m9b/m9c/m9d/m9e/m10 全量回归通过

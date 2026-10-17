@@ -21,7 +21,7 @@ const seed = JSON.parse(await sw(`(async () => {
   const tag = await __vipper.vault.addTag('dev');
   const link = await __vipper.vault.addLinkedInfo('邮箱', 'a@b.c');
   const b = await __vipper.vault.addBookmark({
-    title: 'Bank', remark: '主用',
+    title: 'Bank', remarks: '主用',
     tags: [tag.id], linkedInfos: [link.id],
     urls: [{ url: 'https://bank.example.com/login', match: 'host' }],
     accounts: [{ username: 'alice', password: 's3cret!' }],
@@ -34,7 +34,7 @@ const seed = JSON.parse(await sw(`(async () => {
 const exported = JSON.parse(await sw(`__vipper.vault.exportAll().then((d) => JSON.stringify(d))`));
 const expBm = exported.bookmarks[0];
 check('导出结构完整（app/version/管理表）',
-  exported.app === 'vipper' && exported.version === 1 && exported.tags.length === 1 && exported.linkedInfos.length === 1);
+  exported.app === 'vipper' && exported.version === 2 && exported.tags.length === 1 && exported.linkedInfos.length === 1);
 check('导出为明文（password/secret.content 可读）',
   expBm.accounts[0].password === 's3cret!' && expBm.records[0].content === '旺财', expBm.accounts[0]);
 
@@ -54,11 +54,12 @@ const restored = JSON.parse(await sw(`(async () => {
   const b = await __vipper.vault.getBookmarkDecrypted('${seed.bm}');
   const tags = await __vipper.vault.listTags();
   return JSON.stringify({
-    pw: b.accounts[0].password, secret: b.records[0].content, remark: b.remark,
+    pw: b.accounts[0].password, secret: b.records[0].content, remarks: b.remarks,
     tagRefWorks: b.tags.length === 1 && tags[0].name === 'dev' && b.tags[0] === tags[0].id,
   });
 })()`));
-check('还原后可解密（新主密码下重新加密落盘）', restored.pw === 's3cret!' && restored.secret === '旺财', restored);
+check('还原后可解密（新主密码下重新加密落盘）+ remarks 保留',
+  restored.pw === 's3cret!' && restored.secret === '旺财' && restored.remarks === '主用', restored);
 check('还原后 tag 引用一致（id 保留）', restored.tagRefWorks, restored);
 
 // ---- 4. 全量替换语义：本地独有条目被清除 ----

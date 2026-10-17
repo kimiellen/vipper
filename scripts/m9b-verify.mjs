@@ -5,7 +5,7 @@
  * 断言（对应 spec 2026-10-14 修订）：
  * - settings 默认值 0/0（超时锁定/自动归档默认关闭）
  * - autoArchiveDays=0 时 autoArchive 短路不归档；设为正数后正常归档
- * - idx 索引含 remark 且 filterIndex 可按 remark 检索
+ * - idx 索引含 remarks 且 filterIndex 可按 remarks 检索
  * - tag：color 字段（默认 mauve / 指定 sky / 非法颜色拒绝）
  * - linkedInfo：{id,name,value} 结构，重名/重值拒绝
  * - 管理表删除查引用：被引用拒绝（报引用数），删除引用条目后可删
@@ -40,21 +40,21 @@ check('设置 30 天后 autoArchive 归档过期条目',
   && await sw(`__vipper.vault.getBookmark('${oldId}').then((b) => b.status)`) === 'archived', archived);
 await sw(`__vipper.keychain.setSettings({ autoArchiveDays: 0 })`); // 还原默认，防影响后续
 
-// ---- 3. idx 含 remark + filterIndex 按 remark 检索 ----
-const remarkCheck = JSON.parse(await sw(`(async () => {
+// ---- 3. idx 含 remarks + filterIndex 按 remarks 检索 ----
+const remarksCheck = JSON.parse(await sw(`(async () => {
   const b = await __vipper.vault.addBookmark({
-    title: 'RemarkHost', remark: '绑定了二次验证',
-    urls: [{ url: 'https://remark.example.com', match: 'host' }],
+    title: 'RemarkHost', remarks: '绑定了二次验证',
+    urls: [{ url: 'https://remarks.example.com', match: 'host' }],
   });
   const idx = await __vipper.vault.listIndex();
   const entry = idx.find((e) => e.id === b.id);
   return JSON.stringify({
-    inIdx: entry?.remark === '绑定了二次验证',
+    inIdx: entry?.remarks === '绑定了二次验证',
     hit: __vipper.vault.filterIndex(idx, '二次验证').some((e) => e.id === b.id),
     miss: __vipper.vault.filterIndex(idx, '不存在的词').length === 0,
   });
 })()`));
-check('idx 索引含 remark 且可按 remark 检索', remarkCheck.inIdx && remarkCheck.hit && remarkCheck.miss, remarkCheck);
+check('idx 索引含 remarks 且可按 remarks 检索', remarksCheck.inIdx && remarksCheck.hit && remarksCheck.miss, remarksCheck);
 
 // ---- 4. tag color ----
 const tagCheck = JSON.parse(await sw(`(async () => {
@@ -101,7 +101,7 @@ const importCheck = JSON.parse(await sw(`(async () => {
     app: 'vipper', version: 1, exportedAt: Date.now(), tags: [],
     linkedInfos: [{ id: 'ext-link-1', name: '手机1', value: '000-不同值' }],
     bookmarks: [{
-      id: 'ext-bm-1', title: 'Imp', remark: '', tags: [], linkedInfos: ['ext-link-1'],
+      id: 'ext-bm-1', title: 'Imp', remarks: '', tags: [], linkedInfos: ['ext-link-1'],
       urls: [{ url: 'https://imp.example.com', match: 'host' }],
       accounts: [], records: [], status: 'active',
       createdAt: Date.now(), updatedAt: Date.now(), lastUsedAt: Date.now(),

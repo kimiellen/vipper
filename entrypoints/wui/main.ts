@@ -1,7 +1,7 @@
 /**
  * wui 管理页：书签 + 密码管理器主界面。
  *
- * - 顶行：active/archived seg（切谁就搜谁）· 搜索（title/remark/url）· TAGS/LINS 多选过滤（AND）· 新增书签
+ * - 顶行：active/archived seg（切谁就搜谁）· 搜索（title/remarks/url）· TAGS/LINS 多选过滤（AND）· 新增书签
  * - results：favicon 首列、lastUsedAt 降序、点击/键盘选中
  * - contents：展示态（password/secret 遮蔽，⧉ 复制真实值）↔ 编辑态（原地切换，字段顺序一致，只读时间置底）
  * - Settings：常规（语言/配色/用户名与密码生成器/超时锁定/自动归档）、tags、linkedInfos、备份（导入导出）
@@ -38,7 +38,7 @@ const T = {
   password: { zh: '密码', en: 'Password' },
   name: { zh: '名称', en: 'Name' },
   content: { zh: '内容', en: 'Content' },
-  remarkPh: { zh: '备注（每条书签仅一个）', en: 'Remark (one per bookmark)' },
+  remarksPh: { zh: '备注（每条书签仅一个）', en: 'Remarks (one per bookmark)' },
   addTagPh: { zh: '标签名称', en: 'Tag name' },
   addLinkNamePh: { zh: '名称', en: 'Name' },
   addLinkValuePh: { zh: '内容', en: 'Content' },
@@ -319,7 +319,7 @@ async function renderDetail(): Promise<void> {
   });
   if (b.records.length > 0) view.append(kvBlock('records', recBox));
 
-  if (b.remark) view.append(kvBlock('remark', el('div', 'box', b.remark)));
+  if (b.remarks) view.append(kvBlock('remarks', el('div', 'box', b.remarks)));
 
   const statusTag = el('span', 'tag', b.status);
   if (b.status === 'active') {
@@ -349,7 +349,7 @@ async function enterEdit(id: string | null): Promise<void> {
   draft = id
     ? await vault.getBookmarkDecrypted(id)
     : {
-        id: '', title: '', remark: '', tags: [], linkedInfos: [],
+        id: '', title: '', remarks: '', tags: [], linkedInfos: [],
         urls: [{ url: '', match: 'host' }], accounts: [], records: [],
         status: statusFilter, createdAt: 0, updatedAt: 0, lastUsedAt: 0,
       };
@@ -546,12 +546,12 @@ function renderEditForm(): void {
   recBox.append(recAddWrap);
   box.append(kvBlock('records', recBox));
 
-  // remark
-  const remark = el('textarea', 'textarea') as HTMLTextAreaElement;
-  remark.id = 'edit-remark';
-  remark.value = d.remark;
-  remark.placeholder = t('remarkPh');
-  box.append(kvBlock('remark', remark));
+  // remarks
+  const remarks = el('textarea', 'textarea') as HTMLTextAreaElement;
+  remarks.id = 'edit-remarks';
+  remarks.value = d.remarks;
+  remarks.placeholder = t('remarksPh');
+  box.append(kvBlock('remarks', remarks));
 
   // status
   const statusSeg = el('span', 'seg');
@@ -599,7 +599,7 @@ async function saveEdit(): Promise<void> {
   }
   const box = $('#contents-edit');
   const kvBlocks = box.querySelectorAll(':scope > .kv-block');
-  // 顺序固定：title(0) tags(1) linkedInfos(2) urls(3) accounts(4) records(5) remark(6)
+  // 顺序固定：title(0) tags(1) linkedInfos(2) urls(3) accounts(4) records(5) remarks(6)
   const urlRows = kvBlocks[3]!.querySelectorAll('.frow');
   const urls = [...urlRows]
     .map((row) => {
@@ -628,17 +628,17 @@ async function saveEdit(): Promise<void> {
     .filter((r) => r.name !== '' || r.content !== '');
 
   const status = (box.querySelector('#edit-status-seg .seg-btn.active') as HTMLElement).dataset.status as 'active' | 'archived';
-  const remark = ($('#edit-remark') as HTMLTextAreaElement).value;
+  const remarks = ($('#edit-remarks') as HTMLTextAreaElement).value;
 
   if (d.id) {
     await vault.saveBookmark({
-      ...d, title, urls, accounts, records, remark, status,
+      ...d, title, urls, accounts, records, remarks, status,
       tags: d.tags, linkedInfos: d.linkedInfos,
     });
     selectedId = d.id;
   } else {
     const created = await vault.addBookmark({
-      title, urls, accounts, records, remark, status,
+      title, urls, accounts, records, remarks, status,
       tags: d.tags, linkedInfos: d.linkedInfos,
     });
     selectedId = created.id;

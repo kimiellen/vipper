@@ -4,7 +4,7 @@
  * 用法：node scripts/keeper-to-vipper.mjs <keeper导出.json> <输出.json>
  *
  * 映射（keeper 模型 → vipper 模型）：
- * - bookmark.name → title；notes → remark；urls（空则兜底 about:blank，match 默认 host）
+ * - bookmark.name → title；notes → remarks；urls（空则兜底 about:blank，match 默认 host）
  * - accounts → accounts（明文密码，导入时 vipper 重新加密落盘）；accounts.relatedIds 的并集 → bookmark.linkedInfos
  * - tagIds → tags（id 重生成 UUID）；tag 颜色 #hex → 最近的 Catppuccin 14 色
  * - relations → linkedInfos（注意：keeper 导出不含 relation.value，value 置空——keeper 侧 ExportRelation 结构限制）
@@ -63,7 +63,7 @@ function convert(keeper) {
     return {
       id: b.id, // keeper 的 UUID 原样保留（重复导入同一备份幂等）
       title: b.name,
-      remark: b.notes ?? '',
+      remarks: b.notes ?? '',
       tags: (b.tagIds ?? []).map((id) => tagIdMap.get(id)).filter(Boolean),
       linkedInfos: [...new Set((b.accounts ?? []).flatMap((a) => a.relatedIds ?? []))]
         .map((id) => linkIdMap.get(id)).filter(Boolean),
@@ -79,7 +79,7 @@ function convert(keeper) {
 
   return {
     app: 'vipper',
-    version: 1,
+    version: 2,
     exportedAt: Date.now(),
     bookmarks,
     tags,

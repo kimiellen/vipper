@@ -24,7 +24,7 @@ export type VaultRecord = NoteRecord | SecretRecord;
 export interface Bookmark {
   id: string;
   title: string;
-  remark: string;
+  remarks: string;
   tags: string[];
   linkedInfos: string[];
   urls: BookmarkUrl[];
@@ -40,7 +40,7 @@ export interface Bookmark {
 export interface IndexEntry {
   id: string;
   title: string;
-  remark: string;
+  remarks: string;
   tags: string[];
   linkedInfos: string[];
   urls: BookmarkUrl[];
@@ -50,14 +50,61 @@ export interface IndexEntry {
 }
 
 const IDX = 'idx';
+const META_MIGRATIONS = 'meta:migrations';
 const bmKey = (id: string) => `bm:${id}`;
 const arcKey = (id: string) => `arc:${id}`;
 const keyOf = (b: Pick<Bookmark, 'id' | 'status'>) => (b.status === 'archived' ? arcKey(b.id) : bmKey(b.id));
 
+/** 旧版字段（2026-10-17 remark → remarks）与规范化入口 */
+type LegacyBookmark = Omit<Bookmark, 'remarks'> & { remarks?: string; remark?: string };
+type LegacyIndexEntry = Omit<IndexEntry, 'remarks'> & { remarks?: string; remark?: string };
+
+function normalizeBookmark(b: LegacyBookmark): Bookmark {
+  const { remark, ...rest } = b;
+  return { ...rest, remarks: rest.remarks ?? remark ?? '' };
+}
+
+function normalizeIndexEntry(e: LegacyIndexEntry): IndexEntry {
+  const { remark, ...rest } = e;
+  return { ...rest, remarks: rest.remarks ?? remark ?? '' };
+}
+
+let remarksMigration: Promise<void> | null = null;
+
+/** 一次性迁移：把 idx / bm: / arc: 里的旧 remark 字段改为 remarks（meta:migrations 标记） */
+function migrateRemarks(): Promise<void> {
+  remarksMigration ??= doMigrateRemarks().catch((e) => {
+    remarksMigration = null;
+    throw e;
+  });
+  return remarksMigration;
+}
+
+async function doMigrateRemarks(): Promise<void> {
+  const state = ((await chrome.storage.local.get(META_MIGRATIONS))[META_MIGRATIONS] ?? {}) as {
+    remarksRenamed?: boolean;
+  };
+  if (state.remarksRenamed) return;
+
+  const all = await chrome.storage.local.get(null);
+  const patch: Record<string, unknown> = {};
+  const isLegacy = (v: object) =>
+    Object.prototype.hasOwnProperty.call(v, 'remark') || !Object.prototype.hasOwnProperty.call(v, 'remarks');
+  for (const [key, val] of Object.entries(all)) {
+    if (key === IDX && Array.isArray(val)) {
+      if ((val as object[]).some(isLegacy)) patch[IDX] = (val as LegacyIndexEntry[]).map(normalizeIndexEntry);
+    } else if ((key.startsWith('bm:') || key.startsWith('arc:')) && val && typeof val === 'object' && isLegacy(val)) {
+      patch[key] = normalizeBookmark(val as LegacyBookmark);
+    }
+  }
+  patch[META_MIGRATIONS] = { ...state, remarksRenamed: true };
+  await chrome.storage.local.set(patch);
+}
+
 const toIndex = (b: Bookmark): IndexEntry => ({
   id: b.id,
   title: b.title,
-  remark: b.remark,
+  remarks: b.remarks,
   tags: b.tags,
   linkedInfos: b.linkedInfos,
   urls: b.urls,
@@ -67,7 +114,9 @@ const toIndex = (b: Bookmark): IndexEntry => ({
 });
 
 export async function listIndex(): Promise<IndexEntry[]> {
-  return ((await chrome.storage.local.get(IDX))[IDX] as IndexEntry[] | undefined) ?? [];
+  await migrateRemarks();
+  const raw = ((await chrome.storage.local.get(IDX))[IDX] as LegacyIndexEntry[] | undefined) ?? [];
+  return raw.map(normalizeIndexEntry);
 }
 
 async function writeIndex(entries: IndexEntry[]): Promise<void> {
@@ -90,7 +139,7 @@ export type NewBookmark = Partial<Bookmark> & { title: string; urls: BookmarkUrl
 export async function addBookmark(input: NewBookmark): Promise<Bookmark> {
   const now = Date.now();
   const bookmark: Bookmark = {
-    remark: '', tags: [], linkedInfos: [], accounts: [], records: [],
+    remarks: '', tags: [], linkedInfos: [], accounts: [], records: [],
     status: 'active', createdAt: now, updatedAt: now, lastUsedAt: now,
     ...input,
     id: crypto.randomUUID(),
@@ -104,6 +153,7 @@ export async function addBookmark(input: NewBookmark): Promise<Bookmark> {
  * 含未加密的敏感字段时要求已解锁。
  */
 export async function saveBookmark(bookmark: Bookmark): Promise<void> {
+  bookmark = normalizeBookmark(bookmark); // 写入统一规范化：兼容 v1 导入对象的旧 remark 字段
   const hasPlainSensitive =
     bookmark.accounts.some((a) => !isEncrypted(a.password)) ||
     bookmark.records.some((r) => r.template === 'secret' && !isEncrypted(r.content));
@@ -129,8 +179,10 @@ export async function saveBookmark(bookmark: Bookmark): Promise<void> {
 
 /** 读取条目原始形态（敏感字段为密文），活跃/归档都找 */
 export async function getBookmark(id: string): Promise<Bookmark | null> {
+  await migrateRemarks();
   const data = await chrome.storage.local.get([bmKey(id), arcKey(id)]);
-  return (data[bmKey(id)] as Bookmark | undefined) ?? (data[arcKey(id)] as Bookmark | undefined) ?? null;
+  const raw = (data[bmKey(id)] ?? data[arcKey(id)]) as LegacyBookmark | undefined;
+  return raw ? normalizeBookmark(raw) : null;
 }
 
 /** 读取条目明文形态（需已解锁） */
@@ -162,7 +214,7 @@ export function filterIndex(entries: IndexEntry[], query: string): IndexEntry[] 
   return sorted.filter(
     (e) =>
       e.title.toLowerCase().includes(q) ||
-      (e.remark ?? '').toLowerCase().includes(q) || // ?? 兜底 M9b 前旧 idx 无 remark 的残留数据
+      (e.remarks ?? '').toLowerCase().includes(q) ||
       e.urls.some((u) => u.url.toLowerCase().includes(q)),
   );
 }
@@ -282,7 +334,7 @@ export async function deleteLinkedInfo(id: string): Promise<void> {
 
 export interface VaultExport {
   app: 'vipper';
-  version: 1;
+  version: 1 | 2;
   exportedAt: number;
   bookmarks: Bookmark[];
   tags: Tag[];
@@ -298,7 +350,7 @@ export async function exportAll(): Promise<VaultExport> {
     if (b) bookmarks.push(b);
   }
   return {
-    app: 'vipper', version: 1, exportedAt: Date.now(),
+    app: 'vipper', version: 2, exportedAt: Date.now(),
     bookmarks, tags: await listTags(), linkedInfos: await listLinkedInfos(),
   };
 }
@@ -321,6 +373,7 @@ export async function importAll(data: VaultExport): Promise<{ added: number }> {
 
   // 管理表整表写入（恢复语义：导入文件即全量真源，引用 id 原样保留）
   await chrome.storage.local.set({ [META_TAGS]: data.tags ?? [], [META_LINKS]: data.linkedInfos ?? [] });
+  // v1 导出文件用 remark，v2 用 remarks——saveBookmark 内统一规范化
   for (const b of data.bookmarks) await saveBookmark(b);
   return { added: data.bookmarks.length };
 }

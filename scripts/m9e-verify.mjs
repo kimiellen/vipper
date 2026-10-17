@@ -24,7 +24,7 @@ const seed = JSON.parse(await sw(`(async () => {
   const tag = await __vipper.vault.addTag('dev', 'mauve');
   const link = await __vipper.vault.addLinkedInfo('邮箱1', 'me@example.com');
   const b = await __vipper.vault.addBookmark({
-    title: 'github', remark: '工作常用', tags: [tag.id], linkedInfos: [link.id],
+    title: 'github', remarks: '工作常用', tags: [tag.id], linkedInfos: [link.id],
     urls: [{ url: 'https://github.com', match: 'host' }],
     accounts: [{ username: 'octocat', password: 'pw-1' }],
     records: [{ template: 'note', name: '备注1', content: 'aaa' }, { template: 'secret', name: '密保', content: '旺财' }],

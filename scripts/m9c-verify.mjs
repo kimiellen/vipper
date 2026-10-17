@@ -4,7 +4,7 @@
  *
  * 断言：
  * - results：active/archived seg 切换、lastUsedAt 降序、favicon 首列、tag 彩色渲染、url数/账号数
- * - 搜索含 remark；TAGS/LINS 过滤（AND 语义）
+ * - 搜索含 remarks；TAGS/LINS 过滤（AND 语义）
  * - contents：点击行展示详情（密码/secret 遮蔽、时间格式化置底、status 标签）
  * - Settings 骨架：真实设置值与 tag/linkedInfo 只读列表
  */
@@ -22,7 +22,7 @@ const seed = JSON.parse(await sw(`(async () => {
   const linkMail = await __vipper.vault.addLinkedInfo('邮箱1', 'me@example.com');
   const mk = (over) => __vipper.vault.addBookmark(over);
   const a = await mk({
-    title: 'github', remark: '绑定了二次验证', tags: [tagDev.id], linkedInfos: [linkMail.id],
+    title: 'github', remarks: '绑定了二次验证', tags: [tagDev.id], linkedInfos: [linkMail.id],
     urls: [{ url: 'https://github.com', match: 'host' }, { url: 'https://gist.github.com', match: 'host' }],
     accounts: [{ username: 'octocat', password: 'pw-1' }],
     records: [{ template: 'secret', name: '密保', content: '旺财' }],
@@ -63,10 +63,10 @@ check('results：tag 彩色渲染（cat 变量）',
 check('results：url数/账号数列',
   await page(`[...document.querySelectorAll('#results-body tr')].map((r) => r.cells[4].textContent + '/' + r.cells[5].textContent).join(',')`) === '1/0,2/1');
 
-// ---- 搜索（含 remark）----
+// ---- 搜索（含 remarks）----
 await page(`(() => { const i = document.querySelector('#search'); i.value = '二次验证'; i.dispatchEvent(new Event('input')); })()`);
 await sleep(200);
-check('搜索命中 remark（剩 github 一条）',
+check('搜索命中 remarks（剩 github 一条）',
   await page(`document.querySelectorAll('#results-body tr').length === 1 && document.querySelector('#results-body tr td:nth-child(2)').textContent === 'github'`));
 await page(`(() => { const i = document.querySelector('#search'); i.value = ''; i.dispatchEvent(new Event('input')); })()`);
 await sleep(200);
@@ -96,14 +96,14 @@ const detail = JSON.parse(await page(`JSON.stringify({
   passPlainLeaked: document.querySelector('#contents-view').textContent.includes('pw-1'),
   secretMasked: document.querySelector('#contents-view').textContent.includes('密保: ********'),
   secretLeaked: document.querySelector('#contents-view').textContent.includes('旺财'),
-  remarkShown: document.querySelector('#contents-view').textContent.includes('绑定了二次验证'),
+  remarksShown: document.querySelector('#contents-view').textContent.includes('绑定了二次验证'),
   timeFormatted: /\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}/.test(document.querySelector('#contents-view').textContent),
   timesLast: (() => { const ks = [...document.querySelectorAll('#contents-view .kv .k')].map((k) => k.textContent); return ks.slice(-3).join(',') === 'createdAt,updatedAt,lastUsedAt'; })(),
 })`));
 check('contents：标题 + 密码/secret 遮蔽（无明文泄漏）',
   detail.title === 'github' && detail.passMasked && !detail.passPlainLeaked && detail.secretMasked && !detail.secretLeaked, detail);
-check('contents：remark 展示、时间格式化且置底',
-  detail.remarkShown && detail.timeFormatted && detail.timesLast, detail);
+check('contents：remarks 展示、时间格式化且置底',
+  detail.remarksShown && detail.timeFormatted && detail.timesLast, detail);
 
 // ---- Settings 骨架（M9e 起 general 为可编辑表单：默认 0 = 关闭） ----
 const settings = JSON.parse(await page(`JSON.stringify({

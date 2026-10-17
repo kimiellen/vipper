@@ -29,7 +29,7 @@ const id = await sw(`(async () => {
     accounts: [{ username: 'alice', password: 's3cret!' }],
     records: [{ template: 'secret', name: '密保问题', content: '第一只宠物叫旺财' },
               { template: 'note', name: '备注记录', content: '明文内容' }],
-    remark: '常用',
+    remarks: '常用',
   });
   return b.id;
 })()`);
@@ -44,13 +44,13 @@ const rawCheck = JSON.parse(await sw(`(async () => {
     noPlainSecret: !blob.includes('旺财'),
     notePlain: raw.records[1].content === '明文内容',
     titlePlain: raw.title === 'Bank',
-    remarkPlain: raw.remark === '常用',
+    remarksPlain: raw.remarks === '常用',
   });
 })()`));
 check('password 以 $enc 信封落盘', rawCheck.pwEnvelope, rawCheck);
 check('secret.content 以 $enc 信封落盘', rawCheck.secretEnvelope, rawCheck);
 check('落盘数据不含明文密码/私密内容', rawCheck.noPlainPw && rawCheck.noPlainSecret, rawCheck);
-check('note 记录与 title/remark 保持明文', rawCheck.notePlain && rawCheck.titlePlain && rawCheck.remarkPlain, rawCheck);
+check('note 记录与 title/remarks 保持明文', rawCheck.notePlain && rawCheck.titlePlain && rawCheck.remarksPlain, rawCheck);
 
 // ---- 解密往返 ----
 const round = JSON.parse(await sw(`(async () => {
