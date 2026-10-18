@@ -9,8 +9,9 @@
  * - 单账号直接填充：用户名字段与密码字段都加 vipper-animated-fill 类
  * - 动画名 vipperfill、时长 200ms、动画中点 transform 放大（scale > 1.1）
  * - 约 200ms 后类被移除（清理不依赖 animationend）
- * - 多账号二级菜单选定后同样触发动画
- * - prefers-reduced-motion: reduce 时类仍加、animation-name 为 none、无运行中动画、无 transform 放大
+ * - 账号→密码先后播放：密码动画类在账号动画结束后才加入（间隔 ≥180ms）
+ * - 多账号二级菜单选定后同样按账号→密码顺序触发动画
+ * - prefers-reduced-motion: reduce 时类仍加、animation-name 为 none、无运行中动画、无 transform 放大，且两字段同时填入（间隔 <50ms）
  */
 
 import http from 'node:http';
@@ -128,8 +129,9 @@ await sleep(500);
 let form = await readForm('/solo');
 let log = await readAnim('/solo');
 check('单账号填充结果正确', form.u === 'alice' && form.p === 'p1', form);
-for (const id of ['u', 'p']) {
-  const f = fieldLog(log, id);
+const soloU = fieldLog(log, 'u');
+const soloP = fieldLog(log, 'p');
+for (const [id, f] of [['u', soloU], ['p', soloP]]) {
   check(`#${id} 填充后加 vipper-animated-fill 类`, f.add?.cls === true, f.entries);
   check(`#${id} 动画名 vipperfill 且时长 200ms`,
     f.mid?.animName === 'vipperfill' && f.mid?.duration === 200,
@@ -138,6 +140,10 @@ for (const id of ['u', 'p']) {
   check(`#${id} 约 200ms 后类被移除`, f.last?.cls === false && (f.last?.t ?? 0) - (f.add?.t ?? 0) >= 180,
     { addT: f.add?.t, lastT: f.last?.t, cls: f.last?.cls });
 }
+const soloGap = (soloP.add?.t ?? 0) - (soloU.add?.t ?? 0);
+check('单账号：账号动画结束后才开始密码动画', (soloU.last?.t ?? Infinity) <= (soloP.add?.t ?? 0),
+  { uRemovedAt: soloU.last?.t, pAddedAt: soloP.add?.t });
+check('单账号：账号→密码动画间隔 ≥180ms', soloGap >= 180 && soloGap <= 500, soloGap);
 
 // ---- 2. 多账号二级菜单选定后同样弹跳 ----
 await openTab('http://127.0.0.1:8378/multi');
@@ -151,11 +157,14 @@ await sleep(500);
 form = await readForm('/multi');
 log = await readAnim('/multi');
 const multiU = fieldLog(log, 'u');
+const multiP = fieldLog(log, 'p');
 check('菜单选第 2 个账号填充正确', form.u === 'bob' && form.p === 'p2', form);
 check('菜单路径同样触发动画类与 vipperfill',
   multiU.add?.cls === true && multiU.mid?.animName === 'vipperfill',
   { add: multiU.add, mid: multiU.mid });
 check('菜单路径动画中点 transform 放大', scaleOf(multiU.mid?.transform) > 1.1, multiU.mid?.transform);
+const multiGap = (multiP.add?.t ?? 0) - (multiU.add?.t ?? 0);
+check('菜单路径：账号→密码动画间隔 ≥180ms', multiGap >= 180 && multiGap <= 500, multiGap);
 
 // ---- 3. prefers-reduced-motion: reduce 降级 ----
 await openTab('http://127.0.0.1:8378/rm');
@@ -171,6 +180,7 @@ await sleep(500);
 form = await readForm('/rm');
 log = await readAnim('/rm');
 const rmU = fieldLog(log, 'u');
+const rmP = fieldLog(log, 'p');
 check('减少动效下仍完成填充', form.u === 'carol' && form.p === 'p3', form);
 check('减少动效下类仍加（清理逻辑不依赖 animationend）', rmU.add?.cls === true, rmU.entries);
 check('减少动效下 animation-name 为 none 且无运行中动画',
@@ -178,6 +188,8 @@ check('减少动效下 animation-name 为 none 且无运行中动画',
   { animName: rmU.mid?.animName, running: rmU.mid?.running });
 check('减少动效下无 transform 放大', scaleOf(rmU.mid?.transform) === 1, rmU.mid?.transform);
 check('减少动效下类仍按时移除', rmU.last?.cls === false, rmU.last);
+const rmGap = (rmP.add?.t ?? 0) - (rmU.add?.t ?? 0);
+check('减少动效跳过错峰等待（两字段同时填入）', rmGap >= 0 && rmGap < 50, rmGap);
 await page.send('Emulation.setEmulatedMedia', { features: [] });
 
 summary();

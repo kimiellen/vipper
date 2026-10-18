@@ -153,3 +153,9 @@
 - [x] 新增 `assets/fill-animation.css`：`.vipper-animated-fill` 跑 `vipperfill` keyframes（200ms，scale 1→1.2→1），`prefers-reduced-motion: reduce` 时 `animation: none`；由 content script 引入，经 manifest 注入页面
 - [x] `entrypoints/content.ts`：填充后给实际写入的字段加类、200ms 后移除（不用 `animationend`，减少动效下也能清理）；不新增设置项
 - [x] 验证：`scripts/m13-verify.mjs` 18/18 通过（类出现与移除、`getAnimations()` 动画名/时长、动画中点 transform 放大、多账号菜单路径、减少动效降级）+ m5 6/6 回归 + `pnpm typecheck` / `pnpm build`（产物 manifest 含 content CSS）
+
+## M14：填充动画改为账号→密码顺序播放（2026-10-18）
+
+- [x] `entrypoints/content.ts`：账号字段填入并完成 200ms 弹跳后，再填入密码并触发密码弹跳；动画结束后重新探测密码框（防站点在用户名输入后替换/渲染密码框）；`prefers-reduced-motion: reduce` 时跳过等待、两者同时填入
+- [x] 更新 `scripts/m13-verify.mjs`：正常模式断言两字段动画类加入时间差 ≥180ms，减少动效模式断言时间差 <50ms；保留原有动画名/时长/transform/清理断言
+- [x] 验证：`scripts/m13-verify.mjs` 22/22 通过（新增：账号动画结束后才加密码动画类、间隔 ≥180ms；减少动效下两字段同时填入）+ m5 6/6 回归 + `pnpm typecheck` / `pnpm build`

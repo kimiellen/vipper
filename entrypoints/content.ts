@@ -59,18 +59,28 @@ function animateFill(el: HTMLInputElement): void {
   setTimeout(() => el.classList.remove(FILL_ANIM_CLASS), FILL_ANIM_MS);
 }
 
-function fill(username: string, password: string): boolean {
+const reduceMotion = (): boolean => matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+async function fill(username: string, password: string): Promise<boolean> {
   const u = findField('username');
-  const p = findField('password');
   if (u) {
     setNativeValue(u, username);
     animateFill(u);
   }
-  if (p) {
-    setNativeValue(p, password);
-    animateFill(p);
+
+  const p = findField('password');
+  if (!p) return !!u;
+
+  // 账号动画播完再填密码，形成先后节奏；减少动效时无动画可等，直接一起填
+  if (u && !reduceMotion()) {
+    await new Promise((resolve) => setTimeout(resolve, FILL_ANIM_MS));
   }
-  return !!(u || p);
+
+  // 站点可能在用户名输入后替换密码框，重新探测后再写入
+  const target = findField('password') ?? p;
+  setNativeValue(target, password);
+  animateFill(target);
+  return true;
 }
 
 // ---------- 浮层（shadow DOM） ----------
@@ -203,8 +213,10 @@ export default defineContentScript({
     chrome.runtime.onMessage.addListener((msg: Msg) => {
       switch (msg.type) {
         case 'vipper:fill':
-          if (!fill(msg.username, msg.password)) showToast('未找到登录表单');
-          else closeOverlay();
+          void fill(msg.username, msg.password).then((ok) => {
+            if (!ok) showToast('未找到登录表单');
+            else closeOverlay();
+          });
           break;
         case 'vipper:picker':
           showPicker(msg.candidates);

@@ -42,7 +42,7 @@ vipper 是一个 Chrome MV3 扩展，目标用户是作者本人（Arch Linux + 
 3. 搜索范围：书签名 / url / **备注**（remarks 入 idx 索引，明文以支持检索）；结果表格首列为 favicon，时间字段格式化展示
    - 拼音检索（2026-10-18 定稿）：书签名与备注额外支持**中文拼音首拼与全拼**（`tb`/`taobao` → 淘宝，`yh`/`yinhang` → 银行）；url 不做拼音转换，`records[].name` 不参与（不在 idx 内，需读取/解密详情，留作后续）。不新增派生索引，在 wui 侧运行时转换；选 pinyin-pro 是因词级多音字正确（银行 yh、重庆 cq、长城 cc、长沙 cs），代价为 wui 包约 +140KB gzip，service worker 不受影响
 4. 选中条目回车在**来源标签所在的 tab group** 打开该书签（自 M3 launcher 移植；launcher 弹窗由本页面取代、淘汰）
-5. 打开登录页后，**Alt+P** 主动填充账号密码（类 Bitwarden）；填充反馈采用 Bitwarden 同款字段弹跳动画（2026-10-18 新增）：被填充的输入框在 200ms 内缩放 1 → 1.2 → 1，系统开启「减少动效」（`prefers-reduced-motion`）时自动禁用；不提供扩展内动画开关（YAGNI，系统级开关已够用）
+5. 打开登录页后，**Alt+P** 主动填充账号密码（类 Bitwarden）；填充反馈采用 Bitwarden 同款字段弹跳动画（2026-10-18 新增）：被填充的输入框在 200ms 内缩放 1 → 1.2 → 1，系统开启「减少动效」（`prefers-reduced-motion`）时自动禁用；不提供扩展内动画开关（YAGNI，系统级开关已够用）。两字段的动效**先后播放**（2026-10-18 追加）：账号字段弹跳完成后才填入密码并弹跳，形成账号→密码的节奏；减少动效时无动画，两者直接同时填入
 6. 一条书签绑定多个 URL 或多组账号时，弹**二级菜单**（`↑/↓` 选择 + 回车确认）
 7. 编辑：点击 contents 区域右上角 ✎（或「新增书签」），**contents 区域原地切换为编辑态**（不跳转页面）；编辑态字段顺序与展示态一致（title → tags → linkedInfos → urls → accounts → records → remarks → status），URL 的 match 规则只在编辑态可选；`createdAt`/`updatedAt`/`lastUsedAt` 三个只读时间在展示态与编辑态均**置于区域最底部**（2026-10-14 定稿；M6 的独立 editor.html 淘汰）
 
