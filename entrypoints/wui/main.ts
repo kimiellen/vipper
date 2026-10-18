@@ -1179,7 +1179,23 @@ function moveSelection(delta: number): void {
   exitEdit();
   renderResults();
   void renderDetail();
-  document.querySelector('#results-body tr.row-selected')?.scrollIntoView({ block: 'nearest' });
+  ensureSelectionVisible();
+}
+
+/**
+ * 让选中行完整落在 results 滚动视口内。
+ * 不用 scrollIntoView({block:'nearest'})：它把行顶对齐到视口顶边，忽略吸顶表头，
+ * 导致 ↑ 回到首行时选中行被表头盖住（需重开或把滚动条拖到最上才恢复）。
+ */
+function ensureSelectionVisible(): void {
+  const tr = document.querySelector<HTMLElement>('#results-body tr.row-selected');
+  const body = document.querySelector<HTMLElement>('.results-body');
+  if (!tr || !body) return;
+  const view = body.getBoundingClientRect();
+  const row = tr.getBoundingClientRect();
+  const top = view.top + (body.querySelector('thead')?.getBoundingClientRect().height ?? 0);
+  if (row.top < top) body.scrollTop += row.top - top;
+  else if (row.bottom > view.bottom) body.scrollTop += row.bottom - view.bottom;
 }
 
 document.addEventListener('keydown', (e) => {

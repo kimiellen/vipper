@@ -6,6 +6,7 @@
  * - 页面锁定视口高度、整页不滚动；三块同高且适配视口
  * - results / Settings / contents 各自内部滚动，results 表头吸顶
  * - results 主列变宽；基础信息列单行、超宽时两侧渐隐裁切且悬停有完整内容
+ * - results 键盘 ↑ 回到首行时，选中行完整显示在吸顶表头下方（不被遮挡）
  */
 
 import { writeFileSync } from 'node:fs';
@@ -130,6 +131,35 @@ check('results 内容超出时内部出现滚动（不滚整页）',
 check('results 表头滚动时吸顶',
   scrollState.after.scrollTop > 0 &&
   Math.abs(scrollState.after.headTop - scrollState.after.bodyTop) <= 2, scrollState.after);
+
+// ---- 键盘导航：↑ 回到首行时选中行不被吸顶表头遮挡 ----
+// 回归：scrollIntoView({block:'nearest'}) 把行顶对齐到视口顶边、忽略吸顶表头，首行会被盖住。
+const navState = JSON.parse(await page(`(async () => {
+  const body = document.querySelector('.results-body');
+  const press = async (key, n) => {
+    for (let i = 0; i < n; i++) {
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+      await new Promise((r) => setTimeout(r, 25));
+    }
+  };
+  await press('ArrowDown', 25); // 滚到列表下部
+  const down = body.scrollTop;
+  await press('ArrowUp', 40);   // 回到首行
+  const head = body.querySelector('thead th').getBoundingClientRect();
+  const row = document.querySelector('#results-body tr.row-selected');
+  const r = row.getBoundingClientRect();
+  const b = body.getBoundingClientRect();
+  return JSON.stringify({
+    scrolledDown: down > 0,
+    scrollTop: body.scrollTop,
+    headBottom: head.bottom, rowTop: r.top, rowBottom: r.bottom, viewBottom: b.bottom,
+    text: row.cells[1].textContent,
+  });
+})()`));
+check('↑ 回到首行：选中行完整显示在吸顶表头下方（不被遮挡）',
+  navState.scrolledDown && navState.scrollTop <= 2 &&
+  navState.rowTop >= navState.headBottom - 1 && navState.rowBottom <= navState.viewBottom + 1,
+  navState);
 
 // ---- Settings 内部滚动 ----
 await page(`document.querySelector('.set-group-tags .set-head').click()`);
