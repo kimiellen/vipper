@@ -18,8 +18,6 @@ interface Candidate {
 type Msg =
   | { type: 'vipper:fill'; username: string; password: string }
   | { type: 'vipper:picker'; candidates: Candidate[] }
-  | { type: 'vipper:locked' }
-  | { type: 'vipper:unlock-failed' }
   | { type: 'vipper:toast'; text: string };
 
 // ---------- 表单填充 ----------
@@ -132,11 +130,6 @@ const CSS = `
   .item { padding: 8px 12px; border-radius: 6px; }
   .item.selected { background: #45475a; }
   .msg { padding: 8px 12px; }
-  input {
-    width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 14px;
-    background: #313244; color: #cdd6f4; border: 2px solid #45475a; border-radius: 6px; outline: none;
-  }
-  .err { color: #f38ba8; padding: 4px 12px 0; font-size: 12px; }
 `;
 
 function ensureOverlay(): ShadowRoot {
@@ -209,40 +202,16 @@ function showPicker(candidates: Candidate[]): void {
   document.addEventListener('keydown', onKey, true);
 }
 
-/** 锁定状态：浮层内输主密码解锁 */
-function showUnlock(): void {
-  const s = ensureOverlay();
-  s.querySelector('.panel')?.remove();
-  const panel = document.createElement('div');
-  panel.className = 'panel';
-  panel.innerHTML = `<div class="msg">密码库已锁定，输入主密码解锁</div><input type="password" /><div class="err" hidden>密码错误</div>`;
-  const input = panel.querySelector('input')!;
-  const err = panel.querySelector<HTMLElement>('.err')!;
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      void chrome.runtime.sendMessage({ type: 'vipper:unlock', password: input.value });
-      input.value = '';
-    } else if (e.key === 'Escape') {
-      closeOverlay();
-    }
-    e.stopPropagation();
-  });
-  s.append(panel);
-  input.focus();
-  panel.dataset.kind = 'unlock';
-  err.id = 'unlock-err';
-}
-
-function showUnlockFailed(): void {
-  const err = shadow?.querySelector<HTMLElement>('.err');
-  if (err) err.hidden = false;
-}
-
 // ---------- 消息入口 ----------
 
 export default defineContentScript({
   matches: ['<all_urls>'],
   main() {
+    // safeSend 补注入与正常注入可能重叠，避免重复注册消息监听
+    const g = globalThis as typeof globalThis & { __vipperContentLoaded?: boolean };
+    if (g.__vipperContentLoaded) return;
+    g.__vipperContentLoaded = true;
+
     chrome.runtime.onMessage.addListener((msg: Msg) => {
       switch (msg.type) {
         case 'vipper:fill':
@@ -253,12 +222,6 @@ export default defineContentScript({
           break;
         case 'vipper:picker':
           showPicker(msg.candidates);
-          break;
-        case 'vipper:locked':
-          showUnlock();
-          break;
-        case 'vipper:unlock-failed':
-          showUnlockFailed();
           break;
         case 'vipper:toast':
           showToast(msg.text);

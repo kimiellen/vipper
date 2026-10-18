@@ -166,3 +166,13 @@
 - [x] 收到 `vipper:fill` 时先关闭浮层，避免解锁框/菜单盖住逐字过程
 - [x] 扩展 `scripts/m13-verify.mjs`：断言中间值递增、弹跳在输入完成后、密码逐字在账号弹跳结束后、减少动效每字段仅 1 次 input；保留动画名/时长/transform/清理与顺序断言
 - [x] 验证：`scripts/m13-verify.mjs` 28/28 通过（逐字中间值递增、弹跳在输入完成后、密码逐字在账号弹跳后开始、减少动效每字段仅 1 次 input）+ m5 6/6 回归 + `pnpm typecheck` / `pnpm build`
+
+## M16：Alt+P 锁定引导 + 旧页面补注入（2026-10-18）
+
+> spec-change：M5 的「锁定状态浮层内输主密码解锁」作废，改为打开/聚焦 wui 解锁页；历史记录保留。
+
+- [x] manifest 加 `scripting` 权限与 `<all_urls>` host 权限；`safeSend` 识别无接收方后 `insertCSS` + `executeScript` 补注入 content script，再按 100ms 间隔重试至监听就绪（最多 5 次）
+- [x] 锁定态 Alt+P 打开/聚焦 wui（不 toggle）；删除 content 侧解锁浮层、`vipper:locked` / `vipper:unlock` / `vipper:unlock-failed` 链路
+- [x] 更新 `scripts/m5-verify.mjs` 锁定场景：锁定按 Alt+P 弹 wui → 解锁 → 再按 Alt+P 可填充
+- [x] 新增 `scripts/m16-verify.mjs`：启动时不加载扩展，先打开登录页，再通过 CDP `Extensions.loadUnpacked` 动态加载（`runtime.reload()` 在 headless 下会禁用扩展，弃用）；断言消息失联后自动补注入并完成填充（含动画 CSS）
+- [x] 验证：m16 9/9、m5 7/7、m9d 15/15、m13 28/28 回归 + `pnpm typecheck` / `pnpm build`

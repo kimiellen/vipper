@@ -64,16 +64,14 @@ async function switchTab(direction: -1 | 1): Promise<void> {
   await chrome.tabs.update(targetTabId, { active: true });
 }
 
-/** Alt+.：呼出 wui 管理页。已打开时纯 toggle 关闭（spec 2026-10-15：Wayland 唤回聚焦不可靠，失焦时连按两次关+开即可重获焦点） */
-async function openLauncher(): Promise<void> {
+async function findLauncherWindow(): Promise<chrome.windows.Window | undefined> {
   const wuiUrl = chrome.runtime.getURL('wui.html');
-  const existing = (await chrome.windows.getAll({ populate: true }))
+  return (await chrome.windows.getAll({ populate: true }))
     .find((w) => w.tabs?.some((t) => t.url === wuiUrl));
-  if (existing?.id !== undefined) {
-    await chrome.windows.remove(existing.id);
-    return;
-  }
+}
 
+async function createLauncher(): Promise<void> {
+  const wuiUrl = chrome.runtime.getURL('wui.html');
   // 记录来源标签（窗口 + 所在组），供"回车在来源组打开"使用
   const [source] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (source?.windowId !== undefined && source.url !== wuiUrl) {
@@ -93,11 +91,59 @@ async function openLauncher(): Promise<void> {
   });
 }
 
-/** 向页面 content script 发消息；chrome:// 等无法注入的页面静默失败 */
+/** Alt+.：呼出 wui 管理页。已打开时纯 toggle 关闭（spec 2026-10-15：Wayland 唤回聚焦不可靠，失焦时连按两次关+开即可重获焦点） */
+async function openLauncher(): Promise<void> {
+  const existing = await findLauncherWindow();
+  if (existing?.id !== undefined) {
+    await chrome.windows.remove(existing.id);
+    return;
+  }
+  await createLauncher();
+}
+
+/** 锁定态 Alt+P：打开或聚焦 wui 解锁页，不 toggle（避免把已打开的解锁页关掉） */
+async function showLauncher(): Promise<void> {
+  const existing = await findLauncherWindow();
+  if (existing?.id !== undefined) {
+    try {
+      await chrome.windows.update(existing.id, { focused: true });
+    } catch { /* headless 不支持聚焦时忽略 */ }
+    return;
+  }
+  await createLauncher();
+}
+
+/** 页面无 content script（扩展重载前打开的页面 / 注入时序窗口）时补注入 */
+async function injectContentScript(tabId: number): Promise<boolean> {
+  try {
+    await chrome.scripting.insertCSS({ target: { tabId }, files: ['content-scripts/content.css'] });
+  } catch { /* CSS 失败不阻塞 JS 注入 */ }
+  try {
+    await chrome.scripting.executeScript({ target: { tabId }, files: ['content-scripts/content.js'] });
+    return true;
+  } catch {
+    return false; // chrome:// 等不可注入页面
+  }
+}
+
+/** 向页面 content script 发消息；无接收方时补注入，再等监听就绪后重试 */
 async function safeSend(tabId: number, msg: unknown): Promise<void> {
   try {
     await chrome.tabs.sendMessage(tabId, msg);
-  } catch { /* 页面无 content script */ }
+    return;
+  } catch (err) {
+    if (!/Receiving end does not exist|Could not establish connection/i.test(String(err))) return;
+  }
+  if (!(await injectContentScript(tabId))) return;
+  // 注入的 content script 经 requestIdleCallback 启动，等待监听就绪后重试
+  for (let i = 0; i < 5; i++) {
+    try {
+      await chrome.tabs.sendMessage(tabId, msg);
+      return;
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
 }
 
 interface Candidate { bookmarkId: string; accountIndex: number; text: string }
@@ -135,12 +181,12 @@ async function fillAccount(tabId: number, bookmarkId: string, accountIndex: numb
   await vault.touchLastUsed(bookmarkId);
 }
 
-/** Alt+P：当前页面主动填充；未解锁则引导页面内解锁 */
+/** Alt+P：当前页面主动填充；锁定则打开 wui 解锁页 */
 async function handleAutofill(): Promise<void> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (tab?.id === undefined || !tab.url) return;
   if (!(await keychain.isUnlocked())) {
-    await safeSend(tab.id, { type: 'vipper:locked' });
+    await showLauncher();
     return;
   }
   await sendCandidates(tab.id, tab.url);
@@ -177,19 +223,6 @@ function handleMessages(): void {
           await chrome.windows.remove(sender.tab.windowId);
         }
         if (msg.bookmarkId) await vault.touchLastUsed(msg.bookmarkId);
-      })();
-    }
-    // content script：浮层内解锁
-    if (msg?.type === 'vipper:unlock' && sender.tab?.id !== undefined) {
-      void (async () => {
-        const tabId = sender.tab!.id!;
-        const ok = await keychain.unlock(msg.password);
-        if (!ok) {
-          await safeSend(tabId, { type: 'vipper:unlock-failed' });
-          return;
-        }
-        const tab = await chrome.tabs.get(tabId);
-        if (tab.url) await sendCandidates(tabId, tab.url);
       })();
     }
     // content script：二级菜单选定后请求填充

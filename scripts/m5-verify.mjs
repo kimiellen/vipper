@@ -9,7 +9,7 @@
  * - exact 匹配：/login 命中多账号 → 二级菜单 ↓ 选中第 2 个账号填充
  * - exact 不匹配：/other 提示无匹配、不填充
  * - host 匹配：/other 命中单账号 → 直接填充（无菜单）
- * - 锁定引导：输错密码报错、输对密码后出现菜单并可填充
+ * - 锁定引导：Alt+P 弹 wui 解锁页且不填充；解锁后再按 Alt+P 出现菜单并可填充
  * - 填充后 lastUsedAt 更新
  */
 
@@ -27,7 +27,7 @@ const server = http.createServer((req, res) => {
 });
 await new Promise((r) => server.listen(8377, '127.0.0.1', r));
 
-const { sw, attachPage, close } = await connectSW();
+const { sw, attachPage, hasPage, close } = await connectSW();
 const { check, summary } = createChecker();
 
 const key = (k, code, vk) => ({ type: 'keyDown', key: k, code, windowsVirtualKeyCode: vk });
@@ -94,24 +94,38 @@ await sleep(500);
 form = await readForm('/other#host');
 check('host 匹配单账号直接填充', form.u === 'carol' && form.p === 'p3', form);
 
-// ---- 4. 锁定引导：错密码 → 对密码 → 菜单填充 ----
+// ---- 4. 锁定引导：Alt+P 弹 wui 解锁页 → 解锁 → 再按 Alt+P 填充 ----
 await sw(`__vipper.keychain.lock()`);
 await openTab('http://127.0.0.1:8377/login#locked');
 await sw(`__vipper.dispatch('autofill')`);
-await sleep(400);
+await sleep(600);
+check('锁定状态 Alt+P 打开 wui 解锁页', hasPage('wui.html'), hasPage('wui.html'));
+form = await readForm('/login#locked');
+check('锁定状态不填充登录页', form.u === '' && form.p === '', form);
+
+// 关掉 wui（解锁页 UI 流程由 m9d 覆盖），直接解锁后重试 Alt+P
+await sw(`(async () => {
+  const wins = await chrome.windows.getAll({ populate: true });
+  for (const w of wins) {
+    if (w.tabs?.some((t) => t.url === chrome.runtime.getURL('wui.html')) && w.id !== undefined) {
+      await chrome.windows.remove(w.id);
+    }
+  }
+  const tabs = await chrome.tabs.query({});
+  const login = tabs.find((t) => t.url?.includes('/login#locked'));
+  if (login?.id !== undefined) {
+    await chrome.tabs.update(login.id, { active: true });
+    if (login.windowId !== undefined) await chrome.windows.update(login.windowId, { focused: true }).catch(() => {});
+  }
+})()`);
+await sw(`__vipper.keychain.unlock('m5-test')`);
+await sw(`__vipper.dispatch('autofill')`);
+await sleep(400); // 等候选菜单出现
 page = await attachPage('/login#locked');
-await page.send('Input.insertText', { text: 'wrong' });
-await page.send('Input.dispatchKeyEvent', ENTER);
-await sleep(400);
-form = await readForm('/login#locked');
-check('锁定状态输错密码：不填充', form.u === '' && form.p === '', form);
-await page.send('Input.insertText', { text: 'm5-test' });
-await page.send('Input.dispatchKeyEvent', ENTER);
-await sleep(500);   // 解锁成功后自动出候选菜单
 await page.send('Input.dispatchKeyEvent', ENTER); // 选第 1 个账号（alice）
-await sleep(500);
+await sleep(800);
 form = await readForm('/login#locked');
-check('浮层内解锁成功并填充第 1 个账号', form.u === 'alice' && form.p === 'p1', form);
+check('解锁后再次 Alt+P 填充第 1 个账号', form.u === 'alice' && form.p === 'p1', form);
 
 // ---- 5. lastUsedAt 更新 ----
 const lastUsed = await sw(`(async () => {
