@@ -253,7 +253,10 @@
   tbody tr { cursor: pointer; }
   tbody tr + tr { border-top: 1px solid var(--border); }
   tbody tr:hover { background: var(--bg-subtle); }
-  tbody tr.row-selected, tbody tr.row-selected:hover { background: var(--accent-soft); }
+  /* 选中行：主色描边包裹（outline 不参与 border-collapse、不改变行高，避免切换选中时布局跳动） */
+  tbody tr.row-selected {
+    outline: 1px solid var(--accent); outline-offset: -1px;
+  }
 
   /* ===== 组件：标签 ===== */
   .tag {
