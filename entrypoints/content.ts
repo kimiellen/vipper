@@ -24,11 +24,32 @@ type Msg =
 
 // ---------- 表单填充 ----------
 
-function setNativeValue(el: HTMLInputElement, value: string): void {
-  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
-  setter.call(el, value);
+const nativeValueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+
+/** 写值并派发 input；change 只在最终提交时派发 */
+function writeValue(el: HTMLInputElement, value: string, change = false): void {
+  nativeValueSetter.call(el, value);
   el.dispatchEvent(new Event('input', { bubbles: true }));
-  el.dispatchEvent(new Event('change', { bubbles: true }));
+  if (change) el.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+const TYPE_INTERVAL_MS = 20;
+const TYPE_BUDGET_MS = 1000;
+
+/** 逐字写入：每字派发 input，结束时补一次完整值与 change（受控组件可能回滚中间态） */
+async function typeInto(el: HTMLInputElement, value: string): Promise<void> {
+  if (el.value) writeValue(el, '');
+  const interval = Math.max(8, Math.min(TYPE_INTERVAL_MS, Math.floor(TYPE_BUDGET_MS / Math.max(value.length, 1))));
+  for (let i = 1; i <= value.length; i++) {
+    writeValue(el, value.slice(0, i));
+    if (i < value.length) await new Promise((resolve) => setTimeout(resolve, interval));
+  }
+  writeValue(el, value, true);
+}
+
+/** 一次性写入（减少动效时跳过逐字） */
+function setNativeValue(el: HTMLInputElement, value: string): void {
+  writeValue(el, value, true);
 }
 
 function findField(kind: 'username' | 'password'): HTMLInputElement | null {
@@ -61,26 +82,38 @@ function animateFill(el: HTMLInputElement): void {
 
 const reduceMotion = (): boolean => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+let filling = false;
+
 async function fill(username: string, password: string): Promise<boolean> {
-  const u = findField('username');
-  if (u) {
-    setNativeValue(u, username);
-    animateFill(u);
+  // 逐字输入耗时较长，避免连按 Alt+P 时两轮写入互相覆盖
+  if (filling) return true;
+  filling = true;
+  try {
+    const reduced = reduceMotion();
+    const u = findField('username');
+    if (u) {
+      if (reduced) setNativeValue(u, username);
+      else await typeInto(u, username);
+      animateFill(u);
+    }
+
+    const p = findField('password');
+    if (!p) return !!u;
+
+    // 账号弹跳结束后再填密码，形成先后节奏；减少动效时无动画可等，直接一起填
+    if (u && !reduced) {
+      await new Promise((resolve) => setTimeout(resolve, FILL_ANIM_MS));
+    }
+
+    // 站点可能在用户名输入后替换密码框，重新探测后再写入
+    const target = findField('password') ?? p;
+    if (reduced) setNativeValue(target, password);
+    else await typeInto(target, password);
+    animateFill(target);
+    return true;
+  } finally {
+    filling = false;
   }
-
-  const p = findField('password');
-  if (!p) return !!u;
-
-  // 账号动画播完再填密码，形成先后节奏；减少动效时无动画可等，直接一起填
-  if (u && !reduceMotion()) {
-    await new Promise((resolve) => setTimeout(resolve, FILL_ANIM_MS));
-  }
-
-  // 站点可能在用户名输入后替换密码框，重新探测后再写入
-  const target = findField('password') ?? p;
-  setNativeValue(target, password);
-  animateFill(target);
-  return true;
 }
 
 // ---------- 浮层（shadow DOM） ----------
@@ -213,9 +246,9 @@ export default defineContentScript({
     chrome.runtime.onMessage.addListener((msg: Msg) => {
       switch (msg.type) {
         case 'vipper:fill':
+          closeOverlay(); // 先收起解锁框/菜单，避免盖住逐字过程
           void fill(msg.username, msg.password).then((ok) => {
             if (!ok) showToast('未找到登录表单');
-            else closeOverlay();
           });
           break;
         case 'vipper:picker':

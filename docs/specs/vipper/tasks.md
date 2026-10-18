@@ -159,3 +159,10 @@
 - [x] `entrypoints/content.ts`：账号字段填入并完成 200ms 弹跳后，再填入密码并触发密码弹跳；动画结束后重新探测密码框（防站点在用户名输入后替换/渲染密码框）；`prefers-reduced-motion: reduce` 时跳过等待、两者同时填入
 - [x] 更新 `scripts/m13-verify.mjs`：正常模式断言两字段动画类加入时间差 ≥180ms，减少动效模式断言时间差 <50ms；保留原有动画名/时长/transform/清理断言
 - [x] 验证：`scripts/m13-verify.mjs` 22/22 通过（新增：账号动画结束后才加密码动画类、间隔 ≥180ms；减少动效下两字段同时填入）+ m5 6/6 回归 + `pnpm typecheck` / `pnpm build`
+
+## M15：填充逐字输入动画（2026-10-18）
+
+- [x] `entrypoints/content.ts`：新增逐字写入（每字 20ms、单字段 1000ms 预算自动压缩），逐字完成后才弹跳；账号逐字→弹跳→重新探测密码框→密码逐字→弹跳；减少动效时跳过逐字、一次性写入
+- [x] 收到 `vipper:fill` 时先关闭浮层，避免解锁框/菜单盖住逐字过程
+- [x] 扩展 `scripts/m13-verify.mjs`：断言中间值递增、弹跳在输入完成后、密码逐字在账号弹跳结束后、减少动效每字段仅 1 次 input；保留动画名/时长/transform/清理与顺序断言
+- [x] 验证：`scripts/m13-verify.mjs` 28/28 通过（逐字中间值递增、弹跳在输入完成后、密码逐字在账号弹跳后开始、减少动效每字段仅 1 次 input）+ m5 6/6 回归 + `pnpm typecheck` / `pnpm build`
