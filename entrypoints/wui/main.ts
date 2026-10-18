@@ -1,7 +1,7 @@
 /**
  * wui 管理页：书签 + 密码管理器主界面。
  *
- * - 顶行：active/archived seg（切谁就搜谁）· 搜索（title/remarks/url）· TAGS/LINS 多选过滤（AND）· 新增书签
+ * - 顶行：active/archived seg（切谁就搜谁）· 搜索（title/remarks/url，title/remarks 支持拼音首拼与全拼）· TAGS/LINS 多选过滤（AND）· 新增书签
  * - results：favicon 首列、lastUsedAt 降序、点击/键盘选中
  * - contents：展示态（password/secret 遮蔽，⧉ 复制真实值）↔ 编辑态（原地切换，字段顺序一致，只读时间置底）
  * - Settings：常规（语言/配色/用户名与密码生成器/超时锁定/自动归档）、tags、linkedInfos、备份（导入导出）
@@ -11,6 +11,7 @@
 
 import * as keychain from '../../utils/keychain';
 import * as vault from '../../utils/vault';
+import { filterIndex } from '../../utils/search';
 import { genPassword, genUsername } from '../../utils/generator';
 import type { Bookmark, IndexEntry, LinkedInfo, Tag, TagColor, VaultRecord } from '../../utils/vault';
 import type { VaultSettings } from '../../utils/keychain';
@@ -185,14 +186,12 @@ let editing: string | null | false = false; // false=展示态；null=新建；�
 // ---------- 过滤与结果表 ----------
 
 function applyFilters(): IndexEntry[] {
-  return vault
-    .filterIndex(idx, query)
-    .filter(
-      (e) =>
-        e.status === statusFilter &&
-        [...selTags].every((x) => e.tags.includes(x)) &&
-        [...selLinks].every((x) => e.linkedInfos.includes(x)),
-    );
+  return filterIndex(idx, query).filter(
+    (e) =>
+      e.status === statusFilter &&
+      [...selTags].every((x) => e.tags.includes(x)) &&
+      [...selLinks].every((x) => e.linkedInfos.includes(x)),
+  );
 }
 
 function renderResults(): void {

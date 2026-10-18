@@ -139,3 +139,11 @@
 - [x] 导出格式升到 version 2（使用 `remarks`）；导入兼容 version 1 的 `remark` 字段
 - [x] 同步 keeper 转换器、设计原型标签
 - [x] 验证：`scripts/m11-verify.mjs` 8/8 通过（迁移 / v1 导入 / UI 标签）+ keeper 转换器 191 条烟测 + `pnpm typecheck`/`pnpm build` + m4/m5/m8/m9b/m9c/m9d/m9e/m10 全量回归通过
+
+## M12：搜索支持中文首拼与全拼 ✅（2026-10-18）
+
+- [x] 引入 pinyin-pro；新建 `utils/search.ts`：直接子串匹配 + title/remarks 的首拼/全拼匹配，查询与拼音串统一小写去标点，按文本记忆化
+- [x] 从 `utils/vault.ts` 移除 `filterIndex`，wui 改由 `utils/search` 接线，确保 pinyin-pro 不进 service worker 包
+- [x] 搜索框 placeholder / wui 文件头注释补充拼音提示（中英）
+- [x] 新增 `scripts/m12-verify.mjs`（tb/taobao、yh/yinhang、cq/chongqing、cc/changcheng、cs/changsha、remarks、url、归一化、空查询排序）；更新 m9b/m11 中失效的 `__vipper.vault.filterIndex` 断言
+- [x] 验证：`scripts/m12-verify.mjs` 26/26 通过 + m9b 8/8、m9c 11/11、m10 15/15、m11 8/8 回归 + `pnpm typecheck` / `pnpm build`（background 13.47 kB、wui chunk 323.77 kB，词典未进 SW）

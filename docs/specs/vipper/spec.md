@@ -40,6 +40,7 @@ vipper 是一个 Chrome MV3 扩展，目标用户是作者本人（Arch Linux + 
 1. **Alt+.** 呼出 wui 管理页（浏览器窗口中心位置）：顶行工具栏（active/archived 切换 · 搜索 · TAGS/LINS 多选过滤 · 新增书签）+ 下区三块（Settings 手风琴 / results 结果表格 / contents 详情）；已打开时**纯 toggle 关闭**（2026-10-15 定稿：Wayland 下唤回聚焦不可靠，纯 toggle 更简单，失焦时连按两次即可关+开重获焦点；原混合 toggle 作废）
 2. 锁定门控：未解锁时 Alt+. 打开的是**解锁页**（与主页面同尺寸），解密成功后才进入主页面；能进入主页面即有权解密 password 与 secret.content
 3. 搜索范围：书签名 / url / **备注**（remarks 入 idx 索引，明文以支持检索）；结果表格首列为 favicon，时间字段格式化展示
+   - 拼音检索（2026-10-18 定稿）：书签名与备注额外支持**中文拼音首拼与全拼**（`tb`/`taobao` → 淘宝，`yh`/`yinhang` → 银行）；url 不做拼音转换，`records[].name` 不参与（不在 idx 内，需读取/解密详情，留作后续）。不新增派生索引，在 wui 侧运行时转换；选 pinyin-pro 是因词级多音字正确（银行 yh、重庆 cq、长城 cc、长沙 cs），代价为 wui 包约 +140KB gzip，service worker 不受影响
 4. 选中条目回车在**来源标签所在的 tab group** 打开该书签（自 M3 launcher 移植；launcher 弹窗由本页面取代、淘汰）
 5. 打开登录页后，**Alt+P** 主动填充账号密码（类 Bitwarden）
 6. 一条书签绑定多个 URL 或多组账号时，弹**二级菜单**（`↑/↓` 选择 + 回车确认）

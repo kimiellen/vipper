@@ -206,19 +206,6 @@ export async function touchLastUsed(id: string): Promise<void> {
   await saveBookmark({ ...b, lastUsedAt: Date.now() }); // 敏感字段已是密文，无需解锁
 }
 
-/** 索引级检索：标题、备注或任一 URL 包含查询串（大小写不敏感）；空查询返回全部（按 lastUsedAt 降序） */
-export function filterIndex(entries: IndexEntry[], query: string): IndexEntry[] {
-  const sorted = [...entries].sort((a, b) => b.lastUsedAt - a.lastUsedAt);
-  const q = query.trim().toLowerCase();
-  if (!q) return sorted;
-  return sorted.filter(
-    (e) =>
-      e.title.toLowerCase().includes(q) ||
-      (e.remarks ?? '').toLowerCase().includes(q) ||
-      e.urls.some((u) => u.url.toLowerCase().includes(q)),
-  );
-}
-
 // ---------- 归档 ----------
 
 /** 手动归档：数据从 bm: 挪到 arc:（saveBookmark 按 status 处理迁移与索引） */

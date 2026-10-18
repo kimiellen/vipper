@@ -4,7 +4,7 @@
  *
  * 断言：
  * - 首次访问自动迁移旧 idx / bm: / arc: 字段，写入 meta:migrations 标记
- * - 迁移后检索、归档条目读取正常
+ * - 迁移后 idx 备注字段与归档条目读取正常
  * - 导出为 version 2 + remarks；旧 version 1 导出文件的 remark 可导入
  * - contents 展示态 / 编辑态字段名为 remarks
  */
@@ -43,15 +43,15 @@ const migrated = JSON.parse(await sw(`(async () => {
     bm: { remarks: raw['bm:legacy-active'].remarks, hasOld: Object.prototype.hasOwnProperty.call(raw['bm:legacy-active'], 'remark') },
     arcRaw: { remarks: raw['arc:legacy-arc'].remarks, hasOld: Object.prototype.hasOwnProperty.call(raw['arc:legacy-arc'], 'remark') },
     arcRead: arc?.remarks,
-    hit: __vipper.vault.filterIndex(idx, '旧备注A').map((e) => e.id),
+    activeRemarks: idx.find((e) => e.id === 'legacy-active')?.remarks,
     flag: raw['meta:migrations']?.remarksRenamed,
   });
 })()`));
 check('迁移 idx / bm: / arc: 的 remark 为 remarks（旧字段移除）',
   migrated.idx.every((e) => e.remarks && !e.hasOld) && migrated.bm.remarks === '旧备注A' && !migrated.bm.hasOld
   && migrated.arcRaw.remarks === '旧备注B' && !migrated.arcRaw.hasOld, migrated);
-check('迁移后可检索备注、归档条目读取正常',
-  migrated.hit.includes('legacy-active') && migrated.arcRead === '旧备注B', migrated);
+check('迁移后 idx 备注字段、归档条目读取正常',
+  migrated.activeRemarks === '旧备注A' && migrated.arcRead === '旧备注B', migrated);
 check('迁移标记写入 meta:migrations', migrated.flag === true, migrated.flag);
 
 // ---- 3. 新写入 + 导出格式 ----
