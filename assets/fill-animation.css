@@ -1,0 +1,27 @@
+/*
+ * Alt+P 填充反馈：被填充字段短暂弹跳（对齐 Bitwarden autofill.css 的 bitwardenfill）。
+ * 类由 content.ts 在填充后添加、200ms 后移除；类名与关键帧名都带 vipper 前缀，避免污染页面。
+ */
+@keyframes vipperfill {
+  0% {
+    transform: scale(1, 1);
+  }
+
+  50% {
+    transform: scale(1.2, 1.2);
+  }
+
+  100% {
+    transform: scale(1, 1);
+  }
+}
+
+.vipper-animated-fill {
+  animation: vipperfill 200ms ease-in-out 0ms 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vipper-animated-fill {
+    animation: none;
+  }
+}

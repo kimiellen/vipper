@@ -2,9 +2,12 @@
  * Alt+P 填充的页面侧：表单探测/填充 + 浮层 UI（账号二级菜单 / 解锁 / 提示）。
  *
  * - 表单填充用原生 setter + input/change 事件，兼容 React/Vue 受控组件
+ * - 填充后给字段加 200ms 弹跳类（assets/fill-animation.css，系统减少动效时自动禁用）
  * - 浮层挂在 shadow DOM 内，避免页面 CSS 干扰
  * - 明文凭据只在 SW 解密后经消息传入本页面，填充即弃
  */
+
+import '../assets/fill-animation.css';
 
 interface Candidate {
   bookmarkId: string;
@@ -47,11 +50,26 @@ function findField(kind: 'username' | 'password'): HTMLInputElement | null {
   return candidates[0] ?? null;
 }
 
+/** 填充反馈：加类触发 assets/fill-animation.css 的 200ms 弹跳；定时清理（减少动效下 animationend 不触发） */
+const FILL_ANIM_CLASS = 'vipper-animated-fill';
+const FILL_ANIM_MS = 200;
+
+function animateFill(el: HTMLInputElement): void {
+  el.classList.add(FILL_ANIM_CLASS);
+  setTimeout(() => el.classList.remove(FILL_ANIM_CLASS), FILL_ANIM_MS);
+}
+
 function fill(username: string, password: string): boolean {
   const u = findField('username');
   const p = findField('password');
-  if (u) setNativeValue(u, username);
-  if (p) setNativeValue(p, password);
+  if (u) {
+    setNativeValue(u, username);
+    animateFill(u);
+  }
+  if (p) {
+    setNativeValue(p, password);
+    animateFill(p);
+  }
   return !!(u || p);
 }
 

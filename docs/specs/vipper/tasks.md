@@ -147,3 +147,9 @@
 - [x] 搜索框 placeholder / wui 文件头注释补充拼音提示（中英）
 - [x] 新增 `scripts/m12-verify.mjs`（tb/taobao、yh/yinhang、cq/chongqing、cc/changcheng、cs/changsha、remarks、url、归一化、空查询排序）；更新 m9b/m11 中失效的 `__vipper.vault.filterIndex` 断言
 - [x] 验证：`scripts/m12-verify.mjs` 26/26 通过 + m9b 8/8、m9c 11/11、m10 15/15、m11 8/8 回归 + `pnpm typecheck` / `pnpm build`（background 13.47 kB、wui chunk 323.77 kB，词典未进 SW）
+
+## M13：Alt+P 填充反馈动画（2026-10-18）
+
+- [x] 新增 `assets/fill-animation.css`：`.vipper-animated-fill` 跑 `vipperfill` keyframes（200ms，scale 1→1.2→1），`prefers-reduced-motion: reduce` 时 `animation: none`；由 content script 引入，经 manifest 注入页面
+- [x] `entrypoints/content.ts`：填充后给实际写入的字段加类、200ms 后移除（不用 `animationend`，减少动效下也能清理）；不新增设置项
+- [x] 验证：`scripts/m13-verify.mjs` 18/18 通过（类出现与移除、`getAnimations()` 动画名/时长、动画中点 transform 放大、多账号菜单路径、减少动效降级）+ m5 6/6 回归 + `pnpm typecheck` / `pnpm build`（产物 manifest 含 content CSS）
