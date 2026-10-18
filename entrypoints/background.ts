@@ -1,5 +1,6 @@
 import { buildGroupSequence, resolveTargetGroup, resolveTargetTab, UNGROUPED } from '../utils/tabnav';
 import { matchUrl } from '../utils/matchUrl';
+import { PASSWORD_SELECTOR, USERNAME_CANDIDATE_SELECTOR } from '../utils/loginForm';
 import * as keychain from '../utils/keychain';
 import * as vault from '../utils/vault';
 
@@ -113,37 +114,76 @@ async function showLauncher(): Promise<void> {
   await createLauncher();
 }
 
-/** 页面无 content script（扩展重载前打开的页面 / 注入时序窗口）时补注入 */
-async function injectContentScript(tabId: number): Promise<boolean> {
+/** 指定 frame 无 content script（扩展重载前打开的页面 / 注入时序窗口）时补注入 */
+async function injectContentScript(tabId: number, frameId: number): Promise<boolean> {
+  const target = { tabId, frameIds: [frameId] };
   try {
-    await chrome.scripting.insertCSS({ target: { tabId }, files: ['content-scripts/content.css'] });
+    await chrome.scripting.insertCSS({ target, files: ['content-scripts/content.css'] });
   } catch { /* CSS 失败不阻塞 JS 注入 */ }
   try {
-    await chrome.scripting.executeScript({ target: { tabId }, files: ['content-scripts/content.js'] });
+    await chrome.scripting.executeScript({ target, files: ['content-scripts/content.js'] });
     return true;
   } catch {
     return false; // chrome:// 等不可注入页面
   }
 }
 
-/** 向页面 content script 发消息；无接收方时补注入，再等监听就绪后重试 */
-async function safeSend(tabId: number, msg: unknown): Promise<void> {
+/** 向指定 frame（默认顶层）发消息；无接收方时补注入，再等监听就绪后重试 */
+async function safeSend(tabId: number, msg: unknown, frameId = 0): Promise<void> {
+  const target = { frameId };
   try {
-    await chrome.tabs.sendMessage(tabId, msg);
+    await chrome.tabs.sendMessage(tabId, msg, target);
     return;
   } catch (err) {
     if (!/Receiving end does not exist|Could not establish connection/i.test(String(err))) return;
   }
-  if (!(await injectContentScript(tabId))) return;
+  if (!(await injectContentScript(tabId, frameId))) return;
   // 注入的 content script 经 requestIdleCallback 启动，等待监听就绪后重试
   for (let i = 0; i < 5; i++) {
     try {
-      await chrome.tabs.sendMessage(tabId, msg);
+      await chrome.tabs.sendMessage(tabId, msg, target);
       return;
     } catch {
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
   }
+}
+
+interface FrameFields {
+  password: boolean;
+  username: boolean;
+}
+
+/**
+ * 定位承载登录表单的 frame，返回 frameId（找不到回落 0，由顶层提示「未找到登录表单」）。
+ * 表单可能在跨域 iframe 内，顶层 document 跨域查不到，只能让浏览器在每个 frame 各跑一次探测：
+ * 有可见密码框的 frame 优先，其次有可见账号框的 frame（同分按 frameId，顶层在前）。
+ */
+async function findFillFrame(tabId: number): Promise<number> {
+  let results: chrome.scripting.InjectionResult<FrameFields>[];
+  try {
+    results = await chrome.scripting.executeScript({
+      target: { tabId, allFrames: true },
+      args: [PASSWORD_SELECTOR, USERNAME_CANDIDATE_SELECTOR],
+      func: (passwordSel: string, candidateSel: string): FrameFields => {
+        const visible = (el: HTMLElement): boolean =>
+          !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+        const hasVisible = (sel: string): boolean =>
+          [...document.querySelectorAll<HTMLInputElement>(sel)].some((el) => !el.disabled && visible(el));
+        // 隐藏的诱饵密码框（如 163 邮箱）不算登录表单
+        return {
+          password: hasVisible(passwordSel),
+          username: hasVisible(candidateSel),
+        };
+      },
+    });
+  } catch {
+    return 0; // 不可注入页面
+  }
+  const probes = results
+    .flatMap((r) => (r.result ? [{ frameId: r.frameId, ...r.result }] : []))
+    .sort((a, b) => a.frameId - b.frameId);
+  return probes.find((p) => p.password)?.frameId ?? probes.find((p) => p.username)?.frameId ?? 0;
 }
 
 interface Candidate { bookmarkId: string; accountIndex: number; text: string }
@@ -172,12 +212,16 @@ async function sendCandidates(tabId: number, pageUrl: string): Promise<void> {
   }
 }
 
-/** 解密指定账号并下发填充（明文只在消息里过境），随后刷新 lastUsedAt */
+/** 解密指定账号并定向下发填充（明文只在消息里过境），随后刷新 lastUsedAt */
 async function fillAccount(tabId: number, bookmarkId: string, accountIndex: number): Promise<void> {
   const b = await vault.getBookmarkDecrypted(bookmarkId);
   const a = b?.accounts[accountIndex];
   if (!a) return;
-  await safeSend(tabId, { type: 'vipper:fill', username: a.username, password: a.password });
+  await safeSend(
+    tabId,
+    { type: 'vipper:fill', username: a.username, password: a.password },
+    await findFillFrame(tabId),
+  );
   await vault.touchLastUsed(bookmarkId);
 }
 

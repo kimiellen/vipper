@@ -176,3 +176,14 @@
 - [x] 更新 `scripts/m5-verify.mjs` 锁定场景：锁定按 Alt+P 弹 wui → 解锁 → 再按 Alt+P 可填充
 - [x] 新增 `scripts/m16-verify.mjs`：启动时不加载扩展，先打开登录页，再通过 CDP `Extensions.loadUnpacked` 动态加载（`runtime.reload()` 在 headless 下会禁用扩展，弃用）；断言消息失联后自动补注入并完成填充（含动画 CSS）
 - [x] 验证：m16 9/9、m5 7/7、m9d 15/15、m13 28/28 回归 + `pnpm typecheck` / `pnpm build`
+
+## M17：Alt+P 支持跨域 iframe 登录表单（2026-10-18）
+
+> 起因：163 邮箱登录表单在 `dl.reg.163.com` 跨域 iframe 内，顶层 content script 的 `document.querySelector` 看不到字段，Alt+P 误报「未找到登录表单」。
+
+- [x] content script 改为 `allFrames: true`；登录字段选择器抽到 `utils/loginForm.ts`，content script 与 SW 探测共用
+- [x] SW 用 `chrome.scripting.executeScript({ allFrames: true })` 探测承载表单的 frame（可见密码框优先，其次可见账号框），`tabs.sendMessage` 带 `frameId` 定向填充；旧标签页补注入也按目标 frame 进行
+- [x] 账号菜单/失败提示固定发往 frame 0（顶层），避免多 frame 重复浮层
+- [x] 字段探测只认可见输入框：163 的登录 iframe 里有一个 0 尺寸诱饵密码框，隐藏字段不参与定位/填充
+- [x] 新增 `scripts/m17-verify.mjs`：跨域 iframe 登录页完成填充（单账号直填 + 多账号菜单路径 + 诱饵密码框不填充）
+- [x] 验证：m17 11/11、m5 7/7、m16 9/9、m13 28/28 回归 + 真站 mail.163.com 实测可见账号/密码框填充成功（诱饵框为空）+ `pnpm typecheck` / `pnpm build`

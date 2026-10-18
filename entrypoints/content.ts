@@ -8,6 +8,12 @@
  */
 
 import '../assets/fill-animation.css';
+import {
+  PASSWORD_SELECTOR,
+  USERNAME_AUTOCOMPLETE_SELECTOR,
+  USERNAME_CANDIDATE_SELECTOR,
+  USERNAME_HINT_RE,
+} from '../utils/loginForm';
 
 interface Candidate {
   bookmarkId: string;
@@ -50,23 +56,25 @@ function setNativeValue(el: HTMLInputElement, value: string): void {
   writeValue(el, value, true);
 }
 
+/** 部分站点会放 0 尺寸的隐藏密码框作诱饵（如 163 邮箱），填充只认可见字段 */
+function isVisible(el: HTMLElement): boolean {
+  return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+}
+
 function findField(kind: 'username' | 'password'): HTMLInputElement | null {
   if (kind === 'password') {
-    return document.querySelector<HTMLInputElement>('input[type="password"]:not([disabled])');
+    return [...document.querySelectorAll<HTMLInputElement>(PASSWORD_SELECTOR)].find(isVisible) ?? null;
   }
-  const byAutocomplete = document.querySelector<HTMLInputElement>(
-    'input[autocomplete="username"], input[autocomplete="email"]',
-  );
+  const byAutocomplete = [...document.querySelectorAll<HTMLInputElement>(USERNAME_AUTOCOMPLETE_SELECTOR)]
+    .find(isVisible);
   if (byAutocomplete) return byAutocomplete;
-  const candidates = document.querySelectorAll<HTMLInputElement>(
-    'input[type="text"], input[type="email"], input[type="tel"], input:not([type])',
-  );
-  const re = /user|email|login|account|phone|name/i;
-  for (const el of candidates) {
-    if (el.disabled || el.type === 'hidden') continue;
-    if (re.test(`${el.name} ${el.id} ${el.placeholder} ${el.getAttribute('aria-label') ?? ''}`)) return el;
+  const candidates = [...document.querySelectorAll<HTMLInputElement>(USERNAME_CANDIDATE_SELECTOR)]
+    .filter((el) => !el.disabled && el.type !== 'hidden');
+  const shown = candidates.filter(isVisible);
+  for (const el of shown.length > 0 ? shown : candidates) {
+    if (USERNAME_HINT_RE.test(`${el.name} ${el.id} ${el.placeholder} ${el.getAttribute('aria-label') ?? ''}`)) return el;
   }
-  return candidates[0] ?? null;
+  return (shown[0] ?? candidates[0]) ?? null;
 }
 
 /** 填充反馈：加类触发 assets/fill-animation.css 的 200ms 弹跳；定时清理（减少动效下 animationend 不触发） */
@@ -206,6 +214,9 @@ function showPicker(candidates: Candidate[]): void {
 
 export default defineContentScript({
   matches: ['<all_urls>'],
+  // 登录表单常被放在跨域 iframe 内（如 163 邮箱），顶层脚本无法访问其 DOM。
+  // 每个 frame 都注入，填充由 SW 探测后定向发送；菜单/toast 只发往顶层 frame。
+  allFrames: true,
   main() {
     // safeSend 补注入与正常注入可能重叠，避免重复注册消息监听
     const g = globalThis as typeof globalThis & { __vipperContentLoaded?: boolean };
