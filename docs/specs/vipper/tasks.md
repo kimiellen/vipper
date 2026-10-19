@@ -196,3 +196,11 @@
 - [x] 账号→密码之间的 200ms 弹跳等待同样做节流检测；已判定节流时跳过等待
 - [x] 扩展 `scripts/m17-verify.mjs`：iframe 完全滚出视口（与视口交集为 0）的场景断言 2.5s 内完成填充
 - [x] 验证：m17 14/14、m5 7/7、m16 9/9、m13 28/28 回归 + 真站阿里云登录 iframe 滚出视口后 220ms 完成填充 + `pnpm typecheck` / `pnpm build`
+
+## M19：Alt+P 账号框按密码框上下文定位（2026-10-19）
+
+> 现象：Steam 登录页（store.steampowered.com）的账号框没有 name/id/placeholder 语义，旧逻辑回落到页面第一个文本框，用户名填进页头搜索栏；密码框正常。共性问题是账号框探测与密码框位置无关。
+
+- [x] content script 拆分 `findPassword` / `findUsername`；存在密码框时，账号框优先取同一 form 内、DOM 上紧邻密码框之前的可见文本框；`autocomplete=username/email` 仍最高优先
+- [x] 新增 `scripts/m19-verify.mjs`：Steam 同款 DOM（搜索框在 form 外 + 账号框无语义）、无 form 版本、带 `name=username` 版本；断言搜索框不被填充
+- [x] 验证：m19 8/8、m5 7/7、m13 28/28、m16 9/9、m17 14/14 回归 + 真站 Steam 实测（搜索框为空、账号/密码填入）+ 163/阿里云真站回归 + `pnpm typecheck` / `pnpm build`

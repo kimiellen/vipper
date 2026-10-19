@@ -42,6 +42,17 @@ await new Promise((r) => frameServer.listen(FRAME_PORT, '0.0.0.0', r));
 
 const { sw, attachPage, close } = await connectSW();
 const { check, summary } = createChecker();
+
+// 清掉同一浏览器里上一次运行留下的测试标签，避免 attachPage 命中旧页面
+await sw(`(async () => {
+  const tabs = await chrome.tabs.query({});
+  for (const t of tabs) {
+    if (t.id !== undefined && t.url?.startsWith('http://127.0.0.1:${TOP_PORT}')) {
+      await chrome.tabs.remove(t.id).catch(() => {});
+    }
+  }
+})()`);
+
 const key = (k, code, vk) => ({ type: 'keyDown', key: k, code, windowsVirtualKeyCode: vk });
 const DOWN = key('ArrowDown', 'ArrowDown', 40);
 const ENTER = key('Enter', 'Enter', 13);
@@ -116,6 +127,7 @@ check('跨域 iframe 内完成账号填充', formIn(frames)?.u === 'alice', form
 check('跨域 iframe 内完成密码填充', formIn(frames)?.p === 'p1', formIn(frames));
 check('隐藏的诱饵密码框不被填充（163 同款 DOM）', formIn(frames)?.decoy === '', formIn(frames));
 check('顶层无「未找到登录表单」误报（顶层未出现浮层）', topFrame(frames)?.overlays === 0, topFrame(frames));
+await sw(`chrome.tabs.remove(${tabId})`).catch(() => {});
 
 // ---- 2. 多账号：菜单只在顶层出现，选定后填进 iframe ----
 tabId = await openTab(`http://127.0.0.1:${TOP_PORT}/multi`);
@@ -133,6 +145,7 @@ await sleep(1600);
 frames = await probe(tabId);
 check('菜单 ↓+Enter 选中的账号填入跨域 iframe', formIn(frames)?.u === 'bob', formIn(frames));
 check('菜单选中的密码填入跨域 iframe', formIn(frames)?.p === 'p2', formIn(frames));
+await sw(`chrome.tabs.remove(${tabId})`).catch(() => {});
 
 // ---- 3. iframe 完全滚出视口：Chrome 把 setTimeout 钳到 ~1s，填充仍应快速完成 ----
 tabId = await openTab(`http://127.0.0.1:${TOP_PORT}/single?offset=5000`);
@@ -156,6 +169,7 @@ for (let i = 0; i < 30; i++) {
 }
 check('定时器被节流时仍完成填充（未逐字空等）', formIn(frames)?.u === 'alice' && formIn(frames)?.p === 'p1', formIn(frames));
 check('节流场景 2.5s 内完成（逐字等待会超过 20s）', elapsed > 0 && elapsed < 2500, elapsed);
+await sw(`chrome.tabs.remove(${tabId})`).catch(() => {});
 
 summary();
 topServer.close();

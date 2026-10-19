@@ -84,20 +84,52 @@ function isVisible(el: HTMLElement): boolean {
   return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
 }
 
-function findField(kind: 'username' | 'password'): HTMLInputElement | null {
-  if (kind === 'password') {
-    return [...document.querySelectorAll<HTMLInputElement>(PASSWORD_SELECTOR)].find(isVisible) ?? null;
-  }
-  const byAutocomplete = [...document.querySelectorAll<HTMLInputElement>(USERNAME_AUTOCOMPLETE_SELECTOR)]
-    .find(isVisible);
-  if (byAutocomplete) return byAutocomplete;
-  const candidates = [...document.querySelectorAll<HTMLInputElement>(USERNAME_CANDIDATE_SELECTOR)]
+function usernameHinted(el: HTMLInputElement): boolean {
+  return USERNAME_HINT_RE.test(
+    `${el.name} ${el.id} ${el.placeholder} ${el.getAttribute('aria-label') ?? ''}`,
+  );
+}
+
+/** 账号框候选：优先可见字段；全部不可见时退回全量候选，兼容布局尚未完成的页面 */
+function usernameCandidates(): HTMLInputElement[] {
+  const all = [...document.querySelectorAll<HTMLInputElement>(USERNAME_CANDIDATE_SELECTOR)]
     .filter((el) => !el.disabled && el.type !== 'hidden');
-  const shown = candidates.filter(isVisible);
-  for (const el of shown.length > 0 ? shown : candidates) {
-    if (USERNAME_HINT_RE.test(`${el.name} ${el.id} ${el.placeholder} ${el.getAttribute('aria-label') ?? ''}`)) return el;
-  }
-  return (shown[0] ?? candidates[0]) ?? null;
+  const shown = all.filter(isVisible);
+  return shown.length > 0 ? shown : all;
+}
+
+function findPassword(): HTMLInputElement | null {
+  return [...document.querySelectorAll<HTMLInputElement>(PASSWORD_SELECTOR)].find(isVisible) ?? null;
+}
+
+/** 同一作用域内离密码框最近的账号框：优先 DOM 中紧邻密码框之前的文本框 */
+function nearestToPassword(pool: HTMLInputElement[], password: HTMLInputElement): HTMLInputElement | null {
+  const before = pool.filter(
+    (el) => el.compareDocumentPosition(password) & Node.DOCUMENT_POSITION_FOLLOWING,
+  );
+  if (before.length > 0) return before[before.length - 1]!;
+  const after = pool.filter(
+    (el) => el.compareDocumentPosition(password) & Node.DOCUMENT_POSITION_PRECEDING,
+  );
+  return after[0] ?? pool[0] ?? null;
+}
+
+/**
+ * 账号框探测：有密码框时以它锚定——优先同一 form 内、紧邻密码框之前的可见文本框。
+ * 很多站点（如 Steam）不给账号框任何 name/id/placeholder 语义，旧逻辑会回落到页面
+ * 第一个文本框（页头搜索框）；用密码框的上下文才能把它和搜索框区分开。
+ */
+function findUsername(password: HTMLInputElement | null): HTMLInputElement | null {
+  const candidates = usernameCandidates();
+  const byAutocomplete = candidates.find((el) => el.matches(USERNAME_AUTOCOMPLETE_SELECTOR));
+  if (byAutocomplete) return byAutocomplete;
+
+  if (!password) return candidates.find(usernameHinted) ?? candidates[0] ?? null;
+
+  // 优先在密码框所在 form 内找；账号框在 form 外（不规范标记）时退回全页
+  const inForm = password.form ? candidates.filter((el) => el.form === password.form) : [];
+  const pool = inForm.length > 0 ? inForm : candidates;
+  return pool.find(usernameHinted) ?? nearestToPassword(pool, password);
 }
 
 /** 填充反馈：加类触发 assets/fill-animation.css 的 200ms 弹跳；定时清理（减少动效下 animationend 不触发） */
@@ -120,14 +152,15 @@ async function fill(username: string, password: string): Promise<boolean> {
   timersClamped = false; // 每次填充重新测量，页面可能已经回到可见状态
   try {
     const reduced = reduceMotion();
-    const u = findField('username');
+    const p0 = findPassword(); // 仅用于给账号框定位提供上下文；填密码前会重新探测
+    const u = findUsername(p0);
     if (u) {
       if (reduced) setNativeValue(u, username);
       else await typeInto(u, username);
       animateFill(u);
     }
 
-    const p = findField('password');
+    const p = findPassword();
     if (!p) return !!u;
 
     // 账号弹跳结束后再填密码，形成先后节奏；减少动效或定时器已被节流时不再等待
@@ -136,7 +169,7 @@ async function fill(username: string, password: string): Promise<boolean> {
     }
 
     // 站点可能在用户名输入后替换密码框，重新探测后再写入
-    const target = findField('password') ?? p;
+    const target = findPassword() ?? p;
     if (reduced) setNativeValue(target, password);
     else await typeInto(target, password);
     animateFill(target);
