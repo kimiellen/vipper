@@ -204,3 +204,11 @@
 - [x] content script 拆分 `findPassword` / `findUsername`；存在密码框时，账号框优先取同一 form 内、DOM 上紧邻密码框之前的可见文本框；`autocomplete=username/email` 仍最高优先
 - [x] 新增 `scripts/m19-verify.mjs`：Steam 同款 DOM（搜索框在 form 外 + 账号框无语义）、无 form 版本、带 `name=username` 版本；断言搜索框不被填充
 - [x] 验证：m19 8/8、m5 7/7、m13 28/28、m16 9/9、m17 14/14 回归 + 真站 Steam 实测（搜索框为空、账号/密码填入）+ 163/阿里云真站回归 + `pnpm typecheck` / `pnpm build`
+
+## M20：Alt+P 二级菜单接管焦点（跨域 iframe 键盘）（2026-10-20）
+
+> 现象：Apple ID 登录（表单位于 `idmsa.apple.com` 跨域 iframe）弹出账号菜单后，↑/↓/回车无效。焦点仍在 iframe 的账号框内，键盘事件不会到达顶层 document 的菜单监听器。
+
+- [x] `showPicker` 的 panel 设为可聚焦并 `focus()`；关闭菜单（选定/Esc）时把焦点还给打开前的 `document.activeElement`（通常是 iframe 元素，浏览器会恢复其内部焦点）
+- [x] 扩展 `scripts/m17-verify.mjs`：焦点在跨域 iframe 内时，菜单展示、接管顶层焦点、↓+Enter 完成选择并填充
+- [x] 验证：m17 18/18、m19 8/8、m5 7/7、m13 28/28、m16 9/9 回归 + 真站 Apple 实测焦点在 iframe 内时 ↓+Enter 填充第 2 个账号 + `pnpm typecheck` / `pnpm build`

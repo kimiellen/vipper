@@ -191,6 +191,7 @@ const CSS = `
     background: #1e1e2e; color: #cdd6f4; border: 1px solid #45475a; border-radius: 10px;
     font: 14px/1.5 system-ui, sans-serif; padding: 10px;
     box-shadow: 0 8px 30px rgba(0,0,0,.5);
+    outline: none; /* 程序化聚焦用于接住键盘，不需要焦点环 */
   }
   .item { padding: 8px 12px; border-radius: 6px; }
   .item.selected { background: #45475a; }
@@ -227,10 +228,14 @@ function showToast(text: string): void {
 
 /** 账号二级菜单：↑/↓ 选择，Enter 确认，Esc 关闭 */
 function showPicker(candidates: Candidate[]): void {
+  // 登录表单可能在跨域 iframe 内，焦点也在那边；不转移焦点的话键盘事件不会到达顶层 document。
+  // 先把焦点收进菜单，关闭时再还给原来的元素（通常是 iframe，浏览器会恢复其内部焦点）。
+  const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   const s = ensureOverlay();
   s.querySelector('.panel')?.remove();
   const panel = document.createElement('div');
   panel.className = 'panel';
+  panel.tabIndex = -1;
   let selected = 0;
 
   const render = () => {
@@ -244,6 +249,7 @@ function showPicker(candidates: Candidate[]): void {
   };
   render();
   s.append(panel);
+  panel.focus({ preventScroll: true });
 
   const onKey = (e: KeyboardEvent) => {
     if (e.key === 'ArrowDown') { selected = Math.min(selected + 1, candidates.length - 1); render(); }
@@ -263,6 +269,7 @@ function showPicker(candidates: Candidate[]): void {
   const cleanup = () => {
     document.removeEventListener('keydown', onKey, true);
     closeOverlay();
+    if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
   };
   document.addEventListener('keydown', onKey, true);
 }

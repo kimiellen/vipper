@@ -147,7 +147,39 @@ check('菜单 ↓+Enter 选中的账号填入跨域 iframe', formIn(frames)?.u =
 check('菜单选中的密码填入跨域 iframe', formIn(frames)?.p === 'p2', formIn(frames));
 await sw(`chrome.tabs.remove(${tabId})`).catch(() => {});
 
-// ---- 3. iframe 完全滚出视口：Chrome 把 setTimeout 钳到 ~1s，填充仍应快速完成 ----
+// ---- 3. 焦点在跨域 iframe 内：菜单必须接管焦点，方向键/回车才有效 ----
+tabId = await openTab(`http://127.0.0.1:${TOP_PORT}/multi?focus=1`);
+frames = await waitFrameReady(tabId);
+const focused = await sw(`chrome.scripting.executeScript({
+  target: { tabId: ${tabId}, allFrames: true },
+  func: () => {
+    const el = document.querySelector('#u');
+    if (!el) return null;
+    el.focus();
+    return document.activeElement === el;
+  },
+})`);
+check('焦点已进入跨域 iframe 的账号框', focused.some((f) => f.result === true), focused.map((f) => f.result));
+
+await sw(`__vipper.dispatch('autofill')`);
+await sleep(500);
+frames = await probe(tabId);
+check('焦点在 iframe 时菜单正常展示', topFrame(frames)?.overlays === 1, topFrame(frames));
+const overlayFocused = await sw(`chrome.scripting.executeScript({
+  target: { tabId: ${tabId} },
+  func: () => document.activeElement === document.documentElement.lastElementChild,
+})`);
+check('菜单接管顶层焦点（否则按键仍留在 iframe）', overlayFocused[0].result === true, overlayFocused[0].result);
+
+const picker = await attachPage('/multi?focus=1');
+await picker.send('Input.dispatchKeyEvent', DOWN);
+await picker.send('Input.dispatchKeyEvent', ENTER);
+await sleep(1600);
+frames = await probe(tabId);
+check('焦点在 iframe 时 ↓+Enter 仍完成选择', formIn(frames)?.u === 'bob' && formIn(frames)?.p === 'p2', formIn(frames));
+await sw(`chrome.tabs.remove(${tabId})`).catch(() => {});
+
+// ---- 4. iframe 完全滚出视口：Chrome 把 setTimeout 钳到 ~1s，填充仍应快速完成 ----
 tabId = await openTab(`http://127.0.0.1:${TOP_PORT}/single?offset=5000`);
 frames = await waitFrameReady(tabId);
 const overlap = await sw(`chrome.scripting.executeScript({
