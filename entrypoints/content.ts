@@ -40,13 +40,36 @@ function writeValue(el: HTMLInputElement, value: string, change = false): void {
 const TYPE_INTERVAL_MS = 20;
 const TYPE_BUDGET_MS = 1000;
 
+/** 定时器节流判定余量：正常 20ms/200ms 定时器不会超过「设定值 + 该余量」 */
+const TIMER_CLAMP_SLACK_MS = 120;
+
+/** 本轮填充是否已确认定时器被浏览器节流（跨域 iframe 不可见时 setTimeout 会被钳到 ~1s） */
+let timersClamped = false;
+
+/** 等待 ms；返回 true 表示实际耗时明显超标，即定时器被节流 */
+async function waitWithClampCheck(ms: number): Promise<boolean> {
+  const start = performance.now();
+  await new Promise((resolve) => setTimeout(resolve, ms));
+  return performance.now() - start > ms + TIMER_CLAMP_SLACK_MS;
+}
+
 /** 逐字写入：每字派发 input，结束时补一次完整值与 change（受控组件可能回滚中间态） */
 async function typeInto(el: HTMLInputElement, value: string): Promise<void> {
   if (el.value) writeValue(el, '');
+  // 定时器被节流时逐字等待会变成 1 秒/字，直接整段写入
+  if (timersClamped) {
+    writeValue(el, value, true);
+    return;
+  }
   const interval = Math.max(8, Math.min(TYPE_INTERVAL_MS, Math.floor(TYPE_BUDGET_MS / Math.max(value.length, 1))));
   for (let i = 1; i <= value.length; i++) {
     writeValue(el, value.slice(0, i));
-    if (i < value.length) await new Promise((resolve) => setTimeout(resolve, interval));
+    if (i === value.length) break;
+    if (await waitWithClampCheck(interval)) {
+      timersClamped = true;
+      writeValue(el, value, true);
+      return;
+    }
   }
   writeValue(el, value, true);
 }
@@ -94,6 +117,7 @@ async function fill(username: string, password: string): Promise<boolean> {
   // 逐字输入耗时较长，避免连按 Alt+P 时两轮写入互相覆盖
   if (filling) return true;
   filling = true;
+  timersClamped = false; // 每次填充重新测量，页面可能已经回到可见状态
   try {
     const reduced = reduceMotion();
     const u = findField('username');
@@ -106,9 +130,9 @@ async function fill(username: string, password: string): Promise<boolean> {
     const p = findField('password');
     if (!p) return !!u;
 
-    // 账号弹跳结束后再填密码，形成先后节奏；减少动效时无动画可等，直接一起填
-    if (u && !reduced) {
-      await new Promise((resolve) => setTimeout(resolve, FILL_ANIM_MS));
+    // 账号弹跳结束后再填密码，形成先后节奏；减少动效或定时器已被节流时不再等待
+    if (u && !reduced && !timersClamped) {
+      if (await waitWithClampCheck(FILL_ANIM_MS)) timersClamped = true;
     }
 
     // 站点可能在用户名输入后替换密码框，重新探测后再写入

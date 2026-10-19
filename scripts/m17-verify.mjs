@@ -17,7 +17,8 @@ import { connectSW, createChecker, sleep } from './lib/sw-driver.mjs';
 const TOP_PORT = 8378;
 const FRAME_PORT = 8379;
 
-const TOP_PAGE = `<!doctype html><html><body>
+const TOP_PAGE = (offset) => `<!doctype html><html><body>
+<div style="height:${offset}px">spacer</div>
 <iframe src="http://127.0.0.2:${FRAME_PORT}/login" style="width:420px;height:320px"></iframe>
 </body></html>`;
 
@@ -28,8 +29,9 @@ const FORM = `<!doctype html><html><body>
 </body></html>`;
 
 const topServer = http.createServer((req, res) => {
+  const offset = Number(new URL(req.url, 'http://x').searchParams.get('offset') ?? 0);
   res.setHeader('content-type', 'text/html');
-  res.end(TOP_PAGE);
+  res.end(TOP_PAGE(offset));
 });
 const frameServer = http.createServer((req, res) => {
   res.setHeader('content-type', 'text/html');
@@ -131,6 +133,29 @@ await sleep(1600);
 frames = await probe(tabId);
 check('菜单 ↓+Enter 选中的账号填入跨域 iframe', formIn(frames)?.u === 'bob', formIn(frames));
 check('菜单选中的密码填入跨域 iframe', formIn(frames)?.p === 'p2', formIn(frames));
+
+// ---- 3. iframe 完全滚出视口：Chrome 把 setTimeout 钳到 ~1s，填充仍应快速完成 ----
+tabId = await openTab(`http://127.0.0.1:${TOP_PORT}/single?offset=5000`);
+frames = await waitFrameReady(tabId);
+const overlap = await sw(`chrome.scripting.executeScript({
+  target: { tabId: ${tabId} },
+  func: () => {
+    const r = document.querySelector('iframe').getBoundingClientRect();
+    return Math.max(0, Math.min(r.bottom, innerHeight) - Math.max(r.top, 0));
+  },
+})`);
+check('测试 iframe 与视口交集为 0（定时器会被节流）', overlap[0].result === 0, overlap[0].result);
+
+const startedAt = Date.now();
+await sw(`__vipper.dispatch('autofill')`);
+let elapsed = 0;
+for (let i = 0; i < 30; i++) {
+  await sleep(100);
+  frames = await probe(tabId);
+  if (formIn(frames)?.p === 'p1') { elapsed = Date.now() - startedAt; break; }
+}
+check('定时器被节流时仍完成填充（未逐字空等）', formIn(frames)?.u === 'alice' && formIn(frames)?.p === 'p1', formIn(frames));
+check('节流场景 2.5s 内完成（逐字等待会超过 20s）', elapsed > 0 && elapsed < 2500, elapsed);
 
 summary();
 topServer.close();
