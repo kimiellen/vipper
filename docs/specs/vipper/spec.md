@@ -160,7 +160,7 @@ chrome.storage.local 是 LevelDB 键值库（声明 `unlimitedStorage` 去配额
 
 ### wui 主页面布局（2026-10-17 定稿）
 
-- 窗口默认 **1600×900**（原 1280×860）：加宽部分主要给 results，兼顾 tags/linkedInfos 的展示宽度
+- 窗口尺寸**按浏览器所在显示器的 workArea 等比计算**（2026-10-20 修订，原固定 1600×900）：宽/高各取 workArea 的 5/6（≈83%），clamp 到 [900×600, 1600×900]。理由：固定像素在不同逻辑分辨率（4K @200% ≈1920×1080、MacBook 1512×982、笔记本 1128×752）上观感差异巨大甚至超出屏幕；5/6 + 上限恰使 4K @200% 精确保持原 1600×900 观感，小屏等比缩小。多显示器按来源窗口中心点命中的显示器各自计算。尺寸的唯一事实来源是 vipper（`system.display` 权限），Hyprland windowrule 不再设 size，只保留 float + center；窄于 900px 的极端情况由页面媒体查询降级为单列堆叠，横向不裁切、纵向滚动。
 - 页面高度锁定为视口高度，**整页不滚动**；顶行工具栏固定，下区 Settings / results / contents 三块同高
 - 三块各自内部滚动：书签多时只滚 results，Settings 与 contents 同理；results 表头在内部滚动时吸顶
 - results 的基础信息列单行展示（书签名 / tags / linkedInfos 均不换行、不撑开表格）；内容超出单元格时在两侧裁切渐隐，悬停可查看完整内容。理由：多 tag、多关联信息时保持行高一致与全局视图

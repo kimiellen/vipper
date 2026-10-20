@@ -4,7 +4,7 @@ export default defineConfig({
   manifest: {
     name: 'vipper',
     description: '标签管理器 + 书签/密码管理器（Hyprland 风格二维导航）',
-    permissions: ['tabs', 'tabGroups', 'storage', 'unlimitedStorage', 'favicon', 'alarms', 'scripting'],
+    permissions: ['tabs', 'tabGroups', 'storage', 'unlimitedStorage', 'favicon', 'alarms', 'scripting', 'system.display'],
     host_permissions: ['<all_urls>'],
     commands: {
       'group-prev': {

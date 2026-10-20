@@ -243,3 +243,12 @@
 - [x] 抽取 `scripts/lib/login-capture.mjs` 共享验收驱动，m22 同步改用（消除两份页面探针/操作副本）
 - [x] 修复浮卡并发推送竞态：导航完成 / 页面 1s 自取 / SW 1.2s 兜底三路可能并发，入口立即置 `prompted`，只推一次
 - [x] 验证：`scripts/m23-verify.mjs` 36/36 通过 + m22 52/52（refactor 后回归）、m5 7/7、m13 28/28、m16 9/9、m17 18/18、m19 8/8 + `pnpm typecheck` / `pnpm build` + 追加浮卡截图自检
+
+## M24：弹窗尺寸按显示器 workArea 等比计算 ✅（2026-10-20）
+
+> spec-change：固定 1600×900 在不同逻辑分辨率显示器上观感差异巨大（笔记本原生屏甚至放不下），改为比例计算；spec 决策见「wui 主页面布局」。尺寸唯一事实来源收归 vipper，Hyprland windowrule 不再设 size。
+
+- [x] manifest 加 `system.display` 权限（静默授权，无安装警告）
+- [x] `createLauncher`：按来源窗口（getLastFocused）中心点命中的显示器 workArea 计算尺寸，宽高各 5/6（≈83%）、clamp 到 [900×600, 1600×900]；回退链：命中失败 → 主显示器 → 默认 1600×900（纯函数 `utils/launcherSize.ts`）
+- [x] docs/install.md windowrule 删除 size 行（只留 float + center），说明用户本机配置需同步
+- [x] 验证：`scripts/m24-verify.mjs` 16/16 通过（4K/MacBook/笔记本/上下限 clamp/多显示器中心点命中/回退链 + SW 真实接线对拍）+ `pnpm typecheck` / `pnpm build` + m9d 15/15、m21 11/11 回归；真机多分辨率验收由用户执行

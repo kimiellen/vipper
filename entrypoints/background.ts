@@ -3,6 +3,7 @@ import { hostnameOf, matchUrl } from '../utils/matchUrl';
 import { PASSWORD_SELECTOR, USERNAME_CANDIDATE_SELECTOR } from '../utils/loginForm';
 import * as keychain from '../utils/keychain';
 import * as vault from '../utils/vault';
+import { computeLauncherSize, type DisplayLike, type WindowLike } from '../utils/launcherSize';
 
 /** 每组上次活跃标签的 storage.session key */
 function lastActiveKey(windowId: number, groupId: number | null): string {
@@ -71,6 +72,21 @@ async function findLauncherWindow(): Promise<chrome.windows.Window | undefined> 
     .find((w) => w.tabs?.some((t) => t.url === wuiUrl));
 }
 
+/** 弹窗尺寸按来源窗口所在显示器的 workArea 计算（spec 2026-10-20）；system.display 不可用则回退默认 */
+async function launcherSize(): Promise<{ width: number; height: number }> {
+  let displays: DisplayLike[] = [];
+  try {
+    displays = await chrome.system.display.getInfo();
+  } catch {
+    // 权限缺失或平台不支持 → 回退默认尺寸
+  }
+  let source: WindowLike | undefined;
+  try {
+    source = await chrome.windows.getLastFocused();
+  } catch { /* headless 等场景无焦点窗口 */ }
+  return computeLauncherSize(displays, source);
+}
+
 async function createLauncher(): Promise<void> {
   const wuiUrl = chrome.runtime.getURL('wui.html');
   // 记录来源标签（窗口 + 所在组），供"回车在来源组打开"使用
@@ -83,11 +99,12 @@ async function createLauncher(): Promise<void> {
       },
     });
   }
+  const { width, height } = await launcherSize();
   await chrome.windows.create({
     url: wuiUrl,
     type: 'popup',
-    width: 1600,
-    height: 900,
+    width,
+    height,
     focused: true,
   });
 }
@@ -573,6 +590,7 @@ export default defineBackground(() => {
     dispatch: handleCommand,
     vault,      // M4+ 验收：凭据库 CRUD
     keychain,   // M4+ 验收：解锁/锁定/设置
+    launcherSize, // M24 验收：弹窗尺寸计算的真实接线（system.display + 焦点窗口）
     login: {    // M22+ 验收：登录 pending 摘要（不含密码）
       pending: () =>
         [...loginPending.entries()].map(([tabId, p]) => ({

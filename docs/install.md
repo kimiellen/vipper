@@ -24,16 +24,18 @@ Wayland 下窗口定位权在 compositor，Chrome 无法自己居中弹窗。
 
 **关键：必须匹配 `class`，不能匹配标题。** 扩展弹窗映射时的 `initialTitle` 是 `_crx_<扩展id>`，页面标题（Vipper / Vipper 编辑 / Vipper 管理表）是加载后才设置的，窗口规则在创建时评估，按标题匹配一定错过。而 class `chrome-<扩展id>-Default` 在映射瞬间即确定。
 
-Lua 配置版（`hl.window_rule`，Hyprland 0.56 真机验证通过）——注意 match 字段是**正则表达式**（不是 Lua pattern，`-` 无需转义），且 `size` 是**字符串**表达式：
+**不要设 `size` 规则。** 弹窗尺寸由 vipper 按显示器 workArea 等比计算（宽高各 5/6，clamp 到 900×600 ~ 1600×900），windowrule 设 size 会覆盖该计算，导致小屏放不下、多显示器无法各自适配。
+
+Lua 配置版（`hl.window_rule`，Hyprland 0.56 真机验证通过）——注意 match 字段是**正则表达式**（不是 Lua pattern，`-` 无需转义）：
 
 ```lua
--- vipper 弹窗：浮动 + 居中 + 固定大小（wui 管理页/解锁页同一 class，一条规则全覆盖）
+-- vipper 弹窗：浮动 + 居中（wui 管理页/解锁页同一 class，一条规则全覆盖）
+-- 尺寸由扩展按显示器自动计算，此处不设 size
 hl.window_rule({
 	name = "vipper-float",
 	match = { class = "^chrome-bfkbiapichhdhealeodggldhchmdlhhj-Default$" },
 	float = true,
 	center = true,
-	size = "1600 900",
 })
 ```
 
@@ -44,7 +46,6 @@ hl.window_rule({
 ```conf
 windowrulev2 = float, class:^chrome-bfkbiapichhdhealeodggldhchmdlhhj-Default$
 windowrulev2 = center, class:^chrome-bfkbiapichhdhealeodggldhchmdlhhj-Default$
-windowrulev2 = size 1600 900, class:^chrome-bfkbiapichhdhealeodggldhchmdlhhj-Default$
 ```
 
 注意：未打包扩展的 id 由扩展目录的**绝对路径**派生（当前对应 `.output/chrome-mv3` 的构建路径）。目录变动后 id 会变，用 `hyprctl clients` 查看弹窗的实际 `class` 字段更新规则。
