@@ -20,25 +20,35 @@ interface Candidate {
 
 interface PromptTag { id: string; name: string; color: string }
 interface PromptLink { id: string; name: string; value: string }
+interface AppendEntry { id: string; title: string; accountCount: number }
 
-/** M22 只有新建态；M23 追加态在此扩展 */
-interface SavePrompt {
-  kind: 'new';
-  title: string;
-  url: string;
+interface SavePromptBase {
   username: string;
-  tags: PromptTag[];
-  links: PromptLink[];
   lang: 'zh' | 'en';
   theme: 'dark' | 'light' | 'system';
 }
+
+interface NewSavePrompt extends SavePromptBase {
+  kind: 'new';
+  title: string;
+  url: string;
+  tags: PromptTag[];
+  links: PromptLink[];
+}
+
+interface AppendSavePrompt extends SavePromptBase {
+  kind: 'append';
+  entries: AppendEntry[];
+}
+
+type SavePrompt = NewSavePrompt | AppendSavePrompt;
 
 type Msg =
   | { type: 'vipper:fill'; username: string; password: string }
   | { type: 'vipper:picker'; candidates: Candidate[] }
   | { type: 'vipper:toast'; text: string }
   | ({ type: 'vipper:save-prompt' } & SavePrompt)
-  | { type: 'vipper:save-result'; ok: boolean; message?: string };
+  | { type: 'vipper:save-result'; ok: boolean; message?: string; already?: boolean };
 
 // ---------- 表单填充 ----------
 
@@ -348,6 +358,17 @@ ${SHADOW_TOKENS}
   color: var(--fg); font: inherit; font-size: var(--text-sm);
 }
 .input:focus { outline: none; border-color: var(--accent); }
+select.input { appearance: base-select; }
+select.input::picker(select) {
+  appearance: base-select;
+  background: var(--bg-raised); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-lg); padding: var(--space-1);
+}
+select.input option {
+  padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm);
+  color: var(--fg); background: var(--bg-raised);
+}
+select.input option:checked { background: var(--accent-soft); color: var(--accent); }
 .msel { position: relative; min-width: 0; }
 .msel summary {
   list-style: none; cursor: pointer; user-select: none;
@@ -397,15 +418,18 @@ ${SHADOW_TOKENS}
 
 interface SaveText {
   saveTitle: string;
+  appendTitle: (title: string) => string;
   title: string;
   url: string;
   username: string;
   password: string;
+  entry: string;
   tags: string;
   lins: string;
   save: string;
   cancel: string;
   saved: string;
+  alreadySaved: string;
   saveFailed: string;
   close: string;
   noTags: string;
@@ -416,34 +440,39 @@ interface SaveText {
 
 const SAVE_TEXT: Record<'zh' | 'en', SaveText> = {
   zh: {
-    saveTitle: '保存到 vipper', title: '标题', url: '网址', username: '账号', password: '密码',
+    saveTitle: '保存到 vipper', appendTitle: (title) => `追加账号到「${title}」`,
+    title: '标题', url: '网址', username: '账号', password: '密码', entry: '条目',
     tags: 'TAGS', lins: 'LINS', save: '保存', cancel: '不保存',
-    saved: '已保存到 vipper', saveFailed: '保存失败', close: '关闭',
+    saved: '已保存到 vipper', alreadySaved: '该账号已在条目中', saveFailed: '保存失败', close: '关闭',
     noTags: '暂无 tag，去 Alt+. → Settings 添加', noLinks: '暂无关联信息',
     none: '未选', selected: (n) => `已选 ${n}`,
   },
   en: {
-    saveTitle: 'Save to vipper', title: 'Title', url: 'URL', username: 'Account', password: 'Password',
+    saveTitle: 'Save to vipper', appendTitle: (title) => `Append account to “${title}”`,
+    title: 'Title', url: 'URL', username: 'Account', password: 'Password', entry: 'Entry',
     tags: 'TAGS', lins: 'LINS', save: 'Save', cancel: 'Not now',
-    saved: 'Saved to vipper', saveFailed: 'Save failed', close: 'Close',
+    saved: 'Saved to vipper', alreadySaved: 'Account already exists in this entry', saveFailed: 'Save failed', close: 'Close',
     noTags: 'No tags yet — add them in Alt+. → Settings', noLinks: 'No linked info yet',
     none: 'None', selected: (n) => `${n} selected`,
   },
 };
 
 interface MultiItem { id: string; text: string; color?: string }
-interface SaveCardPatch { title?: string; tagIds?: string[]; linkIds?: string[] }
+interface SaveCardPatch { title?: string; tagIds?: string[]; linkIds?: string[]; entryId?: string }
 
 interface SaveRoot {
   prompt: SavePrompt;
   text: SaveText;
   host: HTMLDivElement;
   card: HTMLDivElement;
+  headTitleEl: HTMLElement;
   titleInput: HTMLInputElement | null;
+  entrySelect: HTMLSelectElement | null;
   tagSet: Set<string>;
   linkSet: Set<string>;
   syncTags: () => void;
   syncLinks: () => void;
+  syncEntry: () => void;
   saveBtn: HTMLButtonElement;
   saving: boolean;
 }
@@ -564,6 +593,7 @@ function confirmSave(): void {
       title: root.titleInput?.value ?? '',
       tags: [...root.tagSet],
       linkedInfos: [...root.linkSet],
+      entryId: root.entrySelect?.value ?? '',
     })
     .catch(() => {
       if (!saveRoot) return;
@@ -577,7 +607,7 @@ function onSaveResult(msg: Extract<Msg, { type: 'vipper:save-result' }>): void {
   const text = saveRoot?.text ?? SAVE_TEXT.zh;
   if (msg.ok) {
     closeSaveCardDom();
-    showToast(text.saved);
+    showToast(msg.already ? text.alreadySaved : text.saved);
     return;
   }
   if (saveRoot) {
@@ -589,7 +619,6 @@ function onSaveResult(msg: Extract<Msg, { type: 'vipper:save-result' }>): void {
 
 function renderSaveCard(prompt: SavePrompt): void {
   closeSaveCardDom(); // 新捕获覆盖旧浮卡；不发送 discard，避免清掉新 pending
-  if (prompt.kind !== 'new') return; // M23 追加态
   captureStats.prompts++;
 
   const text = SAVE_TEXT[prompt.lang] ?? SAVE_TEXT.zh;
@@ -601,14 +630,15 @@ function renderSaveCard(prompt: SavePrompt): void {
   host.dataset.theme = resolveTheme(prompt.theme);
 
   const card = el('div', 'card');
+  const initialTitle = prompt.kind === 'new' ? text.saveTitle : text.appendTitle(prompt.entries[0]?.title ?? '');
   card.setAttribute('role', 'dialog');
-  card.setAttribute('aria-label', text.saveTitle);
+  card.setAttribute('aria-label', initialTitle);
 
   const head = el('div', 'head');
   const icon = el('span', 'icon');
   icon.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
   const headTitle = el('span', 'head-title');
-  headTitle.textContent = text.saveTitle;
+  headTitle.textContent = initialTitle;
   const closeBtn = el('button', 'x');
   closeBtn.type = 'button';
   closeBtn.textContent = '✕';
@@ -617,41 +647,69 @@ function renderSaveCard(prompt: SavePrompt): void {
   head.append(icon, headTitle, closeBtn);
 
   const body = el('div', 'body');
-
-  const titleRow = el('label', 'row');
-  const titleKey = el('span', 'k');
-  titleKey.textContent = text.title;
-  const titleInput = el('input', 'input');
-  titleInput.type = 'text';
-  titleInput.value = prompt.title;
-  titleInput.spellcheck = false;
-  titleRow.append(titleKey, titleInput);
-
   const tagSet = new Set<string>();
   const linkSet = new Set<string>();
-  const tagsUi = buildMulti(
-    text.tags,
-    prompt.tags.map((t) => ({ id: t.id, text: t.name, color: t.color })),
-    text,
-    text.noTags,
-    tagSet,
-  );
-  const linksUi = buildMulti(
-    text.lins,
-    prompt.links.map((l) => ({ id: l.id, text: `${l.name} · ${l.value}` })),
-    text,
-    text.noLinks,
-    linkSet,
-  );
+  let titleInput: HTMLInputElement | null = null;
+  let entrySelect: HTMLSelectElement | null = null;
+  let tagsUi: { row: HTMLElement; sync: () => void } = { row: el('div', 'row'), sync: () => {} };
+  let linksUi: { row: HTMLElement; sync: () => void } = { row: el('div', 'row'), sync: () => {} };
+  let syncEntry = (): void => {};
 
-  body.append(
-    titleRow,
-    infoRow(text.url, hostnameOf(prompt.url)),
-    infoRow(text.username, prompt.username),
-    infoRow(text.password, '••••••••', 'mono'),
-    tagsUi.row,
-    linksUi.row,
-  );
+  if (prompt.kind === 'new') {
+    const titleRow = el('label', 'row');
+    const titleKey = el('span', 'k');
+    titleKey.textContent = text.title;
+    titleInput = el('input', 'input');
+    titleInput.type = 'text';
+    titleInput.value = prompt.title;
+    titleInput.spellcheck = false;
+    titleRow.append(titleKey, titleInput);
+
+    tagsUi = buildMulti(
+      text.tags,
+      prompt.tags.map((t) => ({ id: t.id, text: t.name, color: t.color })),
+      text,
+      text.noTags,
+      tagSet,
+    );
+    linksUi = buildMulti(
+      text.lins,
+      prompt.links.map((l) => ({ id: l.id, text: `${l.name} · ${l.value}` })),
+      text,
+      text.noLinks,
+      linkSet,
+    );
+
+    body.append(
+      titleRow,
+      infoRow(text.url, hostnameOf(prompt.url)),
+      infoRow(text.username, prompt.username),
+      infoRow(text.password, '••••••••', 'mono'),
+      tagsUi.row,
+      linksUi.row,
+    );
+  } else {
+    const entryRow = el('label', 'row');
+    const entryKey = el('span', 'k');
+    entryKey.textContent = text.entry;
+    const select = el('select', 'input');
+    for (const entry of prompt.entries) {
+      const option = el('option');
+      option.value = entry.id;
+      option.textContent = `${entry.title} · ${entry.accountCount}`;
+      select.append(option);
+    }
+    entryRow.append(entryKey, select);
+    syncEntry = () => {
+      const current = prompt.entries.find((e) => e.id === select.value);
+      const title = text.appendTitle(current?.title ?? '');
+      headTitle.textContent = title;
+      card.setAttribute('aria-label', title);
+    };
+    select.addEventListener('change', syncEntry);
+    entrySelect = select;
+    body.append(entryRow, infoRow(text.username, prompt.username), infoRow(text.password, '••••••••', 'mono'));
+  }
 
   const foot = el('div', 'foot');
   const cancelBtn = el('button', 'btn ghost');
@@ -669,9 +727,11 @@ function renderSaveCard(prompt: SavePrompt): void {
   document.documentElement.append(host);
 
   saveRoot = {
-    prompt, text, host, card, titleInput, tagSet, linkSet,
-    syncTags: tagsUi.sync, syncLinks: linksUi.sync, saveBtn, saving: false,
+    prompt, text, host, card, headTitleEl: headTitle, titleInput, entrySelect,
+    tagSet, linkSet, syncTags: tagsUi.sync, syncLinks: linksUi.sync, syncEntry,
+    saveBtn, saving: false,
   };
+  syncEntry();
 
   // Esc 丢弃但不拦截事件，页面自身的 Esc 行为不受影响
   saveEscHandler = (e: KeyboardEvent) => {
@@ -683,18 +743,32 @@ function renderSaveCard(prompt: SavePrompt): void {
 function saveCardState(): Record<string, unknown> {
   const root = saveRoot;
   if (!root) return { visible: false };
-  return {
+  const base = {
     visible: true,
     kind: root.prompt.kind,
     lang: root.prompt.lang,
     theme: root.host.dataset.theme,
     bg: getComputedStyle(root.card).backgroundColor,
-    title: root.titleInput?.value ?? '',
-    url: root.prompt.url,
     username: root.prompt.username,
-    tags: root.prompt.tags.map((t) => ({ id: t.id, name: t.name, checked: root.tagSet.has(t.id) })),
-    links: root.prompt.links.map((l) => ({
-      id: l.id, name: l.name, value: l.value, checked: root.linkSet.has(l.id),
+    headTitle: root.headTitleEl.textContent,
+  };
+  if (root.prompt.kind === 'new') {
+    return {
+      ...base,
+      title: root.titleInput?.value ?? '',
+      url: root.prompt.url,
+      tags: root.prompt.tags.map((t) => ({ id: t.id, name: t.name, checked: root.tagSet.has(t.id) })),
+      links: root.prompt.links.map((l) => ({
+        id: l.id, name: l.name, value: l.value, checked: root.linkSet.has(l.id),
+      })),
+    };
+  }
+  return {
+    ...base,
+    entryId: root.entrySelect?.value ?? '',
+    entries: root.prompt.entries.map((e) => ({
+      id: e.id, title: e.title, accountCount: e.accountCount,
+      selected: e.id === root.entrySelect?.value,
     })),
   };
 }
@@ -712,6 +786,12 @@ function setSaveCard(patch: SaveCardPatch): boolean {
     root.linkSet.clear();
     patch.linkIds.filter((id): id is string => typeof id === 'string').forEach((id) => root.linkSet.add(id));
     root.syncLinks();
+  }
+  if (typeof patch.entryId === 'string' && root.entrySelect && root.prompt.kind === 'append') {
+    if (root.prompt.entries.some((e) => e.id === patch.entryId)) {
+      root.entrySelect.value = patch.entryId;
+      root.syncEntry();
+    }
   }
   return true;
 }

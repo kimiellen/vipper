@@ -18,6 +18,7 @@
 
 import http from 'node:http';
 import { connectSW, createChecker, sleep } from './lib/sw-driver.mjs';
+import { createLoginDriver } from './lib/login-capture.mjs';
 
 const PORT = 8380;
 const NAV_HOST = '127.0.0.1';
@@ -80,96 +81,11 @@ await new Promise((resolve) => server.listen(PORT, '0.0.0.0', resolve));
 const { sw, close } = await connectSW();
 const { check, summary } = createChecker();
 
-// ---- 调试探针（executeScript 运行在 content script 的 isolated world，可读 closed shadow DOM 状态） ----
-const READY = '() => !!globalThis.__vipperContentLoaded';
-const READ_CARD = '() => globalThis.__vipperContent?.saveCard() ?? { visible: false }';
-const READ_STATS = '() => globalThis.__vipperContent?.stats() ?? null';
-const READ_VALUES = `() => ({
-  u: document.querySelector('#u')?.value ?? null,
-  p: document.querySelector('#p')?.value ?? null,
-})`;
-
-async function evalInPage(tabId, func, args = []) {
-  const results = await sw(
-    `chrome.scripting.executeScript({ target: { tabId: ${tabId}, frameIds: [0] }, func: ${func}, args: ${JSON.stringify(args)} })`,
-  );
-  return results?.[0]?.result;
-}
-
-async function waitReady(tabId) {
-  for (let i = 0; i < 40; i++) {
-    if (await evalInPage(tabId, READY)) return;
-    await sleep(150);
-  }
-  throw new Error('content script 未就绪');
-}
-
-async function openTab(host, path) {
-  const tabId = await sw(`(async () => {
-    const win = await chrome.windows.getCurrent();
-    const t = await chrome.tabs.create({ windowId: win.id, url: ${JSON.stringify(`http://${host}:${PORT}${path}`)}, active: true });
-    return t.id;
-  })()`);
-  await waitReady(tabId);
-  return tabId;
-}
-
-async function waitCard(tabId, timeout = 8000) {
-  const start = Date.now();
-  while (Date.now() - start < timeout) {
-    const card = await evalInPage(tabId, READ_CARD);
-    if (card?.visible) return card;
-    await sleep(150);
-  }
-  return null;
-}
-
-async function waitUntil(fn, timeout = 4000) {
-  const start = Date.now();
-  let last;
-  while (Date.now() - start < timeout) {
-    last = await fn();
-    if (last) return last;
-    await sleep(120);
-  }
-  return last;
-}
-
-async function fill(tabId, user, pass) {
-  await evalInPage(
-    tabId,
-    `(u, p) => {
-      const a = document.querySelector('#u');
-      const b = document.querySelector('#p');
-      if (a) a.value = u;
-      if (b) b.value = p;
-    }`,
-    [user, pass],
-  );
-}
-
-async function submit(tabId) {
-  await evalInPage(tabId, `() => {
-    const f = document.querySelector('#f');
-    if (f instanceof HTMLFormElement) f.requestSubmit();
-  }`);
-}
-
-async function patchCard(tabId, patch) {
-  return evalInPage(tabId, `(patch) => globalThis.__vipperContent?.setSaveCard(patch) ?? false`, [patch]);
-}
-
-async function clickSave(tabId) {
-  return evalInPage(tabId, `() => globalThis.__vipperContent?.save() ?? false`);
-}
-
-async function clickCancel(tabId) {
-  return evalInPage(tabId, `() => globalThis.__vipperContent?.cancel() ?? false`);
-}
-
-const listIndex = async () =>
-  JSON.parse(await sw(`(async () => JSON.stringify(await __vipper.vault.listIndex()))()`));
-const pending = async () => sw(`__vipper.login.pending()`);
+const {
+  evalInPage, openTab, waitCard, waitUntil,
+  fill, submit, patchCard, clickSave, clickCancel,
+  readCard, readStats, readValues, listIndex, pending,
+} = createLoginDriver(sw);
 
 // ---- 场景准备：全新存储 + 主密码 + 一张 tag / 一条关联信息 ----
 await sw(`(async () => {
@@ -189,7 +105,7 @@ const seed = JSON.parse(await sw(`(async () => {
 })()`));
 
 // ---- 1. 跳转式登录（无条目）→ 保存新建 ----
-let tabId = await openTab(NAV_HOST, '/login');
+let tabId = await openTab(`http://${NAV_HOST}:${PORT}/login`);
 await fill(tabId, 'alice', 'pw-navigation');
 await submit(tabId);
 
@@ -210,7 +126,7 @@ check('SW 已记录一次成功推送', swLoginStats?.prompts >= 1, swLoginStats
 
 const patched = (await patchCard(tabId, { title: 'SavedSite', tagIds: [seed.tag.id], linkIds: [seed.link.id] }));
 check('调试接口可改标题并勾选 TAG/LINS', patched === true, patched);
-card = await evalInPage(tabId, READ_CARD);
+card = await readCard(tabId);
 check('浮卡反映编辑后的标题', card?.title === 'SavedSite', card?.title);
 check('浮卡反映勾选后的 tag', card?.tags?.find((t) => t.id === seed.tag.id)?.checked === true, card?.tags);
 check('浮卡反映勾选后的关联信息', card?.links?.find((l) => l.id === seed.link.id)?.checked === true, card?.links);
@@ -236,12 +152,12 @@ const rawLocal = await sw(`(async () => JSON.stringify(await chrome.storage.loca
 const rawSession = await sw(`(async () => JSON.stringify(await chrome.storage.session.get(null)))()`);
 check('storage.local 不含明文密码', !rawLocal.includes('pw-navigation'), '含明文');
 check('storage.session 不含明文密码', !rawSession.includes('pw-navigation'), '含明文');
-check('保存后浮卡关闭', (await evalInPage(tabId, READ_CARD))?.visible === false, await evalInPage(tabId, READ_CARD));
+check('保存后浮卡关闭', (await readCard(tabId))?.visible === false, await readCard(tabId));
 check('保存后 pending 清空', (await pending())?.length === 0, await pending());
 await sw(`chrome.tabs.remove(${tabId})`).catch(() => {});
 
 // ---- 2. SPA 无导航 + 双提交：1s 自取推送，只捕获一次、只弹一次 ----
-tabId = await openTab(SPA_HOST, '/spa');
+tabId = await openTab(`http://${SPA_HOST}:${PORT}/spa`);
 await fill(tabId, 'spa-user', 'pw-spa');
 await submit(tabId);
 await sleep(120);
@@ -250,7 +166,7 @@ await submit(tabId); // 2s 内相同凭据 → 去重
 card = await waitCard(tabId);
 check('SPA 无导航时 1s 后仍弹出保存浮卡', card?.visible === true, card);
 check('SPA 浮卡网址为提交时 URL（pushState 前）', card?.url === `http://${SPA_HOST}:${PORT}/spa`, card?.url);
-const spaStats = await evalInPage(tabId, READ_STATS);
+const spaStats = await readStats(tabId);
 check('SPA 双提交只捕获一次', spaStats?.captures === 1, spaStats);
 check('SPA 双提交第二次被去重', spaStats?.duplicates >= 1, spaStats);
 check('SPA 双提交只弹一次', spaStats?.prompts === 1, spaStats);
@@ -258,13 +174,13 @@ check('SPA 双提交只弹一次', spaStats?.prompts === 1, spaStats);
 const idxBeforeCancel = (await listIndex()).length;
 await clickCancel(tabId);
 await sleep(300);
-check('不保存后浮卡关闭', (await evalInPage(tabId, READ_CARD))?.visible === false, await evalInPage(tabId, READ_CARD));
+check('不保存后浮卡关闭', (await readCard(tabId))?.visible === false, await readCard(tabId));
 check('不保存后 pending 清空', (await pending())?.length === 0, await pending());
 check('不保存不新增条目', (await listIndex()).length === idxBeforeCancel, (await listIndex()).length);
 await sw(`chrome.tabs.remove(${tabId})`).catch(() => {});
 
 // ---- 3. 无 form 的纯 JS 登录按钮：点击捕获（不依赖 submit 事件） ----
-tabId = await openTab(CLICK_HOST, '/click');
+tabId = await openTab(`http://${CLICK_HOST}:${PORT}/click`);
 await fill(tabId, 'click-user', 'pw-click');
 await evalInPage(tabId, `() => document.querySelector('#go')?.click()`);
 card = await waitCard(tabId);
@@ -277,7 +193,7 @@ await sw(`chrome.tabs.remove(${tabId})`).catch(() => {});
 
 // ---- 4. 主题 / 语言跟随 meta:settings ----
 await sw(`__vipper.keychain.setSettings({ theme: 'light', lang: 'en' })`);
-tabId = await openTab(LIGHT_HOST, '/spa');
+tabId = await openTab(`http://${LIGHT_HOST}:${PORT}/spa`);
 await fill(tabId, 'light-user', 'pw-light');
 await submit(tabId);
 card = await waitCard(tabId);
@@ -291,7 +207,7 @@ await sw(`chrome.tabs.remove(${tabId})`).catch(() => {});
 await sw(`__vipper.keychain.setSettings({ theme: 'dark', lang: 'zh' })`);
 
 // ---- 5. 两个可见密码框（注册/改密）→ 不捕获 ----
-tabId = await openTab(SIGNUP_HOST, '/signup');
+tabId = await openTab(`http://${SIGNUP_HOST}:${PORT}/signup`);
 await evalInPage(tabId, `() => {
   document.querySelector('#u').value = 'signup-user';
   document.querySelector('#p1').value = 'pw-signup-1';
@@ -299,8 +215,8 @@ await evalInPage(tabId, `() => {
 }`);
 await submit(tabId);
 await sleep(1800);
-const signupStats = await evalInPage(tabId, READ_STATS);
-check('两个可见密码框不弹出保存浮卡', (await evalInPage(tabId, READ_CARD))?.visible === false, await evalInPage(tabId, READ_CARD));
+const signupStats = await readStats(tabId);
+check('两个可见密码框不弹出保存浮卡', (await readCard(tabId))?.visible === false, await readCard(tabId));
 check('两个密码框被标记跳过', signupStats?.skippedMultiPassword >= 1, signupStats);
 check('注册表单不产生 pending', (await pending())?.length === 0, await pending());
 await sw(`chrome.tabs.remove(${tabId})`).catch(() => {});
@@ -311,26 +227,26 @@ await sw(`__vipper.vault.addBookmark({
   urls: [{ url: ${JSON.stringify(`http://${AUTOFILL_HOST}:${PORT}/autofill`)}, match: 'host' }],
   accounts: [{ username: 'bob', password: 'pw-auto' }],
 })`);
-tabId = await openTab(AUTOFILL_HOST, '/autofill');
+tabId = await openTab(`http://${AUTOFILL_HOST}:${PORT}/autofill`);
 await sw(`__vipper.dispatch('autofill')`);
 await sleep(1500);
-const values = await evalInPage(tabId, READ_VALUES);
+const values = await readValues(tabId);
 check('Alt+P 已填充自动填充页', values?.u === 'bob' && values?.p === 'pw-auto', values);
 await submit(tabId);
 await sleep(1800);
-const autofillStats = await evalInPage(tabId, READ_STATS);
-check('填充后未修改的提交不弹浮卡', (await evalInPage(tabId, READ_CARD))?.visible === false, await evalInPage(tabId, READ_CARD));
+const autofillStats = await readStats(tabId);
+check('填充后未修改的提交不弹浮卡', (await readCard(tabId))?.visible === false, await readCard(tabId));
 check('填充未修改被标记跳过', autofillStats?.skippedAutofill >= 1, autofillStats);
 check('填充未修改不产生 pending', (await pending())?.length === 0, await pending());
 await sw(`chrome.tabs.remove(${tabId})`).catch(() => {});
 
 // ---- 7. 锁定态提交 → 静默丢弃 ----
 await sw(`__vipper.keychain.lock()`);
-tabId = await openTab(LOCKED_HOST, '/locked');
+tabId = await openTab(`http://${LOCKED_HOST}:${PORT}/locked`);
 await fill(tabId, 'locked-user', 'pw-locked');
 await submit(tabId);
 await sleep(2200);
-check('锁定态提交不弹浮卡', (await evalInPage(tabId, READ_CARD))?.visible === false, await evalInPage(tabId, READ_CARD));
+check('锁定态提交不弹浮卡', (await readCard(tabId))?.visible === false, await readCard(tabId));
 check('锁定态不产生 pending（不暂存明文）', (await pending())?.length === 0, await pending());
 const lockedIdx = await listIndex();
 check('锁定态不新增条目', !lockedIdx.some((e) => e.title === 'M22 锁定'), lockedIdx.map((e) => e.title));

@@ -67,7 +67,7 @@ vipper 是一个 Chrome MV3 扩展，目标用户是作者本人（Arch Linux + 
 **判定（顶层 URL 按 `matchUrl` 匹配 active 条目）**
 
 - 无匹配 → **新建条目**弹窗：标题（默认标签页标题，可编辑）、网址（只读）、账号（只读）、密码（遮蔽）、TAG/LINS 多选（先建后选）
-- 有匹配且所有匹配条目都不含该 username → **追加**弹窗：目标条目下拉（默认 `lastUsedAt` 最新；多个匹配时显示），账号 / 密码
+- 有匹配且所有匹配条目都不含该 username → **追加**弹窗：目标条目下拉（默认 `lastUsedAt` 最新；单条目也显示，便于确认追加目标），账号 / 密码
 - 任一匹配条目已含该 username → 静默丢弃，不弹（**不做密码更新提示**，2026-10-20 决定；改密码去 wui 手动编辑）
 - 归档条目不参与匹配（与 Alt+P 一致）；已归档站点按新建处理
 - 保存：新建走 `addBookmark`（`urls: [{ url: 顶层 URL, match: 'host' }]`），追加走 `saveBookmark`；均加密落盘、更新 `lastUsedAt`；保存时过滤已删除的 tag/link id

@@ -162,6 +162,8 @@ interface LoginPending {
   title: string;
   capturedAt: number;
   prompted: boolean;
+  /** 推送弹窗时的判定结果，保存时据此走新建或追加 */
+  mode?: 'new' | 'append';
 }
 
 const loginPending = new Map<number, LoginPending>();
@@ -244,9 +246,26 @@ async function handleLoginCapture(tab: chrome.tabs.Tab, msg: Record<string, unkn
   setTimeout(() => void pushLoginPrompt(tabId), 1200);
 }
 
+/** 当前页面匹配的 active 条目，lastUsedAt 降序（多条目时浮卡默认选第一条） */
+async function matchingEntries(pageUrl: string) {
+  return (await vault.listIndex())
+    .filter((e) => e.status === 'active' && e.urls.some((u) => matchUrl(u.match, u.url, pageUrl)))
+    .sort((a, b) => b.lastUsedAt - a.lastUsedAt);
+}
+
+function finishPromptPush(tabId: number, ok: boolean): void {
+  if (ok) loginStats.prompts++;
+  else {
+    loginStats.pushFailures++;
+    clearLoginPending(tabId);
+  }
+}
+
 async function pushLoginPrompt(tabId: number): Promise<void> {
   const p = loginPending.get(tabId);
   if (!p || p.prompted) return;
+  // 立即占位：导航完成、页面 1s 自取、SW 1.2s 兜底可能并发，避免重复推送
+  p.prompted = true;
   if (Date.now() - p.capturedAt > LOGIN_PENDING_TTL_MS) {
     clearLoginPending(tabId);
     return;
@@ -256,41 +275,61 @@ async function pushLoginPrompt(tabId: number): Promise<void> {
     return;
   }
 
-  const matched = (await vault.listIndex()).filter(
-    (e) => e.status === 'active' && e.urls.some((u) => matchUrl(u.match, u.url, p.pageUrl)),
-  );
-  // M22 只接无匹配的新建；有匹配的追加（含同 username 静默）由 M23 接上
-  if (matched.length > 0) {
+  const settings = await keychain.getSettings();
+  const matched = await matchingEntries(p.pageUrl);
+
+  if (matched.length === 0) {
+    const [tags, links] = await Promise.all([vault.listTags(), vault.listLinkedInfos()]);
+    p.mode = 'new';
+    const ok = await safeSend(
+      tabId,
+      {
+        type: 'vipper:save-prompt',
+        kind: 'new',
+        title: loginTitle(p),
+        url: p.pageUrl,
+        username: p.username,
+        tags,
+        links,
+        lang: settings.lang,
+        theme: settings.theme,
+      },
+      0, // 登录表单可能在 iframe 内，弹窗只发顶层 frame
+    );
+    finishPromptPush(tabId, ok);
+    return;
+  }
+
+  // 追加：任一匹配条目已含该 username 则静默（不做密码更新，spec 2026-10-20）
+  const entries: { id: string; title: string; accountCount: number }[] = [];
+  for (const e of matched) {
+    const b = await vault.getBookmark(e.id);
+    if (!b) continue;
+    if (b.accounts.some((a) => a.username === p.username)) {
+      clearLoginPending(tabId);
+      return;
+    }
+    entries.push({ id: b.id, title: b.title, accountCount: b.accounts.length });
+  }
+  if (entries.length === 0) {
     clearLoginPending(tabId);
     return;
   }
 
-  const [tags, links, settings] = await Promise.all([
-    vault.listTags(),
-    vault.listLinkedInfos(),
-    keychain.getSettings(),
-  ]);
-  p.prompted = true;
+  p.mode = 'append';
   const ok = await safeSend(
     tabId,
     {
       type: 'vipper:save-prompt',
-      kind: 'new',
-      title: loginTitle(p),
-      url: p.pageUrl,
+      kind: 'append',
       username: p.username,
-      tags,
-      links,
+      entries,
       lang: settings.lang,
       theme: settings.theme,
     },
-    0, // 登录表单可能在 iframe 内，弹窗只发顶层 frame
+    0,
   );
-  if (ok) loginStats.prompts++;
-  else {
-    loginStats.pushFailures++;
-    clearLoginPending(tabId);
-  }
+  finishPromptPush(tabId, ok);
 }
 
 /** 只接受仍存在于管理表的 id，避免选中后表被删导致悬空引用 */
@@ -312,6 +351,11 @@ async function handleLoginSave(tabId: number, msg: Record<string, unknown>): Pro
   }
   if (msg.action !== 'save') return;
 
+  if (p.mode === 'append') await saveAppendedAccount(tabId, p, msg);
+  else await saveNewBookmark(tabId, p, msg);
+}
+
+async function saveNewBookmark(tabId: number, p: LoginPending, msg: Record<string, unknown>): Promise<void> {
   const title = (typeof msg.title === 'string' ? msg.title.trim() : '') || loginTitle(p);
   const [tagTable, linkTable] = await Promise.all([vault.listTags(), vault.listLinkedInfos()]);
   try {
@@ -327,6 +371,38 @@ async function handleLoginSave(tabId: number, msg: Record<string, unknown>): Pro
     await safeSend(tabId, { type: 'vipper:save-result', ok: true }, 0);
   } catch (err) {
     // 失败保留 pending：解锁/存储恢复后用户可再点保存
+    await safeSend(tabId, { type: 'vipper:save-result', ok: false, message: String(err) }, 0);
+  }
+}
+
+async function saveAppendedAccount(tabId: number, p: LoginPending, msg: Record<string, unknown>): Promise<void> {
+  const entryId = typeof msg.entryId === 'string' ? msg.entryId : '';
+  // 重新校验：所选条目必须仍是当前页面匹配的 active 条目
+  const target = (await matchingEntries(p.pageUrl)).find((e) => e.id === entryId);
+  if (!target) {
+    await safeSend(tabId, { type: 'vipper:save-result', ok: false, message: 'entry not found' }, 0);
+    return;
+  }
+  const b = await vault.getBookmark(target.id);
+  if (!b) {
+    await safeSend(tabId, { type: 'vipper:save-result', ok: false, message: 'entry not found' }, 0);
+    return;
+  }
+  if (b.accounts.some((a) => a.username === p.username)) {
+    clearLoginPending(tabId);
+    await safeSend(tabId, { type: 'vipper:save-result', ok: true, already: true }, 0);
+    return;
+  }
+  try {
+    // 既有账号保持密文原样，只有新账号的明文密码会被 saveBookmark 加密
+    await vault.saveBookmark({
+      ...b,
+      accounts: [...b.accounts, { username: p.username, password: p.password }],
+      lastUsedAt: Date.now(),
+    });
+    clearLoginPending(tabId);
+    await safeSend(tabId, { type: 'vipper:save-result', ok: true }, 0);
+  } catch (err) {
     await safeSend(tabId, { type: 'vipper:save-result', ok: false, message: String(err) }, 0);
   }
 }
@@ -502,6 +578,7 @@ export default defineBackground(() => {
         [...loginPending.entries()].map(([tabId, p]) => ({
           tabId,
           username: p.username,
+          mode: p.mode,
           prompted: p.prompted,
           capturedAt: p.capturedAt,
         })),

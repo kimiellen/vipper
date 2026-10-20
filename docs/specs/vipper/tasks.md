@@ -235,9 +235,11 @@
 
 ## M23：登录提交自动保存——追加 + 多匹配 + 跨 frame/SPA（2026-10-20）
 
-- [ ] SW：有匹配且所有条目不含该 username → 追加弹窗（多匹配返回候选，默认 lastUsedAt 最新）；任一匹配条目已含该 username → 静默
-- [ ] content：追加态浮卡（目标条目下拉 + 账号 / 密码），所选条目 id 回传并由 SW 校验
-- [ ] SW：追加保存（保留既有密文账号，新密码加密落盘；更新 lastUsedAt）
-- [ ] 覆盖跨域 iframe（捕获在 frame、弹窗在顶层、URL 取顶层）与 SPA（preventDefault + pushState）场景
-- [ ] 新增 `scripts/m23-verify.mjs`：新账号追加、同 username 静默、多条目切换后追加、跨域 iframe、SPA、click + submit 去重、en 文案
-- [ ] 验证：m23-verify 通过 + 全量回归（m5 / m13 / m16 / m17 / m19 / m22）+ `pnpm typecheck` / `pnpm build`
+- [x] SW：有匹配且所有条目不含该 username → 追加弹窗（多匹配返回候选，默认 lastUsedAt 最新）；任一匹配条目已含该 username → 静默
+- [x] content：追加态浮卡（目标条目下拉 + 账号 / 密码），所选条目 id 回传并由 SW 校验；单条目也显示下拉便于确认目标（spec 已补注）
+- [x] SW：追加保存（保留既有密文账号，新密码加密落盘；更新 lastUsedAt）；保存前重新校验条目仍匹配、username 仍不存在
+- [x] 覆盖跨域 iframe（捕获在 frame、弹窗在顶层、URL 取顶层）与 SPA（preventDefault + pushState）场景
+- [x] 新增 `scripts/m23-verify.mjs`：新账号追加、同 username 静默、多条目切换后追加、跨域 iframe、SPA、click + submit 去重、en 文案
+- [x] 抽取 `scripts/lib/login-capture.mjs` 共享验收驱动，m22 同步改用（消除两份页面探针/操作副本）
+- [x] 修复浮卡并发推送竞态：导航完成 / 页面 1s 自取 / SW 1.2s 兜底三路可能并发，入口立即置 `prompted`，只推一次
+- [x] 验证：`scripts/m23-verify.mjs` 36/36 通过 + m22 52/52（refactor 后回归）、m5 7/7、m13 28/28、m16 9/9、m17 18/18、m19 8/8 + `pnpm typecheck` / `pnpm build` + 追加浮卡截图自检
