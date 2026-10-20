@@ -36,10 +36,13 @@ vipper **故意不提供"忘记密码"入口**——那种入口本质上是一�
 确认重置时（这会**永久删除全部书签 / 账号 / 记录**——没有主密码，密文无法解密）：
 
 1. `chrome://extensions` → vipper 卡片 → **详细信息**
-2. 拉到最下 → **清除数据**，确认
-3. 重新打开 vipper（`Alt+.`）→ 回到创建主密码流程
+2. 在「检查视图 / Inspect views」处点击 **service worker**，打开 DevTools
+3. DevTools → **应用 / Application** → 左侧 **存储 / Storage** → **Extension storage** → 右键 **Local** → **Clear**
+4. 重新打开 vipper（`Alt+.`）→ 回到创建主密码流程
 
 如果有[导出的 JSON 备份](backup.md)，重置后可导入恢复。
+
+> 同理，这也是**修改主密码的唯一方法**：清除 local 数据 → 创建新主密码 → 导入之前的备份（备份里的密文导入时会用新密钥重新加密）。
 
 ## 导入导出的防护
 

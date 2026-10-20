@@ -55,7 +55,10 @@ windowrulev2 = center, class:^chrome-bfkbiapichhdhealeodggldhchmdlhhj-Default$
 主密码不落盘、不可找回，vipper 页面**故意不提供**"忘记密码"入口（避免恶意清除数据）。确认要重置时手动清除扩展存储：
 
 1. 打开 `chrome://extensions` → vipper 卡片 → **详细信息**
-2. 拉到最下点 **清除数据**（Delete data），确认
-3. 重新打开 vipper（Alt+.）→ 进入「创建主密码」流程
+2. 在「检查视图 / Inspect views」处点击 **service worker**，打开 DevTools
+3. DevTools → **应用 / Application** → 左侧 **存储 / Storage** → **Extension storage** → 右键 **Local** → **Clear**
+4. 重新打开 vipper（Alt+.）→ 进入「创建主密码」流程
 
 ⚠️ 这会**永久删除全部书签/账号/记录**（加密数据没有主密码无法解密）。有导出 JSON 备份的话，重置后可经 设置→备份→导入 恢复。
+
+> 同理，这也是**修改主密码的唯一方法**：清除 local 数据 → 创建新主密码 → 导入之前的备份（备份里的密文导入时会用新密钥重新加密）。

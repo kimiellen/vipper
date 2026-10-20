@@ -36,10 +36,13 @@ There is intentionally **no "forgot password" flow** — such a flow would be a 
 To reset (this **permanently deletes all bookmarks, accounts and records** — without the master password the ciphertext is unrecoverable):
 
 1. `chrome://extensions` → vipper card → **Details**
-2. Scroll down → **Delete data**, confirm
-3. Reopen vipper (`Alt+.`) → the create-password flow returns
+2. Under "Inspect views", click **service worker** — DevTools opens
+3. DevTools → **Application** → **Storage** → **Extension storage** → right-click **Local** → **Clear**
+4. Reopen vipper (`Alt+.`) → the create-password flow returns
 
 With an [exported JSON backup](backup.md), you can re-import after the reset.
+
+> By the same token, this is the **only way to change your master password**: clear the local data → create a new master password → import your previous backup (the ciphertext in the backup is re-encrypted with the new key on import).
 
 ## Import/export guards
 
