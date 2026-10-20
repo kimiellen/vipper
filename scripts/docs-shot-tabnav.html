@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<style>
+  /* 手册示意图：模拟 Chrome 标签条的二维导航（Catppuccin Mocha 配色） */
+  * { box-sizing: border-box; margin: 0; }
+  body { background: #181825; color: #cdd6f4; font: 14px/1.5 system-ui, sans-serif; padding: 36px 44px; }
+  h2 { font-size: 15px; color: #cba6f7; margin-bottom: 6px; font-weight: 600; }
+  .hint { color: #7f849c; font-size: 12.5px; margin-bottom: 14px; }
+  kbd { background: #313244; border: 1px solid #585b70; border-radius: 4px; padding: 1px 6px; font: 12px monospace; color: #cdd6f4; }
+  .panel { margin-bottom: 34px; }
+  .strip { display: flex; align-items: flex-end; gap: 3px; background: #11111b; border-radius: 10px 10px 0 0; padding: 10px 12px 0; }
+  .tab { background: #313244; border-radius: 8px 8px 0 0; padding: 8px 16px; font-size: 12.5px; color: #bac2de; white-space: nowrap; }
+  .tab.active { background: #cba6f7; color: #11111b; font-weight: 600; }
+  .grp { display: flex; gap: 3px; border: 2px solid transparent; border-bottom: none; border-radius: 10px 10px 0 0; padding: 4px 4px 0; position: relative; }
+  .grp .glabel { position: absolute; top: -22px; left: 6px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .g-work { border-color: #89b4fa; } .g-work .glabel { color: #89b4fa; }
+  .g-fun { border-color: #f5c2e7; } .g-fun .glabel { color: #f5c2e7; }
+  .g-fun.collapsed .tab { display: none; }
+  .g-fun.collapsed { border-color: transparent; padding: 8px 0 0; }
+  .g-fun.collapsed .glabel { display: none; }
+  .g-fun.collapsed .chip { display: inline-block; background: #313244; color: #f5c2e7; border-radius: 8px 8px 0 0; padding: 8px 16px; font-size: 12.5px; font-weight: 600; }
+  .chip { display: none; }
+  .page { background: #1e1e2e; border: 1px solid #313244; border-top: none; height: 46px; border-radius: 0 0 10px 10px; display: flex; align-items: center; padding: 0 16px; color: #7f849c; font-size: 12px; }
+  .arrow { color: #a6e3a1; font-size: 18px; font-weight: 700; padding: 0 10px; align-self: center; }
+  .note { margin-top: 10px; color: #7f849c; font-size: 12.5px; }
+</style>
+</head>
+<body>
+<div class="panel">
+  <h2 data-zh="Alt+↑ / ↓ —— 切换标签组（其他组自动折叠）" data-en="Alt+↑ / ↓ — switch tab group (others collapse)"></h2>
+  <div class="hint" data-zh="组的顺序 = 标签栏从左到右的视觉顺序（上→下）；连续的未分组标签视为一个隐式组" data-en="Group order = visual left→right order of the tab bar (top→bottom); a contiguous run of ungrouped tabs acts as an implicit group"></div>
+  <div class="strip">
+    <div class="tab">少数派</div>
+    <div class="tab">终端 · zsh</div>
+    <span class="arrow" data-zh="↑" data-en="↑">↑</span>
+    <div class="grp g-work">
+      <span class="glabel" data-zh="工作" data-en="Work">工作</span>
+      <div class="tab">GitHub</div>
+      <div class="tab active">vipper · PR</div>
+      <div class="tab">Cloudflare</div>
+    </div>
+    <span class="arrow">↓</span>
+    <div class="grp g-fun collapsed">
+      <span class="glabel" data-zh="娱乐" data-en="Fun">娱乐</span>
+      <span class="chip" data-zh="娱乐 ▸" data-en="Fun ▸">娱乐 ▸</span>
+      <div class="tab">bilibili</div>
+      <div class="tab">YouTube</div>
+    </div>
+  </div>
+  <div class="page" data-zh="切组后激活该组「上次活跃的标签」（每组记忆），到顶/到底不环绕" data-en="Switching activates the group's last-active tab (per-group memory); no wrap-around at the edges"></div>
+</div>
+
+<div class="panel">
+  <h2 data-zh="Alt+Shift+← / → —— 组内切换标签" data-en="Alt+Shift+← / → — switch tab within the group"></h2>
+  <div class="hint" data-zh="不跨组、不环绕；Alt+←/→ 是 Chrome 保留的历史导航键，无法占用" data-en="Never crosses group boundaries, no wrap-around; Alt+←/→ is reserved by Chrome for history navigation"></div>
+  <div class="strip">
+    <div class="grp g-work">
+      <span class="glabel" data-zh="工作" data-en="Work">工作</span>
+      <span class="arrow">←</span>
+      <div class="tab">GitHub</div>
+      <div class="tab active">vipper · PR</div>
+      <div class="tab">Cloudflare</div>
+      <span class="arrow">→</span>
+    </div>
+  </div>
+  <div class="page" data-zh="作用域仅当前窗口，多 Chrome 窗口互不干扰" data-en="Scoped to the current window — multiple Chrome windows never interfere"></div>
+</div>
+
+<script>
+  const lang = new URLSearchParams(location.search).get('lang') === 'en' ? 'en' : 'zh';
+  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+  document.querySelectorAll('[data-zh]').forEach((n) => { n.textContent = n.dataset[lang]; });
+</script>
+</body>
+</html>
