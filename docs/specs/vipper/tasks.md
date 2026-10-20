@@ -221,3 +221,23 @@
 - [x] 恢复时按当前 tag/linkedInfo 表剔除已删除的 id，避免残留过滤把结果全部隐藏
 - [x] 新增 `scripts/m21-verify.mjs`：选中后关窗重开仍保持、取消后重开仍为空、失效 tag 被剔除、状态只落 session 不落 local
 - [x] 验证：`scripts/m21-verify.mjs` 11/11 通过（关窗重开保持勾选与结果、取消后保持空、已删除 tag 被剔除、状态只落 session）+ m9c 11/11、m9d 15/15、m10 15/15、m12 26/26 回归 + `pnpm typecheck` / `pnpm build`
+
+## M22：登录提交自动保存——捕获 + 新建条目（2026-10-20）
+
+> spec 见「登录提交自动保存」（2026-10-20 定稿）。本里程碑接通无匹配条目的新建链路；有匹配条目时静默不弹，追加由 M23 接上。
+
+- [ ] content：capture 阶段监听 form submit / 密码框回车 / 提交类按钮点击，读取可见账号 + 密码；过滤空值、≥2 可见密码框（注册/改密）、同 frame 刚自动填充未改；2s 内相同凭据去重
+- [ ] content：SPA 无导航时提交后 1s 请求推送；新增右上角保存浮卡（独立 shadow host、标题可编辑、TAG/LINS 多选、Esc/✕ 丢弃），样式 `?inline` 引入 tokens.css 并 `:root → :host`，跟随主题 / 语言
+- [ ] SW：按 tabId 内存 pending（不落 storage、不进日志），动态注册 `tabs.onUpdated` 在目标 tab 导航完成后推送 frame 0；捕获 / 推送两处检查锁定
+- [ ] SW：无匹配条目判定 + 新建保存（顶层 URL + match host，过滤失效 tag/link id，更新 lastUsedAt），保存 / 丢弃后清 pending 并注销 listener
+- [ ] 新增 `scripts/m22-verify.mjs`：无条目弹窗与字段、保存后密文落盘 / 索引正确、锁定不弹、改密表单不弹、填充未改不弹、重复提交只弹一次
+- [ ] 验证：m22-verify 通过 + m5 / m13 / m16 / m17 / m19 回归 + `pnpm typecheck` / `pnpm build`
+
+## M23：登录提交自动保存——追加 + 多匹配 + 跨 frame/SPA（2026-10-20）
+
+- [ ] SW：有匹配且所有条目不含该 username → 追加弹窗（多匹配返回候选，默认 lastUsedAt 最新）；任一匹配条目已含该 username → 静默
+- [ ] content：追加态浮卡（目标条目下拉 + 账号 / 密码），所选条目 id 回传并由 SW 校验
+- [ ] SW：追加保存（保留既有密文账号，新密码加密落盘；更新 lastUsedAt）
+- [ ] 覆盖跨域 iframe（捕获在 frame、弹窗在顶层、URL 取顶层）与 SPA（preventDefault + pushState）场景
+- [ ] 新增 `scripts/m23-verify.mjs`：新账号追加、同 username 静默、多条目切换后追加、跨域 iframe、SPA、click + submit 去重、en 文案
+- [ ] 验证：m23-verify 通过 + 全量回归（m5 / m13 / m16 / m17 / m19 / m22）+ `pnpm typecheck` / `pnpm build`

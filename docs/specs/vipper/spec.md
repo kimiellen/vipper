@@ -46,6 +46,46 @@ vipper 是一个 Chrome MV3 扩展，目标用户是作者本人（Arch Linux + 
 6. 一条书签绑定多个 URL 或多组账号时，弹**二级菜单**（`↑/↓` 选择 + 回车确认）；菜单弹出时自动接管焦点、关闭后还给原元素——登录表单在跨域 iframe 内时，焦点原本在 iframe 里，顶层菜单收不到键盘事件（2026-10-20 追加）
 7. 编辑：点击 contents 区域右上角 ✎（或「新增书签」），**contents 区域原地切换为编辑态**（不跳转页面）；编辑态字段顺序与展示态一致（title → tags → linkedInfos → urls → accounts → records → remarks → status），URL 的 match 规则只在编辑态可选；`createdAt`/`updatedAt`/`lastUsedAt` 三个只读时间在展示态与编辑态均**置于区域最底部**（2026-10-14 定稿；M6 的独立 editor.html 淘汰）
 
+### 登录提交自动保存（2026-10-20 定稿）
+
+目标：登录页提交后，vipper 尚无对应凭据时询问是否保存；条目已存在时把新账号追加进去。锁定态不参与（见安全模型）。
+
+**捕获（content script，所有 frame）**
+
+- capture 阶段监听 form `submit`、密码框回车、提交类按钮点击（覆盖无 form 的纯 JS 登录页）；只处理 http/https 页面
+- 提交时读**可见**账号框与密码框原值，复用 Alt+P 的字段探测（可见性过滤、密码框锚定账号框）
+- 不触发：账号或密码为空；可见密码框 ≥2（注册/改密表单）；字段值与本 frame 最近一次 Alt+P 自动填充值完全相同（未修改）
+- 同一次提交会先后触发 click 与 submit：同一 tab 2s 内相同凭据只捕获一次
+
+**暂存与投递**
+
+- SW 按 tabId 在**内存**暂存捕获（账号 / 密码 / 顶层 URL / 标题），不写 storage、不写日志；新捕获覆盖旧 pending
+- 捕获时动态注册 `tabs.onUpdated`：目标 tab 导航完成（status complete）后向 **frame 0** 推送弹窗；SPA 无导航时由捕获 frame 延迟 1s 请求 SW 推送
+- 每个 pending 只展示一次；保存 / 不保存 / 丢弃后清 pending 并注销 listener；新捕获替换已展示的浮卡
+- 锁定检查在捕获与推送两处：锁定则静默丢弃，**不**暂存明文等待解锁（2026-10-20 决定）
+
+**判定（顶层 URL 按 `matchUrl` 匹配 active 条目）**
+
+- 无匹配 → **新建条目**弹窗：标题（默认标签页标题，可编辑）、网址（只读）、账号（只读）、密码（遮蔽）、TAG/LINS 多选（先建后选）
+- 有匹配且所有匹配条目都不含该 username → **追加**弹窗：目标条目下拉（默认 `lastUsedAt` 最新；多个匹配时显示），账号 / 密码
+- 任一匹配条目已含该 username → 静默丢弃，不弹（**不做密码更新提示**，2026-10-20 决定；改密码去 wui 手动编辑）
+- 归档条目不参与匹配（与 Alt+P 一致）；已归档站点按新建处理
+- 保存：新建走 `addBookmark`（`urls: [{ url: 顶层 URL, match: 'host' }]`），追加走 `saveBookmark`；均加密落盘、更新 `lastUsedAt`；保存时过滤已删除的 tag/link id
+
+**弹窗 UI**
+
+- content script **右上角浮动卡片**（独立 shadow host，与 Alt+P 菜单互不覆盖），宽 360px，非阻断、不抢焦点，150ms 滑入（减少动效时禁用）
+- 字段：标题（新建态可编辑）/ 网址 / 账号 / 密码（遮蔽不可展开）/ TAG 多选 / LINS 多选；追加态为条目下拉 + 账号 / 密码
+- 底部「不保存」「保存」；Esc 或 ✕ = 丢弃；保存成功 2s toast；文案跟随 `meta:settings.lang`
+- 主题跟随 `meta:settings.theme`（`system` 在页面侧用 `prefers-color-scheme` 解析）；样式直接 `?inline` 引入 `design-system/tokens.css`，注入 shadow 时把 `:root` 映射为 `:host`，不硬编码色值
+
+**已知边界**
+
+- 无法可靠判定登录成功：失败登录也可能弹窗；文案保持中性、可取消
+- 无可见账号框的多步登录（仅密码步）不捕获；弹窗登录 / 新标签方式登录可能错过
+- SSO 中间页弹窗后若立刻跳转，浮卡随文档销毁且不再重复展示
+- SW 被回收或浏览器重启会丢失 pending（此时不弹，不会写入错误数据）
+
 ### 数据模型（2026-10-17 修订）
 
 完全独立于 Chrome 原生书签/密码系统，扩展自建存储。书签条目按页面布局分区：
@@ -99,6 +139,7 @@ chrome.storage.local 是 LevelDB 键值库（声明 `unlimitedStorage` 去配额
 
 - **主密码 + WebCrypto**：PBKDF2 派生密钥，AES-GCM 加密
 - 密码字段与私密记录模板**加密后落盘**，密钥永不持久化
+- **登录自动保存的明文暂存**（2026-10-20）：只存在 SW 内存 pending，不写 local/session storage、不进日志；保存即加密落盘并清 pending；弹窗模型不回传密码
 - **Alt+P 锁定引导**（2026-10-18）：锁定状态按 Alt+P 打开/聚焦 wui 解锁页（已打开则聚焦，不 toggle 关闭）；解锁后回到登录页再按 Alt+P 继续填充。页面内嵌解锁浮层淘汰
 - **解锁页三态自动路由**（同一页面，`isInitialized()` / `isUnlocked()` 判定）：
   - 未初始化 → 「创建主密码」模式（两次输入 + 忘记无法找回警示），创建即解锁进主页面
