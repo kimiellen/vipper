@@ -226,12 +226,12 @@
 
 > spec 见「登录提交自动保存」（2026-10-20 定稿）。本里程碑接通无匹配条目的新建链路；有匹配条目时静默不弹，追加由 M23 接上。
 
-- [ ] content：capture 阶段监听 form submit / 密码框回车 / 提交类按钮点击，读取可见账号 + 密码；过滤空值、≥2 可见密码框（注册/改密）、同 frame 刚自动填充未改；2s 内相同凭据去重
-- [ ] content：SPA 无导航时提交后 1s 请求推送；新增右上角保存浮卡（独立 shadow host、标题可编辑、TAG/LINS 多选、Esc/✕ 丢弃），样式 `?inline` 引入 tokens.css 并 `:root → :host`，跟随主题 / 语言
-- [ ] SW：按 tabId 内存 pending（不落 storage、不进日志），动态注册 `tabs.onUpdated` 在目标 tab 导航完成后推送 frame 0；捕获 / 推送两处检查锁定
-- [ ] SW：无匹配条目判定 + 新建保存（顶层 URL + match host，过滤失效 tag/link id，更新 lastUsedAt），保存 / 丢弃后清 pending 并注销 listener
-- [ ] 新增 `scripts/m22-verify.mjs`：无条目弹窗与字段、保存后密文落盘 / 索引正确、锁定不弹、改密表单不弹、填充未改不弹、重复提交只弹一次
-- [ ] 验证：m22-verify 通过 + m5 / m13 / m16 / m17 / m19 回归 + `pnpm typecheck` / `pnpm build`
+- [x] content：capture 阶段监听 form submit / 密码框回车 / 提交类按钮点击，读取可见账号 + 密码；过滤空值、≥2 可见密码框（注册/改密）、同 frame 刚自动填充未改；2s 内相同凭据去重
+- [x] content：SPA 无导航时提交后 1s 请求推送；新增右上角保存浮卡（独立 shadow host、标题可编辑、TAG/LINS 多选、Esc/✕ 丢弃），样式 `?inline` 引入 tokens.css 并 `:root → :host`，跟随主题 / 语言
+- [x] SW：按 tabId 内存 pending（不落 storage、不进日志），动态注册 `tabs.onUpdated` 在目标 tab 导航完成后推送 frame 0；捕获 / 推送两处检查锁定；另加 1.2s 兜底推送（spec 已补注，覆盖导航先于监听注册的竞态）
+- [x] SW：无匹配条目判定 + 新建保存（顶层 URL + match host，过滤失效 tag/link id，更新 lastUsedAt），保存 / 丢弃后清 pending 并注销 listener
+- [x] 新增 `scripts/m22-verify.mjs`：无条目弹窗与字段、保存后密文落盘 / 索引正确、锁定不弹、改密表单不弹、填充未改不弹、重复提交只弹一次
+- [x] 验证：`scripts/m22-verify.mjs` 52/52 通过（跳转推送、SPA 1s 自取 + 双提交去重、无 form 点击捕获、锁定 / 改密 / 填充未改不弹、pending 不落 storage、保存密文可解密、浮卡 zh/dark、light+en 文案与浅色背景、TAG 下拉） + m5 7/7、m13 28/28、m16 9/9、m17 18/18、m19 8/8 回归 + `pnpm typecheck` / `pnpm build` + 浮卡 / TAG 下拉 / 浅色英文截图自检
 
 ## M23：登录提交自动保存——追加 + 多匹配 + 跨 frame/SPA（2026-10-20）
 

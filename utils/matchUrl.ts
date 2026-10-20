@@ -7,6 +7,15 @@
 
 import type { UrlMatch } from './vault';
 
+/** 取 hostname；非法 URL 原样返回（登录捕获/展示的兜底） */
+export function hostnameOf(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return url;
+  }
+}
+
 export function matchUrl(rule: UrlMatch, bookmarkUrl: string, pageUrl: string): boolean {
   try {
     const b = new URL(bookmarkUrl);

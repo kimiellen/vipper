@@ -60,7 +60,7 @@ vipper 是一个 Chrome MV3 扩展，目标用户是作者本人（Arch Linux + 
 **暂存与投递**
 
 - SW 按 tabId 在**内存**暂存捕获（账号 / 密码 / 顶层 URL / 标题），不写 storage、不写日志；新捕获覆盖旧 pending
-- 捕获时动态注册 `tabs.onUpdated`：目标 tab 导航完成（status complete）后向 **frame 0** 推送弹窗；SPA 无导航时由捕获 frame 延迟 1s 请求 SW 推送
+- 捕获时动态注册 `tabs.onUpdated`：目标 tab 导航完成（status complete）后向 **frame 0** 推送弹窗；SPA 无导航时由捕获 frame 延迟 1s 请求 SW 推送；SW 另设 1.2s 兜底，覆盖「导航先于监听注册完成」的竞态（三条路径都受 `prompted` 去重约束）
 - 每个 pending 只展示一次；保存 / 不保存 / 丢弃后清 pending 并注销 listener；新捕获替换已展示的浮卡
 - 锁定检查在捕获与推送两处：锁定则静默丢弃，**不**暂存明文等待解锁（2026-10-20 决定）
 
@@ -77,7 +77,7 @@ vipper 是一个 Chrome MV3 扩展，目标用户是作者本人（Arch Linux + 
 - content script **右上角浮动卡片**（独立 shadow host，与 Alt+P 菜单互不覆盖），宽 360px，非阻断、不抢焦点，150ms 滑入（减少动效时禁用）
 - 字段：标题（新建态可编辑）/ 网址 / 账号 / 密码（遮蔽不可展开）/ TAG 多选 / LINS 多选；追加态为条目下拉 + 账号 / 密码
 - 底部「不保存」「保存」；Esc 或 ✕ = 丢弃；保存成功 2s toast；文案跟随 `meta:settings.lang`
-- 主题跟随 `meta:settings.theme`（`system` 在页面侧用 `prefers-color-scheme` 解析）；样式直接 `?inline` 引入 `design-system/tokens.css`，注入 shadow 时把 `:root` 映射为 `:host`，不硬编码色值
+- 主题跟随 `meta:settings.theme`（`system` 在页面侧用 `prefers-color-scheme` 解析）；样式直接 `?inline` 引入 `design-system/tokens.css`，注入 shadow 时把 `:root` / `:root[data-theme=light]` 映射为 `:host` / `:host([data-theme=light])`（兼容 Vite 压缩后的无引号写法），不硬编码色值
 
 **已知边界**
 
