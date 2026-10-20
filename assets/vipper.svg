@@ -1,17 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
   <!-- 左翼 -->
-  <polygon points="44,36 8,14 20,36 28,30 36,44 42,40 44,52" fill="#63b06b"/>
+  <polygon points="44,36 8,14 20,36 28,30 36,44 42,40 44,52" fill="#a681e8"/>
   <!-- 右翼 -->
-  <polygon points="52,36 88,14 76,36 68,30 60,44 54,40 52,52" fill="#63b06b"/>
+  <polygon points="52,36 88,14 76,36 68,30 60,44 54,40 52,52" fill="#a681e8"/>
   <!-- 头/身体 -->
-  <polygon points="48,24 58,40 48,60 38,40" fill="#a6e3a1"/>
+  <polygon points="48,24 58,40 48,60 38,40" fill="#cba6f7"/>
   <!-- 怒目 -->
   <polygon points="42,37 47,39.5 46,44 41,41.5" fill="#11111b"/>
   <polygon points="54,37 49,39.5 50,44 55,41.5" fill="#11111b"/>
   <!-- 毒牙 -->
-  <polygon points="43,50 46,50 44.5,57" fill="#e6f2e8"/>
-  <polygon points="50,50 53,50 51.5,57" fill="#e6f2e8"/>
+  <polygon points="43,50 46,50 44.5,57" fill="#f2e6ff"/>
+  <polygon points="50,50 53,50 51.5,57" fill="#f2e6ff"/>
   <!-- 尾刺 -->
-  <path d="M48,60 C48,70 56,72 54,82" stroke="#a6e3a1" stroke-width="3.5" fill="none" stroke-linecap="round"/>
-  <polygon points="54,89 50,79 58,79" fill="#a6e3a1"/>
+  <path d="M48,60 C48,70 56,72 54,82" stroke="#cba6f7" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  <polygon points="54,89 50,79 58,79" fill="#cba6f7"/>
 </svg>

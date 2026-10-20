@@ -46,4 +46,4 @@ With an [exported JSON backup](backup.md), you can re-import after the reset.
 
 ## Import/export guards
 
-Both [export and import](backup.md) ask for the master password on the spot: exports because the output is plaintext, imports because import is a full overwrite.
+Both [export and import](backup.md) ask for the master password on the spot. Exports are fully plaintext so that your data is never locked to this extension — store the exported JSON file somewhere safe yourself.

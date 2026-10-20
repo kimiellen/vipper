@@ -17,7 +17,7 @@
 
 vipper is a Chrome Manifest V3 extension that combines two everyday tools in one keyboard-first package:
 
-1. **Tab switcher** — two-dimensional navigation across tab groups (↑/↓ between groups, ←/→ within a group), inspired by tiling window managers like Hyprland
+1. **Tab switcher** — two-dimensional keyboard navigation across tab groups (`Alt+H/L` between groups, `Alt+J/K` within a group)
 2. **Bookmark + password manager** — an encrypted vault for bookmarks, accounts, and private notes, fully independent of Chrome's built-in systems, with one-key autofill and automatic save-on-login
 
 Everything is driven by four-arrow-key thinking: open, search, fill, and organize without leaving the keyboard.
@@ -61,6 +61,14 @@ Everything is driven by four-arrow-key thinking: open, search, fill, and organiz
 | `Alt+P` | Fill credentials on the current login page (bind once) |
 
 > Chrome caps an extension at 4 preset shortcuts, so `Alt+.` and `Alt+P` are bound manually in `chrome://extensions/shortcuts` — a one-time, 30-second step.
+
+## Prerequisites (Chrome side)
+
+vipper does not take over Chrome's native systems — configure these to your liking:
+
+- **Tab groups are a native Chrome feature**: right-click any tab → "Add tab to new group". Enabling "Save and sync tab groups" in Chrome settings saves groups to the bookmark bar and syncs them across devices — fully independent of vipper's own bookmark vault
+- **Native bookmarks and password manager keep working**: vipper stores bookmarks / credentials completely separately and neither disables nor reads Chrome's counterparts. Whether Chrome's own "save password" prompt stays on is your choice under Settings → Autofill and passwords → Google Password Manager
+- **Shortcut conflicts**: if the four navigation keys (`Alt+H/J/K/L`) or the two manual keys (`Alt+.` / `Alt+P`) clash with other extensions, adjust them in `chrome://extensions/shortcuts`
 
 ## Installation
 

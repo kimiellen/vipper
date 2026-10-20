@@ -18,7 +18,6 @@ Plaintext export is an intentional design: the file is meant to be committed to 
 
 Import is **data recovery, not merge**: after validating the file structure, vipper wipes the current bookmarks and management tables and writes the file's contents. It also requires the master password — nobody can overwrite your vault by dropping a file onto an unlocked window.
 
-- Import understands both format **version 2** (`remarks`) and legacy **version 1** (`remark`), so old backups keep working
 - Sensitive fields from the file are re-encrypted with *your* key on write
 
 ## Recommended routine

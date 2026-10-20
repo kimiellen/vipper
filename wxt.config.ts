@@ -3,7 +3,13 @@ import { defineConfig } from 'wxt';
 export default defineConfig({
   manifest: {
     name: 'vipper',
-    description: '标签管理器 + 书签/密码管理器（Hyprland 风格二维导航）',
+    description: '标签管理器 + 书签/密码管理器（键盘二维导航）',
+    icons: {
+      16: 'icons/icon-16.png',
+      32: 'icons/icon-32.png',
+      48: 'icons/icon-48.png',
+      128: 'icons/icon-128.png',
+    },
     permissions: ['tabs', 'tabGroups', 'storage', 'unlimitedStorage', 'favicon', 'alarms', 'scripting', 'system.display'],
     host_permissions: ['<all_urls>'],
     commands: {
