@@ -8,19 +8,19 @@ export default defineConfig({
     host_permissions: ['<all_urls>'],
     commands: {
       'group-prev': {
-        suggested_key: { default: 'Alt+Up' },
+        suggested_key: { default: 'Alt+H' },
         description: '切换到上一个标签组',
       },
       'group-next': {
-        suggested_key: { default: 'Alt+Down' },
+        suggested_key: { default: 'Alt+L' },
         description: '切换到下一个标签组',
       },
       'tab-prev': {
-        suggested_key: { default: 'Alt+Shift+Left' },
+        suggested_key: { default: 'Alt+J' },
         description: '组内切换到左侧标签',
       },
       'tab-next': {
-        suggested_key: { default: 'Alt+Shift+Right' },
+        suggested_key: { default: 'Alt+K' },
         description: '组内切换到右侧标签',
       },
       // suggested_key 上限 4 个已用满，以下命令需用户在 chrome://extensions/shortcuts 手动绑定

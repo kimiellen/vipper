@@ -26,7 +26,7 @@ Everything is driven by four-arrow-key thinking: open, search, fill, and organiz
 
 **Tab switcher**
 
-- `Alt+↑/↓` switches **tab groups**; `Alt+Shift+←/→` switches tabs **within a group**
+- `Alt+H/L` switches **tab groups**; `Alt+J/K` switches tabs **within a group**
 - A contiguous run of ungrouped tabs acts as an implicit group — plain tabs join the navigation too
 - Each group remembers its last-active tab; switching collapses all other groups
 - No wrap-around, scoped to the current window — multiple Chrome windows never interfere
@@ -55,8 +55,8 @@ Everything is driven by four-arrow-key thinking: open, search, fill, and organiz
 
 | Shortcut | Action |
 |---|---|
-| `Alt+↑` / `Alt+↓` | Switch to previous / next tab group |
-| `Alt+Shift+←` / `Alt+Shift+→` | Switch tab within the group |
+| `Alt+H` / `Alt+L` | Switch to previous / next tab group |
+| `Alt+J` / `Alt+K` | Switch tab within the group |
 | `Alt+.` | Toggle the manager window (bind once, see installation) |
 | `Alt+P` | Fill credentials on the current login page (bind once) |
 

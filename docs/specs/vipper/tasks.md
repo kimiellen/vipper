@@ -252,3 +252,11 @@
 - [x] `createLauncher`：按来源窗口（getLastFocused）中心点命中的显示器 workArea 计算尺寸，宽高各 5/6（≈83%）、clamp 到 [900×600, 1600×900]；回退链：命中失败 → 主显示器 → 默认 1600×900（纯函数 `utils/launcherSize.ts`）
 - [x] docs/install.md windowrule 删除 size 行（只留 float + center），说明用户本机配置需同步
 - [x] 验证：`scripts/m24-verify.mjs` 16/16 通过（4K/MacBook/笔记本/上下限 clamp/多显示器中心点命中/回退链 + SW 真实接线对拍）+ `pnpm typecheck` / `pnpm build` + m9d 15/15、m21 11/11 回归；真机多分辨率验收由用户执行
+
+## M25：默认快捷键改 vim 风格（Alt+H/L + Alt+J/K）✅（2026-10-20）
+
+> spec-change：操作映射由 Alt+↑/↓ + Alt+Shift+←/→ 改为 Alt+H/L（切组）+ Alt+J/K（组内），spec 决策见「操作映射」。R1 的备选方案转正。命令名（group-prev 等）与全部导航语义不变。
+
+- [x] wxt.config.ts：4 个 suggested_key 改为 Alt+H / Alt+L / Alt+J / Alt+K
+- [x] 文档同步：spec 操作映射 + 关键约束、docs/install.md、README（中英）、tab-navigation 手册（中英）、示意图与 tabnav 配图重生成
+- [x] 验证：`pnpm typecheck` / `pnpm build` 通过；Chromium + CDP 实测 `chrome.commands.getAll()` 4 键新绑定全部生效；M1/M2 回归通过（命令名不变，行为语义不变）

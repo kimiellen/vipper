@@ -67,6 +67,14 @@ const reloadWui = async (wui) => {
   await waitFor(wui, `!!document.querySelector('#search')`, 'wui reload');
 };
 
+// tabnav-only 模式：只重生示意图（shotTabnav 声明在文件尾部，函数声明提升可用）
+if (process.argv[2] === 'tabnav') {
+  await shotTabnav();
+  close();
+  console.log('DONE (tabnav only)');
+  process.exit(0);
+}
+
 // ---------- Phase 0：全新状态 → 解锁页（创建 / 解锁两种模式） ----------
 // 重入清理：关闭上一轮遗留的 wui / 演示站 / 示意图窗口
 await sw(`(async () => {
@@ -359,22 +367,27 @@ for (const lang of ['zh', 'en']) {
 }
 
 // ---------- Phase 4：标签导航示意图（产品 UI 为 Chrome 标签栏，headless 截不到 → HTML 示意图） ----------
-for (const lang of ['zh', 'en']) {
-  await sw(`chrome.windows.create({ url: 'file://' + ${JSON.stringify(process.cwd())} + '/scripts/docs-shot-tabnav.html?lang=${lang}', type: 'popup', width: 1280, height: 560 })`);
-  const dia = await attachPage('docs-shot-tabnav.html');
-  await sleep(600);
-  await shot(dia, `tabnav.${lang}`, 1280, 560);
-  await sw(`(async () => {
-    const tabs = await chrome.tabs.query({});
-    for (const t of tabs) if (t.url?.includes('docs-shot-tabnav')) {
-      const win = await chrome.windows.get(t.windowId);
-      await chrome.windows.remove(win.id).catch(() => {});
-    }
-  })()`);
-  await sleep(300);
+// 用法：node scripts/docs-shot.mjs        全量
+//       node scripts/docs-shot.mjs tabnav 只重生示意图（快捷键/文案改版时）
+async function shotTabnav() {
+  for (const lang of ['zh', 'en']) {
+    await sw(`chrome.windows.create({ url: 'file://' + ${JSON.stringify(process.cwd())} + '/scripts/docs-shot-tabnav.html?lang=${lang}', type: 'popup', width: 1280, height: 560 })`);
+    const dia = await attachPage('docs-shot-tabnav.html');
+    await sleep(600);
+    await shot(dia, `tabnav.${lang}`, 1280, 560);
+    await sw(`(async () => {
+      const tabs = await chrome.tabs.query({});
+      for (const t of tabs) if (t.url?.includes('docs-shot-tabnav')) {
+        const win = await chrome.windows.get(t.windowId);
+        await chrome.windows.remove(win.id).catch(() => {});
+      }
+    })()`);
+    await sleep(300);
+  }
 }
 
 srvDemo.close();
 srvNew.close();
+await shotTabnav();
 close();
 console.log('DONE');

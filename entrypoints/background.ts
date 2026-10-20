@@ -21,7 +21,7 @@ function trackLastActiveTab(): void {
   });
 }
 
-/** Alt+↑/↓：按视觉顺序切换到前/后一个组，折叠其他组，不环绕 */
+/** Alt+H/L：按视觉顺序切换到前/后一个组，折叠其他组，不环绕 */
 async function switchGroup(direction: -1 | 1): Promise<void> {
   const [active] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (active?.id === undefined || active.windowId === undefined) return;
@@ -51,7 +51,7 @@ async function switchGroup(direction: -1 | 1): Promise<void> {
   );
 }
 
-/** Alt+Shift+←/→：当前组（含隐式组）内左/右切换标签，不跨组、不环绕 */
+/** Alt+J/K：当前组（含隐式组）内左/右切换标签，不跨组、不环绕 */
 async function switchTab(direction: -1 | 1): Promise<void> {
   const [active] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (active?.id === undefined || active.windowId === undefined) return;

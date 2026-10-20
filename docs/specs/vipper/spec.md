@@ -15,8 +15,10 @@ vipper 是一个 Chrome MV3 扩展，目标用户是作者本人（Arch Linux + 
 
 | Hyprland | Chrome (vipper) | 语义 |
 |---|---|---|
-| Super+↑/↓ 切换 workspace | **Alt+↑/↓** | 切换标签组 |
-| Super+←/→ 切换窗口 | **Alt+Shift+←/→** | 组内切换标签 |
+| Super+↑/↓ 切换 workspace | **Alt+H/L** | 切换标签组（H=上一个，L=下一个） |
+| Super+←/→ 切换窗口 | **Alt+J/K** | 组内切换标签（J=向左，K=向右） |
+
+> 2026-10-20 快捷键改版：初版为 Alt+↑/↓ + Alt+Shift+←/→，改为 vim 风格 Alt+H/L + Alt+J/K（R1 的备选方案转正）。命令名与语义不变。
 
 ### 已确认语义
 
@@ -167,7 +169,7 @@ chrome.storage.local 是 LevelDB 键值库（声明 `unlimitedStorage` 去配额
 
 ## 关键约束（Chrome 平台限制）
 
-1. `Alt+←/→` 是 Chrome 保留的历史导航键，**扩展不可覆盖** → 组内切换改用 `Alt+Shift+←/→`
+1. `Alt+←/→` 是 Chrome 保留的历史导航键，**扩展不可覆盖**；方向键方案初版用 `Alt+Shift+←/→` 绕开，2026-10-20 起整体改为 vim 风格字母键（H/L/J/K），天然无此冲突
 2. manifest 的 `suggested_key` **上限 4 个**，标签导航已用满 → `Alt+.` 和 `Alt+P` 需安装后在 `chrome://extensions/shortcuts` **手动绑定一次**（写入安装说明）
 3. `Ctrl+Alt` 组合因 AltGr 冲突被禁止
 4. content script 无法注入 `chrome://` 页面、新标签页、Web Store

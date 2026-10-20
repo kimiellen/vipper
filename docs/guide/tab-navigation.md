@@ -12,10 +12,10 @@ vipper brings tiling-window-manager navigation into Chrome: **groups on one axis
 
 | Key | Action | Semantics |
 |---|---|---|
-| `Alt+↑` / `Alt+↓` | Previous / next **group** | Like switching workspaces |
-| `Alt+Shift+←` / `Alt+Shift+→` | Previous / next **tab within the group** | Like switching windows |
+| `Alt+H` / `Alt+L` | Previous / next **group** | Like switching workspaces |
+| `Alt+J` / `Alt+K` | Previous / next **tab within the group** | Like switching windows |
 
-> `Alt+←/→` is reserved by Chrome for history navigation and cannot be overridden by extensions — that's why the in-group keys carry `Shift`.
+> The defaults are vim-style letter keys: `H/L` move between groups, `J/K` move within a group. They avoid `Alt+←/→`, which Chrome reserves for history navigation and extensions cannot override. All four can be remapped in `chrome://extensions/shortcuts`.
 
 ## Exact semantics
 
