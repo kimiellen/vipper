@@ -8,3 +8,19 @@ node_modules/
 .fake-home/
 tmp/
 .chrome-shot-profile/
+
+# 开源防护：环境/密钥文件（凭据绝不入库）
+.env
+.env.*
+
+# 日志（pnpm-debug.log、验收脚本输出等）
+*.log
+
+# tsc 增量构建缓存
+*.tsbuildinfo
+
+# 操作系统与编辑器
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
