@@ -183,6 +183,10 @@ let filtered: IndexEntry[] = [];
 let mainReady = false;
 let editing: string | null | false = false; // false=展示态；null=新建；否则为条目 id
 
+/** 过滤选择的会话状态键（spec：关窗重开恢复，浏览器重启复位） */
+const UI_STATE_KEY = 'ui:wuiFilters';
+interface WuiFilterState { tags: string[]; links: string[] }
+
 // ---------- 过滤与结果表 ----------
 
 function applyFilters(): IndexEntry[] {
@@ -1082,6 +1086,26 @@ function syncSeg(sel: string, value: string): void {
 
 // ---------- 过滤下拉 ----------
 
+/** 恢复上次 TAGS/LINS 选择；按当前管理表剔除已删除的 id，避免残留过滤隐藏全部结果 */
+async function loadFilterState(): Promise<void> {
+  const saved = (await chrome.storage.session.get(UI_STATE_KEY))[UI_STATE_KEY] as
+    | Partial<WuiFilterState>
+    | undefined;
+  const validTags = new Set(tags.map((x) => x.id));
+  const validLinks = new Set(links.map((x) => x.id));
+  selTags.clear();
+  selLinks.clear();
+  for (const id of saved?.tags ?? []) if (validTags.has(id)) selTags.add(id);
+  for (const id of saved?.links ?? []) if (validLinks.has(id)) selLinks.add(id);
+  saveFilterState(); // 把剔除失效 id 后的集合写回，避免会话状态长期残留
+}
+
+function saveFilterState(): void {
+  void chrome.storage.session.set({
+    [UI_STATE_KEY]: { tags: [...selTags], links: [...selLinks] } satisfies WuiFilterState,
+  });
+}
+
 function renderFilterPops(): void {
   const tagPop = $('#tag-filter-pop');
   tagPop.innerHTML = '';
@@ -1094,6 +1118,7 @@ function renderFilterPops(): void {
     cb.addEventListener('change', () => {
       if (cb.checked) selTags.add(tag.id);
       else selTags.delete(tag.id);
+      saveFilterState();
       renderResults();
       void renderDetail();
     });
@@ -1112,6 +1137,7 @@ function renderFilterPops(): void {
     cb.addEventListener('change', () => {
       if (cb.checked) selLinks.add(l.id);
       else selLinks.delete(l.id);
+      saveFilterState();
       renderResults();
       void renderDetail();
     });
@@ -1348,6 +1374,7 @@ document.querySelectorAll('.set-head').forEach((h) => {
 
 async function initMain(): Promise<void> {
   await reloadData();
+  await loadFilterState();
   renderFilterPops();
   renderResults();
   void renderDetail();

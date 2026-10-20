@@ -212,3 +212,12 @@
 - [x] `showPicker` 的 panel 设为可聚焦并 `focus()`；关闭菜单（选定/Esc）时把焦点还给打开前的 `document.activeElement`（通常是 iframe 元素，浏览器会恢复其内部焦点）
 - [x] 扩展 `scripts/m17-verify.mjs`：焦点在跨域 iframe 内时，菜单展示、接管顶层焦点、↓+Enter 完成选择并填充
 - [x] 验证：m17 18/18、m19 8/8、m5 7/7、m13 28/28、m16 9/9 回归 + 真站 Apple 实测焦点在 iframe 内时 ↓+Enter 填充第 2 个账号 + `pnpm typecheck` / `pnpm build`
+
+## M21：wui TAGS/LINS 过滤选择会话内记忆（2026-10-20）
+
+> 起因：Alt+. 关窗再开会重新创建 wui 页面，TAGS/LINS 过滤选择丢失；希望重新唤醒后仍是上次的过滤视图。spec 决策见「交互流程」第 1 条。
+
+- [x] TAGS/LINS 选中项写入 `chrome.storage.session`（`ui:wuiFilters`）：关窗重开/页面重载恢复，浏览器重启复位；不恢复搜索词与 active/archived
+- [x] 恢复时按当前 tag/linkedInfo 表剔除已删除的 id，避免残留过滤把结果全部隐藏
+- [x] 新增 `scripts/m21-verify.mjs`：选中后关窗重开仍保持、取消后重开仍为空、失效 tag 被剔除、状态只落 session 不落 local
+- [x] 验证：`scripts/m21-verify.mjs` 11/11 通过（关窗重开保持勾选与结果、取消后保持空、已删除 tag 被剔除、状态只落 session）+ m9c 11/11、m9d 15/15、m10 15/15、m12 26/26 回归 + `pnpm typecheck` / `pnpm build`
