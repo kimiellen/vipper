@@ -556,11 +556,65 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   #url-menu .menu-item.on { background: var(--accent-soft); color: var(--accent); }
+
+  /* ===== groups 视图（Feature 3：标签组管理页） =====
+     三段式：顶部 chips 行（占满整行，行尾新建按钮 + 视图切换）
+     → 下方左右平分（左 = 选中组管理栏，右 = 书签搜索栏）。
+     左管理栏顶部下压，为选中 chip → 管理栏的连接线留空间；
+     连接线与管理栏边框用选中组颜色（JS 内联 var(--cat-*)，跟随主题）。 */
+  .page-groups { height: 100%; display: flex; flex-direction: column; }
+  .gp-chips-row {
+    flex: none; display: flex; align-items: center; gap: var(--space-2);
+    padding: var(--space-3) var(--space-4) 0;
+  }
+  .gp-chips {
+    flex: 1; min-width: 0; display: flex; gap: var(--space-2);
+    overflow-x: auto; scrollbar-width: none; padding: var(--space-1) 0;
+  }
+  .gp-chips::-webkit-scrollbar { display: none; }
+  /* 溢出时左右边缘渐隐（由 JS 按 scrollWidth 切换） */
+  .gp-chips.overflowing {
+    mask-image: linear-gradient(to right, transparent, #000 32px, #000 calc(100% - 32px), transparent);
+  }
+  .gp-chip {
+    flex: none; display: inline-flex; align-items: center;
+    padding: var(--space-1) var(--space-3); border-radius: var(--radius-md);
+    border: 1px solid transparent; cursor: pointer; user-select: none;
+    font-size: var(--text-sm); white-space: nowrap;
+  }
+  .gp-chip.selected { border-color: currentColor; font-weight: var(--weight-semibold); }
+  /* 新建组内联表单：名称输入 + 9 色圆点 + ✓/✕ */
+  #gp-new { display: flex; align-items: center; gap: var(--space-2); }
+  #gp-new-name { width: 140px; }
+  .gp-dot {
+    width: 18px; height: 18px; border-radius: var(--radius-full);
+    border: 2px solid transparent; padding: 0; cursor: pointer; flex: none;
+  }
+  .gp-dot.on { border-color: var(--fg); }
+  .gp-main {
+    flex: 1; min-height: 0; display: grid;
+    grid-template-columns: 1fr 1fr; gap: var(--space-4);
+    padding: 0 var(--space-4) var(--space-4);
+  }
+  .gp-left { display: flex; flex-direction: column; min-height: 0; }
+  /* 连接区：选中 chip 正下方到管理栏顶边的竖线（位置由 JS 按 chip 中心计算） */
+  .gp-connector { flex: none; height: 24px; position: relative; }
+  .gp-connector-line { position: absolute; top: 0; bottom: 0; width: 2px; transform: translateX(-50%); }
+  .gp-panel {
+    flex: 1; min-height: 0; display: flex; flex-direction: column;
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+  }
+  .gp-panel-head { flex: none; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
+  .gp-entries { flex: 1; min-height: 0; overflow-y: auto; padding: var(--space-2); }
+  /* 右栏：顶部与 chips 行平齐（不占连接区高度） */
+  .gp-right { display: flex; flex-direction: column; gap: var(--space-2); min-height: 0; }
+  .gp-results { flex: 1; min-height: 0; overflow-y: auto; }
 </style>
 </head>
 <body>
 
-<div class="page">
+<div class="page" id="page-bookmarks">
 
   <!-- 顶行工具栏 -->
   <div class="toolbar">
@@ -635,6 +689,45 @@
       <div class="blk-body" id="contents-edit" hidden></div>
     </div>
 
+  </div>
+</div>
+
+<!-- groups 视图（Feature 3：标签组管理页，hash #groups 进入） -->
+<div class="page-groups" id="page-groups" hidden>
+
+  <!-- 顶部 chips 行：占满整行，行尾 = 新建按钮 + 视图切换 -->
+  <div class="gp-chips-row">
+    <div class="gp-chips" id="gp-chips"></div>
+    <div id="gp-new" hidden>
+      <input class="input" id="gp-new-name" type="text" />
+      <div id="gp-new-colors"></div>
+      <button class="btn btn-primary btn-sm" id="gp-new-ok">✓</button>
+      <button class="btn btn-ghost btn-sm" id="gp-new-cancel">✕</button>
+    </div>
+    <button class="btn btn-primary" id="gp-add" data-zh="＋ 标签组" data-en="＋ Tab Group">＋ 标签组</button>
+    <div class="seg" id="view-seg">
+      <button class="seg-btn" data-view="bookmarks" data-zh="书签" data-en="Bookmarks">书签</button>
+      <button class="seg-btn" data-view="groups" data-zh="标签组" data-en="Groups">标签组</button>
+    </div>
+  </div>
+
+  <!-- 下方左右平分：左 = 选中组管理栏（顶部下压留连接线空间），右 = 书签搜索栏（与 chips 行平齐） -->
+  <div class="gp-main">
+    <div class="gp-left">
+      <div class="gp-connector"><div class="gp-connector-line" id="gp-connector-line" hidden></div></div>
+      <div class="gp-panel" id="gp-panel">
+        <div class="gp-panel-head">
+          <button class="btn btn-ghost btn-sm" id="gp-add-tab" data-zh="＋ 添加页面" data-en="＋ Add Tab">＋ 添加页面</button>
+        </div>
+        <div class="gp-entries" id="gp-entries"></div>
+      </div>
+    </div>
+    <div class="gp-right">
+      <input class="input" id="gp-search" type="text"
+             placeholder="搜索书签，回车加入当前组…"
+             data-zh-ph="搜索书签，回车加入当前组…" data-en-ph="Search bookmarks, Enter to add…" />
+      <div class="gp-results" id="gp-results"></div>
+    </div>
   </div>
 </div>
 

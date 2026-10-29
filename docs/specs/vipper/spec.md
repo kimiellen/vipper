@@ -167,10 +167,52 @@ chrome.storage.local 是 LevelDB 键值库（声明 `unlimitedStorage` 去配额
 - 三块各自内部滚动：书签多时只滚 results，Settings 与 contents 同理；results 表头在内部滚动时吸顶
 - results 的基础信息列单行展示（书签名 / tags / linkedInfos 均不换行、不撑开表格）；内容超出单元格时在两侧裁切渐隐，悬停可查看完整内容。理由：多 tag、多关联信息时保持行高一致与全局视图
 
+## Feature 3：标签组管理页（2026-10-29 定稿）
+
+### 目标与背景
+
+- 痛点：浏览器关闭后要重开标签组，必须新建默认页 → 显示书签栏 → 点击保存的组，链路长
+- **硬约束**：Chrome 没有 API 枚举书签栏里的 saved tab groups（`chrome.tabGroups.query` 只返回当前打开的组）→ vipper **自建标签组快照库**，与 Chrome saved groups 是两套数据
+- Alt+, 呼出 wui 弹窗直达 **groups 视图**；组的创建、编辑、打开都在此视图完成
+
+### 数据模型
+
+- `storage.local`：`grp:<id>` 每组一条 + `idx:groups` 索引（沿用 vault 拆分布局）；无敏感信息，不加密
+- Group：`id / title / color（Chrome tabGroups 9 色枚举）/ entries[] / createdAt / updatedAt`
+- Entry：`id / url / title / locked`；`locked=true` 的条目冻结，不参与浏览器侧回流，跳转/关闭均不改写，下次打开组时以快照为准重建
+
+### 交互（草图 2026-10-29 确认；键盘流 2026-10-29 补充）
+
+- **顶部**：组 chips 横排，chip 着色用组的 Chrome 颜色；`+add tab groups` 新建（命名 + 9 色选择）
+- **chips 溢出**：chips 总宽超过页面时横向滚动，左右边缘渐隐提示（不撑破页面宽度）
+- **布局三段式**（2026-10-29 细化）：
+  1. **顶部 chips 行**：占满整行，展示全部组 chips，行尾为 `+add tab group` 按钮
+  2. **下方左右平分**：左 = 选中组的管理栏（条目列表），右 = 书签搜索栏
+  3. 管理栏**顶部下压**，为选中 chip 与管理栏之间的**连接线**留出空间；右侧搜索栏顶部可与 chips 行平齐
+  4. **连接线 + 管理栏边框**均使用当前选中组的颜色，随选中切换变色
+- **选中 vs 打开**：单击 chip 仅选中（左栏显示条目供编辑），**回车才在浏览器中打开**整个组
+- **`/` 键光标切换**：在 chips 行与右栏搜索框之间切换光标焦点
+  - 光标在 chips：←/→ 移动选中；初始位置 = **最后一次回车打开过的组**（持久化到 storage.local，跨重启保留）
+  - 光标在搜索框：正常输入过滤；↑/↓ 移动搜索结果选中；**回车 = 追加到当前选中组条目列表末尾**
+- **左栏**：当前组的条目列表；`+add tab` 二选一（手动输入 URL / 抓取浏览器当前活动标签）；每条目右侧锁定、删除按钮；长按拖动排序
+- **右栏**：复用 wui 书签搜索 + TAGS/LINS 过滤；**只列出 urls 非空的条目**（纯记录型书签无页面可加，2026-10-29 补充）；回车添加（见上）；多 URL 书签回车进二级菜单选 URL（M3 同款）
+
+### 同步模型（双向实时）
+
+- 组打开时在 `chrome.storage.session` 建立 `tabId ↔ entryId` 映射（SW 事件驱动，不依赖内存态）
+- **浏览器 → 管理页**：`tabs.onUpdated`（同 tabId URL 变化 = 该条目跳转，改写 entry.url）；`tabs.onRemoved`（= 条目删除）；`tabs.onAttached/onDetached` 或 groupId 变化（= 条目进出组）；锁定条目全部豁免
+- **管理页 → 浏览器**（组当前打开时实时生效）：删条目 → `tabs.remove`；拖动排序 → `tabs.move`；添加条目 → `tabs.create` + `tabs.group` 入组
+- **冷启动重建**：回车打开 = 批量 `tabs.create`（按 entries 顺序）+ `tabs.group` + `tabGroups.update(color/title)`，随后建立映射
+
+### 技术路径
+
+- wui 加视图路由（书签视图 / groups 视图），Alt+, 打开 wui 直达 groups；复用 tokens.css 主题、`launcherSize.ts` 弹窗尺寸、vault 搜索/TAGS/LINS 组件
+- Alt+, 命令无 suggested_key（配额已满），安装后手动绑定，写入 docs/install.md
+
 ## 关键约束（Chrome 平台限制）
 
 1. `Alt+←/→` 是 Chrome 保留的历史导航键，**扩展不可覆盖**；方向键方案初版用 `Alt+Shift+←/→` 绕开，2026-10-20 起整体改为 vim 风格字母键（H/L/J/K），天然无此冲突
-2. manifest 的 `suggested_key` **上限 4 个**，标签导航已用满 → `Alt+.` 和 `Alt+P` 需安装后在 `chrome://extensions/shortcuts` **手动绑定一次**（写入安装说明）
+2. manifest 的 `suggested_key` **上限 4 个**，标签导航已用满 → `Alt+.`、`Alt+P`、`Alt+,` 需安装后在 `chrome://extensions/shortcuts` **手动绑定一次**（写入安装说明）
 3. `Ctrl+Alt` 组合因 AltGr 冲突被禁止
 4. content script 无法注入 `chrome://` 页面、新标签页、Web Store
 

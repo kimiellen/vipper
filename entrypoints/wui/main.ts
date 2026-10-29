@@ -7,10 +7,13 @@
  * - Settings：常规（语言/配色/用户名与密码生成器/超时锁定/自动归档）、tags、linkedInfos、备份（导入导出）
  * - 解锁门控：覆盖层三态路由（创建/解锁/直达），角落主题/语言切换（锁定态可用且持久化）
  * - 主题 dark/light/system 与语言 zh/en 持久化到 meta:settings
+ * - groups 视图（#groups，Feature 3）：标签组管理页——顶部 chips 行（新建/选中/←→/回车打开），
+ *   左管理栏（条目列表），右书签搜索；`/` 在 chips 与搜索框间切换光标
  */
 
 import * as keychain from '../../utils/keychain';
 import * as vault from '../../utils/vault';
+import * as groups from '../../utils/groups';
 import { filterIndex } from '../../utils/search';
 import { genPassword, genUsername } from '../../utils/generator';
 import type { Bookmark, IndexEntry, LinkedInfo, Tag, TagColor, VaultRecord } from '../../utils/vault';
@@ -71,6 +74,9 @@ const T = {
     zh: '数据导出为明文 JSON 文件（用于本地 git 备份）。导入 = 全量恢复：清空本地数据后写入备份内容，需谨慎操作。',
     en: 'Export all data (bookmarks, tags, linkedInfos) as plain JSON for local git backup. Import = full restore: local data is replaced entirely.',
   },
+  noGroups: { zh: '＋ 新建一个标签组开始', en: '＋ Create a tab group to start' },
+  noEntries: { zh: '该组还没有页面', en: 'No pages in this group yet' },
+  groupNamePh: { zh: '组名', en: 'Group name' },
 } as const;
 
 /** 纯文案键（值为 {zh,en} 字符串）；函数型文案直接用 T.key[lang](...) */
@@ -1194,6 +1200,211 @@ function openSelected(): void {
   }
 }
 
+// ---------- groups 视图（Feature 3：标签组管理页；hash #groups 进入） ----------
+
+type ViewMode = 'bookmarks' | 'groups';
+let viewMode: ViewMode = location.hash === '#groups' ? 'groups' : 'bookmarks';
+let groupIdx: groups.GroupIndexEntry[] = [];
+let selectedGroupId: string | null = null;
+let newGroupColor: groups.GroupColor = 'blue';
+
+function switchView(v: ViewMode): void {
+  viewMode = v;
+  history.replaceState(null, '', v === 'groups' ? '#groups' : location.pathname);
+  applyViewMode();
+}
+
+function applyViewMode(): void {
+  $('#page-bookmarks').hidden = viewMode !== 'bookmarks';
+  $('#page-groups').hidden = viewMode !== 'groups';
+  document.querySelectorAll('#view-seg .seg-btn').forEach((b) => {
+    b.classList.toggle('active', (b as HTMLElement).dataset.view === viewMode);
+  });
+  if (viewMode === 'groups') void renderGroupsView();
+  else $('#search').focus();
+}
+
+async function renderGroupsView(): Promise<void> {
+  groupIdx = await groups.listGroups();
+  // 初始选中 = 最后一次回车打开过的组（失效则回退到第一个）
+  if (!groupIdx.some((g) => g.id === selectedGroupId)) {
+    const last = await groups.getLastOpenedGroupId();
+    selectedGroupId = (groupIdx.some((g) => g.id === last) ? last : groupIdx[0]?.id) ?? null;
+  }
+  renderGroupChips();
+  renderGroupPanel();
+}
+
+function renderGroupChips(): void {
+  const box = $('#gp-chips');
+  box.innerHTML = '';
+  for (const g of groupIdx) {
+    const chip = el('span', 'gp-chip', g.title);
+    chip.dataset.id = g.id;
+    const colorVar = `var(${groups.GROUP_COLOR_VARS[g.color]})`;
+    chip.style.background = `color-mix(in srgb, ${colorVar} 14%, transparent)`;
+    chip.style.color = colorVar;
+    if (g.id === selectedGroupId) chip.classList.add('selected');
+    chip.addEventListener('click', () => selectGroup(g.id));
+    box.append(chip);
+  }
+  box.classList.toggle('overflowing', box.scrollWidth > box.clientWidth + 1);
+  updateGroupAccents();
+}
+
+function selectGroup(id: string): void {
+  selectedGroupId = id;
+  renderGroupChips();
+  renderGroupPanel();
+  document
+    .querySelector(`#gp-chips [data-id="${id}"]`)
+    ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+
+/** 连接线 + 管理栏边框跟随选中组颜色；连接线对齐选中 chip 中心（滚出 chips 视口时隐藏） */
+function updateGroupAccents(): void {
+  const sel = groupIdx.find((g) => g.id === selectedGroupId);
+  const line = $('#gp-connector-line');
+  if (!sel) {
+    $('#gp-panel').style.borderColor = '';
+    line.hidden = true;
+    return;
+  }
+  const colorVar = `var(${groups.GROUP_COLOR_VARS[sel.color]})`;
+  $('#gp-panel').style.borderColor = colorVar;
+  const chip = document.querySelector<HTMLElement>(`#gp-chips [data-id="${sel.id}"]`);
+  if (!chip) {
+    line.hidden = true;
+    return;
+  }
+  const chipsBox = $('#gp-chips').getBoundingClientRect();
+  const leftBox = $('.gp-left').getBoundingClientRect();
+  const r = chip.getBoundingClientRect();
+  const cx = r.left + r.width / 2;
+  if (cx < chipsBox.left || cx > chipsBox.right) {
+    line.hidden = true;
+    return;
+  }
+  line.hidden = false;
+  line.style.background = colorVar;
+  line.style.left = `${cx - leftBox.left}px`;
+}
+
+function renderGroupPanel(): void {
+  const sel = groupIdx.find((g) => g.id === selectedGroupId);
+  ($('#gp-add-tab') as HTMLButtonElement).disabled = !sel;
+  const box = $('#gp-entries');
+  box.innerHTML = '';
+  if (!sel) {
+    box.append(el('div', 'empty', t('noGroups')));
+    return;
+  }
+  if (sel.entryCount === 0) box.append(el('div', 'empty', t('noEntries')));
+  // 条目列表渲染与操作（锁定/删除/拖动排序）= M27
+}
+
+const newGroupOpen = (): boolean => !$('#gp-new').hidden;
+
+function openNewGroupForm(): void {
+  $('#gp-add').hidden = true;
+  $('#gp-new').hidden = false;
+  const name = $('#gp-new-name') as HTMLInputElement;
+  name.value = '';
+  name.placeholder = t('groupNamePh');
+  name.style.borderColor = '';
+  const colors = $('#gp-new-colors');
+  colors.innerHTML = '';
+  for (const c of groups.GROUP_COLORS) {
+    const dot = el('button', `gp-dot${c === newGroupColor ? ' on' : ''}`);
+    dot.style.background = `var(${groups.GROUP_COLOR_VARS[c]})`;
+    dot.title = c;
+    dot.addEventListener('click', () => {
+      newGroupColor = c;
+      colors.querySelectorAll('.gp-dot').forEach((d) => d.classList.toggle('on', d === dot));
+    });
+    colors.append(dot);
+  }
+  name.focus();
+}
+
+function closeNewGroupForm(): void {
+  $('#gp-new').hidden = true;
+  $('#gp-add').hidden = false;
+}
+
+async function confirmNewGroup(): Promise<void> {
+  const name = $('#gp-new-name') as HTMLInputElement;
+  try {
+    const g = await groups.addGroup({ title: name.value, color: newGroupColor });
+    closeNewGroupForm();
+    await renderGroupsView();
+    selectGroup(g.id);
+  } catch {
+    name.style.borderColor = 'var(--danger)'; // 组名为空
+  }
+}
+
+/** groups 键盘流：`/` 在 chips 与搜索框间切换光标；chips 上 ←/→ 移动选中；Esc 逐层退出 */
+function handleGroupsKey(e: KeyboardEvent): void {
+  if (newGroupOpen()) {
+    if (e.key === 'Escape') {
+      closeNewGroupForm();
+      e.preventDefault();
+    }
+    return; // 表单内输入不劫持（Enter 由输入框自身监听提交）
+  }
+  const search = $('#gp-search') as HTMLInputElement;
+  const inSearch = document.activeElement === search;
+  if (e.key === '/') {
+    // 搜索框为空时 `/` 退回 chips；非空时按普通字符输入
+    if (inSearch && search.value === '') {
+      search.blur();
+      e.preventDefault();
+    } else if (!inSearch && !(document.activeElement instanceof HTMLInputElement)) {
+      search.focus();
+      e.preventDefault();
+    }
+    return;
+  }
+  if (inSearch) {
+    if (e.key === 'Escape') {
+      search.blur();
+      e.preventDefault();
+    }
+    return; // 输入过滤 / ↑↓ 选中 / 回车追加到组 = M31
+  }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    moveGroupSelection(e.key === 'ArrowRight' ? 1 : -1);
+    e.preventDefault();
+  } else if (e.key === 'Escape') {
+    window.close();
+  }
+  // Enter 在浏览器中打开选中组 = M28
+}
+
+function moveGroupSelection(delta: number): void {
+  if (groupIdx.length === 0) return;
+  const cur = groupIdx.findIndex((g) => g.id === selectedGroupId);
+  const next = Math.min(groupIdx.length - 1, Math.max(0, (cur === -1 ? 0 : cur) + delta));
+  selectGroup(groupIdx[next]!.id);
+}
+
+$('#gp-add').addEventListener('click', openNewGroupForm);
+$('#gp-new-cancel').addEventListener('click', closeNewGroupForm);
+$('#gp-new-ok').addEventListener('click', () => void confirmNewGroup());
+$('#gp-new-name').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    void confirmNewGroup();
+  }
+});
+$('#view-seg').addEventListener('click', (e) => {
+  const btn = (e.target as HTMLElement).closest<HTMLElement>('.seg-btn');
+  if (btn?.dataset.view) switchView(btn.dataset.view as ViewMode);
+});
+$('#gp-chips').addEventListener('scroll', updateGroupAccents);
+window.addEventListener('resize', updateGroupAccents);
+
 // ---------- 键盘导航（↓ 进列表、↑/↓ 移动、回车打开、Esc 取消/关闭） ----------
 
 function moveSelection(delta: number): void {
@@ -1225,6 +1436,10 @@ function ensureSelectionVisible(): void {
 
 document.addEventListener('keydown', (e) => {
   if (!mainReady) return;
+  if (viewMode === 'groups') {
+    handleGroupsKey(e);
+    return;
+  }
   if (submenu) {
     if (e.key === 'ArrowDown') moveSubmenu(1);
     else if (e.key === 'ArrowUp') moveSubmenu(-1);
@@ -1380,7 +1595,7 @@ async function initMain(): Promise<void> {
   void renderDetail();
   renderSettings();
   mainReady = true;
-  $('#search').focus();
+  applyViewMode(); // bookmarks：聚焦搜索框；groups：渲染 chips 并选中上次打开的组
 }
 
 settings = await keychain.getSettings();

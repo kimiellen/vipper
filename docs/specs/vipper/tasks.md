@@ -260,3 +260,55 @@
 - [x] wxt.config.ts：4 个 suggested_key 改为 Alt+H / Alt+L / Alt+J / Alt+K
 - [x] 文档同步：spec 操作映射 + 关键约束、docs/install.md、README（中英）、tab-navigation 手册（中英）、示意图与 tabnav 配图重生成
 - [x] 验证：`pnpm typecheck` / `pnpm build` 通过；Chromium + CDP 实测 `chrome.commands.getAll()` 4 键新绑定全部生效；M1/M2 回归通过（命令名不变，行为语义不变）
+
+# Feature 3：标签组管理页（spec 2026-10-29 定稿）
+
+## M26：数据模型 + 视图路由 + 组 chips ✅（2026-10-29）
+
+- [x] groups 数据模型与 storage 层（`utils/groups.ts`）：`grp:<id>` + `idx:groups` 索引；Group(id/title/color/entries[]/createdAt/updatedAt)、Entry(id/url/title/locked)；空组名/非法颜色拒绝
+- [x] wui 视图路由：hash `#groups` 直达 + chips 行尾 view-seg 双向切换；书签视图零改动
+- [x] 三段式布局骨架：顶部 chips 行占满整行（行尾 `＋ 标签组`）；下方左右平分（左管理栏 / 右搜索栏）；左管理栏顶部下压 24px 留连接线空间；连接线 + 管理栏边框用选中组颜色（对齐 chip 中心，滚出视口隐藏）
+- [x] 组 chips 渲染（9 色映射到 Catppuccin token，跟随主题）、新建组（内联表单：命名 + 9 色圆点，空名拒绝、Esc 取消）、单击选中
+- [x] chips 溢出横向滚动 + 左右边缘渐隐（mask-image，JS 按 scrollWidth 切换）
+- [x] `/` 键在 chips 行与搜索框之间切换光标（搜索非空时按普通字符输入）；chips 上 ←/→ 移动不越界；初始选中 = 最后一次回车打开过的组（storage.local `meta:lastOpenedGroup`）
+- [x] 验证：`scripts/m26-verify.mjs` 27/27 通过 + `pnpm typecheck` / `pnpm build` + m21 11/11、m9d 15/15 回归
+  - 备注：`+add tab` 按钮已入骨架（M27 接行为）；组色用 Catppuccin token 近似 Chrome 9 色（设计系统 token 唯一来源约束）
+
+## M27：左栏条目管理
+
+- [ ] 条目列表渲染（url/title、锁定/删除按钮）
+- [ ] `+add tab` 二选一：手动输入 URL / 抓取浏览器当前活动标签
+- [ ] 锁定、删除操作
+- [ ] 长按拖动排序
+- [ ] 验证：`scripts/m27-verify.mjs` + 回归
+
+## M28：回车打开组
+
+- [ ] 批量 `tabs.create`（按 entries 顺序）+ `tabs.group` + `tabGroups.update(color/title)`
+- [ ] storage.session 建立 tabId ↔ entryId 映射
+- [ ] 记录最后打开的组（M26 的光标初始位置数据源）
+- [ ] 验证：`scripts/m28-verify.mjs`（真实浏览器组核对）+ 回归
+
+## M29：浏览器 → 管理页回流
+
+- [ ] `tabs.onUpdated`：同 tabId URL 变化 = 条目跳转，改写 entry.url
+- [ ] `tabs.onRemoved` = 条目删除；groupId 变化 = 条目进出组
+- [ ] 锁定条目全部豁免
+- [ ] 验证：`scripts/m29-verify.mjs` + 回归
+
+## M30：管理页 → 浏览器同步
+
+- [ ] 删条目 → `tabs.remove`；拖动排序 → `tabs.move`；添加条目 → `tabs.create` + 入组（组打开时实时）
+- [ ] 验证：`scripts/m30-verify.mjs` + 回归
+
+## M31：右栏书签搜索接入
+
+- [ ] 复用 wui 搜索 + TAGS/LINS；只列 urls 非空条目
+- [ ] 搜索框输入过滤、↑/↓ 选中、回车追加到当前组末尾；多 URL 书签二级菜单选 URL
+- [ ] 验证：`scripts/m31-verify.mjs` + 回归
+
+## M32：Alt+, 命令 + 收尾
+
+- [ ] manifest 声明命令（无 suggested_key）+ SW 接线（打开 wui 直达 groups 视图）
+- [ ] docs/install.md 手动绑键说明；README 同步
+- [ ] 验证：`pnpm build` + 全量回归脚本

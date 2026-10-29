@@ -3,6 +3,7 @@ import { hostnameOf, matchUrl } from '../utils/matchUrl';
 import { PASSWORD_SELECTOR, USERNAME_CANDIDATE_SELECTOR } from '../utils/loginForm';
 import * as keychain from '../utils/keychain';
 import * as vault from '../utils/vault';
+import * as groups from '../utils/groups';
 import { computeLauncherSize, type DisplayLike, type WindowLike } from '../utils/launcherSize';
 
 /** 每组上次活跃标签的 storage.session key */
@@ -590,6 +591,7 @@ export default defineBackground(() => {
     dispatch: handleCommand,
     vault,      // M4+ 验收：凭据库 CRUD
     keychain,   // M4+ 验收：解锁/锁定/设置
+    groups,     // M26+ 验收：标签组快照库 CRUD
     launcherSize, // M24 验收：弹窗尺寸计算的真实接线（system.display + 焦点窗口）
     login: {    // M22+ 验收：登录 pending 摘要（不含密码）
       pending: () =>
