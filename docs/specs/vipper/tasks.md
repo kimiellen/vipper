@@ -309,11 +309,13 @@
 - [x] 锁定条目的管理页删除同样关标签（锁定只豁免浏览器→管理页方向）
 - [x] 验证：`scripts/m30-verify.mjs` 9/9 通过 + m26 27/27、m27 13/13、m28 9/9、m29 12/12、m9d 15/15 回归 + `pnpm typecheck` / `pnpm build`
 
-## M31：右栏书签搜索接入
+## M31：右栏书签搜索接入 ✅（2026-10-29）
 
-- [ ] 复用 wui 搜索 + TAGS/LINS；只列 urls 非空条目
-- [ ] 搜索框输入过滤、↑/↓ 选中、回车追加到当前组末尾；多 URL 书签二级菜单选 URL
-- [ ] 验证：`scripts/m31-verify.mjs` + 回归
+- [x] 右栏结果列表：复用 `filterIndex`（含拼音）；只列 urls 非空的 active 条目（纯记录型/归档不列）；lastUsedAt 降序与书签视图一致
+- [x] TAGS/LINS 下拉复用：`renderFilterPops` 泛化渲染到两个视图的容器，共享 selTags/selLinks（M21 会话记忆同样生效）
+- [x] 搜索键盘流：输入过滤、↑/↓ 选中、回车追加到当前组末尾；未选组时面板头提示
+- [x] 多 URL 书签二级菜单：`showSubmenu` 重构为回调式（书签打开 / 加组共用），keydown 分支前移为全局模态
+- [x] 验证：`scripts/m31-verify.mjs` 12/12 通过 + m9d 15/15、m21 11/11、m26 27/27、m27 13/13、m30 9/9 回归 + `pnpm typecheck` / `pnpm build`
 
 ## M32：Alt+, 命令 + 收尾
 

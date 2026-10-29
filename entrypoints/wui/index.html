@@ -639,7 +639,22 @@
   .gp-add-form .input { min-width: 0; }
   /* 右栏：顶部与 chips 行平齐（不占连接区高度） */
   .gp-right { display: flex; flex-direction: column; gap: var(--space-2); min-height: 0; }
+  .gp-filter-row { flex: none; display: flex; gap: var(--space-2); align-items: center; }
+  .gp-filter-row #gp-search { flex: 1; min-width: 0; }
   .gp-results { flex: 1; min-height: 0; overflow-y: auto; }
+  /* 右栏搜索结果行：点击/回车加入当前组 */
+  .gp-result {
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); cursor: pointer;
+  }
+  .gp-result:hover { background: var(--bg-subtle); }
+  .gp-result.selected { background: var(--accent-soft); }
+  .gp-result-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .gp-result-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gp-result-url {
+    font-size: var(--text-xs); color: var(--fg-muted);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
 </style>
 </head>
 <body>
@@ -758,9 +773,19 @@
       </div>
     </div>
     <div class="gp-right">
-      <input class="input" id="gp-search" type="text"
-             placeholder="搜索书签，回车加入当前组…"
-             data-zh-ph="搜索书签，回车加入当前组…" data-en-ph="Search bookmarks, Enter to add…" />
+      <div class="gp-filter-row">
+        <input class="input" id="gp-search" type="text"
+               placeholder="搜索书签，回车加入当前组…"
+               data-zh-ph="搜索书签，回车加入当前组…" data-en-ph="Search bookmarks, Enter to add…" />
+        <details class="msel" id="gp-tag-filter">
+          <summary>TAGS ▾</summary>
+          <div class="msel-pop pop-row" id="gp-tag-filter-pop"></div>
+        </details>
+        <details class="msel" id="gp-link-filter">
+          <summary>LINS ▾</summary>
+          <div class="msel-pop" id="gp-link-filter-pop"></div>
+        </details>
+      </div>
       <div class="gp-results" id="gp-results"></div>
     </div>
   </div>

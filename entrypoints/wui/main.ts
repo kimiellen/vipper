@@ -83,6 +83,7 @@ const T = {
   unlockEntry: { zh: '取消锁定', en: 'Unlock' },
   delEntry: { zh: '删除页面', en: 'Remove page' },
   grabFail: { zh: '找不到来源标签页', en: 'No source tab found' },
+  noGroupSel: { zh: '先在上方选择一个标签组', en: 'Select a tab group first' },
 } as const;
 
 /** 纯文案键（值为 {zh,en} 字符串）；函数型文案直接用 T.key[lang](...) */
@@ -201,13 +202,12 @@ interface WuiFilterState { tags: string[]; links: string[] }
 
 // ---------- 过滤与结果表 ----------
 
+/** TAGS/LINS 选中集合的 AND 过滤（书签视图与 groups 右栏共用） */
+const matchTagLinkFilters = (e: IndexEntry): boolean =>
+  [...selTags].every((x) => e.tags.includes(x)) && [...selLinks].every((x) => e.linkedInfos.includes(x));
+
 function applyFilters(): IndexEntry[] {
-  return filterIndex(idx, query).filter(
-    (e) =>
-      e.status === statusFilter &&
-      [...selTags].every((x) => e.tags.includes(x)) &&
-      [...selLinks].every((x) => e.linkedInfos.includes(x)),
-  );
+  return filterIndex(idx, query).filter((e) => e.status === statusFilter && matchTagLinkFilters(e));
 }
 
 function renderResults(): void {
@@ -1119,42 +1119,46 @@ function saveFilterState(): void {
 }
 
 function renderFilterPops(): void {
-  const tagPop = $('#tag-filter-pop');
-  tagPop.innerHTML = '';
-  if (tags.length === 0) tagPop.append(el('div', 'none', t('empty')));
-  for (const tag of tags) {
-    const label = document.createElement('label');
-    const cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.checked = selTags.has(tag.id);
-    cb.addEventListener('change', () => {
-      if (cb.checked) selTags.add(tag.id);
-      else selTags.delete(tag.id);
-      saveFilterState();
-      renderResults();
-      void renderDetail();
-    });
-    label.append(cb, tagChip(tag));
-    tagPop.append(label);
+  /** 勾选变化：两个视图的结果都刷新（共享 selTags/selLinks） */
+  const onChange = () => {
+    saveFilterState();
+    renderResults();
+    void renderDetail();
+    renderGpResults();
+  };
+  for (const pop of [$('#tag-filter-pop'), $('#gp-tag-filter-pop')]) {
+    pop.innerHTML = '';
+    if (tags.length === 0) pop.append(el('div', 'none', t('empty')));
+    for (const tag of tags) {
+      const label = document.createElement('label');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = selTags.has(tag.id);
+      cb.addEventListener('change', () => {
+        if (cb.checked) selTags.add(tag.id);
+        else selTags.delete(tag.id);
+        onChange();
+      });
+      label.append(cb, tagChip(tag));
+      pop.append(label);
+    }
   }
-
-  const linkPop = $('#link-filter-pop');
-  linkPop.innerHTML = '';
-  if (links.length === 0) linkPop.append(el('div', 'none', t('empty')));
-  for (const l of links) {
-    const label = document.createElement('label');
-    const cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.checked = selLinks.has(l.id);
-    cb.addEventListener('change', () => {
-      if (cb.checked) selLinks.add(l.id);
-      else selLinks.delete(l.id);
-      saveFilterState();
-      renderResults();
-      void renderDetail();
-    });
-    label.append(cb, document.createTextNode(l.name));
-    linkPop.append(label);
+  for (const pop of [$('#link-filter-pop'), $('#gp-link-filter-pop')]) {
+    pop.innerHTML = '';
+    if (links.length === 0) pop.append(el('div', 'none', t('empty')));
+    for (const l of links) {
+      const label = document.createElement('label');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = selLinks.has(l.id);
+      cb.addEventListener('change', () => {
+        if (cb.checked) selLinks.add(l.id);
+        else selLinks.delete(l.id);
+        onChange();
+      });
+      label.append(cb, document.createTextNode(l.name));
+      pop.append(label);
+    }
   }
 }
 
@@ -1166,15 +1170,16 @@ async function reloadData(): Promise<void> {
 
 // ---------- 打开书签（回车 → 经 background 在来源组打开并关窗） ----------
 
-let submenu: { urls: vault.BookmarkUrl[]; idx: number; bookmarkId: string } | null = null;
+let submenu: { urls: vault.BookmarkUrl[]; idx: number; onPick: (url: string) => void } | null = null;
 
 function openUrl(url: string, bookmarkId: string): void {
   void chrome.runtime.sendMessage({ type: 'vipper:open', url, bookmarkId });
   // 窗口由 background 收到消息后关闭
 }
 
-function showSubmenu(entry: IndexEntry): void {
-  submenu = { urls: entry.urls, idx: 0, bookmarkId: entry.id };
+/** 多 URL 二级菜单：书签视图 = 在浏览器打开；groups 视图 = 把所选 URL 加入当前组（M31） */
+function showSubmenu(entry: IndexEntry, onPick: (url: string) => void): void {
+  submenu = { urls: entry.urls, idx: 0, onPick };
   const card = $('#url-menu-card');
   card.innerHTML = '';
   entry.urls.forEach((u, i) => {
@@ -1202,7 +1207,7 @@ function openSelected(): void {
   if (entry.urls.length <= 1) {
     openUrl(entry.urls[0]?.url ?? 'about:blank', entry.id);
   } else {
-    showSubmenu(entry);
+    showSubmenu(entry, (url) => openUrl(url, entry.id));
   }
 }
 
@@ -1239,6 +1244,7 @@ async function renderGroupsView(): Promise<void> {
   }
   renderGroupChips();
   await renderGroupPanel();
+  renderGpResults();
 }
 
 function renderGroupChips(): void {
@@ -1580,8 +1586,14 @@ function handleGroupsKey(e: KeyboardEvent): void {
     if (e.key === 'Escape') {
       search.blur();
       e.preventDefault();
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      moveGpSelection(e.key === 'ArrowDown' ? 1 : -1);
+      e.preventDefault();
+    } else if (e.key === 'Enter') {
+      pickGpSelected();
+      e.preventDefault();
     }
-    return; // 输入过滤 / ↑↓ 选中 / 回车追加到组 = M31
+    return;
   }
   if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
     moveGroupSelection(e.key === 'ArrowRight' ? 1 : -1);
@@ -1600,6 +1612,74 @@ function moveGroupSelection(delta: number): void {
   const cur = groupIdx.findIndex((g) => g.id === selectedGroupId);
   const next = Math.min(groupIdx.length - 1, Math.max(0, (cur === -1 ? 0 : cur) + delta));
   selectGroup(groupIdx[next]!.id);
+}
+
+// ---- groups 右栏：书签搜索（M31；只列 urls 非空的 active 条目） ----
+
+let gpQuery = '';
+let gpFiltered: IndexEntry[] = [];
+let gpSelectedId: string | null = null;
+
+function gpFilteredList(): IndexEntry[] {
+  return filterIndex(idx, gpQuery).filter(
+    (e) => e.status === 'active' && e.urls.length > 0 && matchTagLinkFilters(e),
+  );
+}
+
+function renderGpResults(): void {
+  gpFiltered = gpFilteredList();
+  const box = $('#gp-results');
+  box.innerHTML = '';
+  if (!gpFiltered.some((e) => e.id === gpSelectedId)) gpSelectedId = gpFiltered[0]?.id ?? null;
+  for (const e of gpFiltered) {
+    const row = el('div', `gp-result${e.id === gpSelectedId ? ' selected' : ''}`);
+    row.dataset.id = e.id;
+    const fav = el('img', 'favicon');
+    fav.src = faviconUrl(e.urls[0]!.url);
+    fav.alt = '';
+    const main = el('div', 'gp-result-main');
+    main.append(
+      el('span', 'gp-result-title', e.title),
+      el('span', 'gp-result-url mono', e.urls.map((u) => u.url).join('  ')),
+    );
+    row.append(fav, main);
+    row.addEventListener('click', () => pickGpEntry(e));
+    box.append(row);
+  }
+}
+
+function moveGpSelection(delta: number): void {
+  if (gpFiltered.length === 0) return;
+  const cur = gpFiltered.findIndex((e) => e.id === gpSelectedId);
+  const next = Math.min(gpFiltered.length - 1, Math.max(0, (cur === -1 ? 0 : cur) + delta));
+  gpSelectedId = gpFiltered[next]!.id;
+  renderGpResults();
+  document
+    .querySelector(`#gp-results .gp-result[data-id="${gpSelectedId}"]`)
+    ?.scrollIntoView({ block: 'nearest' });
+}
+
+/** 回车/点击：把书签页面追加到当前选中组末尾（多 URL 进二级菜单选 URL） */
+function pickGpEntry(entry: IndexEntry): void {
+  if (!selectedGroupId) {
+    const hint = $('#gp-head-hint');
+    hint.textContent = t('noGroupSel');
+    hint.hidden = false;
+    setTimeout(() => {
+      hint.hidden = true;
+    }, 2000);
+    return;
+  }
+  if (entry.urls.length <= 1) {
+    void appendEntry({ url: entry.urls[0]!.url, title: entry.title });
+  } else {
+    showSubmenu(entry, (url) => void appendEntry({ url, title: entry.title }));
+  }
+}
+
+function pickGpSelected(): void {
+  const entry = gpFiltered.find((e) => e.id === gpSelectedId);
+  if (entry) pickGpEntry(entry);
 }
 
 $('#gp-add').addEventListener('click', openNewGroupForm);
@@ -1629,6 +1709,10 @@ $('#view-seg').addEventListener('click', (e) => {
 });
 $('#gp-chips').addEventListener('scroll', updateGroupAccents);
 window.addEventListener('resize', updateGroupAccents);
+$('#gp-search').addEventListener('input', (e) => {
+  gpQuery = (e.target as HTMLInputElement).value;
+  renderGpResults();
+});
 
 // SW 回流通知（M29）：选中组被浏览器侧改写时刷新 chips + 面板
 chrome.runtime.onMessage.addListener((msg) => {
@@ -1668,17 +1752,21 @@ function ensureSelectionVisible(): void {
 
 document.addEventListener('keydown', (e) => {
   if (!mainReady) return;
-  if (viewMode === 'groups') {
-    handleGroupsKey(e);
-    return;
-  }
+  // 二级菜单是全局模态（书签打开 / groups 加组共用），先于视图分支
   if (submenu) {
     if (e.key === 'ArrowDown') moveSubmenu(1);
     else if (e.key === 'ArrowUp') moveSubmenu(-1);
-    else if (e.key === 'Enter') openUrl(submenu.urls[submenu.idx]!.url, submenu.bookmarkId);
-    else if (e.key === 'Escape') hideSubmenu();
+    else if (e.key === 'Enter') {
+      const s = submenu;
+      hideSubmenu();
+      s.onPick(s.urls[s.idx]!.url);
+    } else if (e.key === 'Escape') hideSubmenu();
     else return;
     e.preventDefault();
+    return;
+  }
+  if (viewMode === 'groups') {
+    handleGroupsKey(e);
     return;
   }
   if (editing !== false) {
