@@ -317,8 +317,10 @@
 - [x] 多 URL 书签二级菜单：`showSubmenu` 重构为回调式（书签打开 / 加组共用），keydown 分支前移为全局模态
 - [x] 验证：`scripts/m31-verify.mjs` 12/12 通过 + m9d 15/15、m21 11/11、m26 27/27、m27 13/13、m30 9/9 回归 + `pnpm typecheck` / `pnpm build`
 
-## M32：Alt+, 命令 + 收尾
+## M32：Alt+, 命令 + 收尾 ✅（2026-10-29）
 
 - [x] manifest 声明 `open-groups` 命令（无 suggested_key）+ SW 接线（`openGroupsLauncher`：直达 wui.html#groups，toggle 语义同 Alt+.）；docs/install.md 绑键说明——**提前到 2026-10-29 完成**（用户实测需要），CDP 实测命令注册/呼出/toggle 关闭通过
-- [ ] README 同步
-- [ ] 验证：全量回归脚本
+- [x] README 中英同步：三工具定位、标签组管理器特性段、`Alt+,` 快捷键表、手动绑键数量改为三个
+- [x] 全量回归运行器 `scripts/verify-all.mjs`（`pnpm verify`）：每脚本独立 Chromium 进程组 + 独立 profile、180s 硬超时、失败打印详情；AGENTS.md 补一行用法
+- [x] 验证：`node scripts/verify-all.mjs` 全量 **26/26 里程碑脚本通过**（上半 13 + 下半 13，批次游走型抖动已由进程组回收修复）+ `pnpm typecheck` / `pnpm build`
+  - 备注：运行器初版复用同一 profile + 单进程 kill，长序列偶发卡死/异常（m9c/m28/m31 各一次，均无法单独复现）；改为进程组 kill 后全量两批一次通过

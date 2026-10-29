@@ -36,5 +36,6 @@ HOME=$PWD/.fake-home chromium --headless=new \
 - MV3 service worker 是事件驱动的，headless 下 target 不可见时用浏览器级 CDP `Target.setDiscoverTargets` 发现
 - `scripts/m16-verify.mjs` 是特例：启动时**去掉** `--load-extension`、追加 `--enable-unsafe-extension-debugging`；脚本先打开登录页，再用 CDP `Extensions.loadUnpacked` 加载扩展，用于验证旧页面补注入
 - 沙箱内 `pnpm add` 需要 `--store-dir=$PWD/.pnpm-store`
+- 全量回归：`node scripts/verify-all.mjs`（或指定里程碑如 `... m26 m27`）——每个脚本独立 Chromium 进程组 + 独立 profile、180s 硬超时；失败时打印完整错误
 - 真机按键行为（快捷键冲突等）无法自动化，需用户在 Chrome 中手动验收
 - 手动验收按键时：必须先打开 vipper 卡片的 Service Worker DevTools 再按键——SW 30 秒休眠会断开控制台，断开后按键日志不可见（M0 已踩过此坑）

@@ -15,12 +15,13 @@
 
 ![vipper manager UI](docs/guide/assets/main.en.png)
 
-vipper is a Chrome Manifest V3 extension that combines two everyday tools in one keyboard-first package:
+vipper is a Chrome Manifest V3 extension that combines three everyday tools in one keyboard-first package:
 
 1. **Tab switcher** — two-dimensional keyboard navigation across tab groups (`Alt+H/L` between groups, `Alt+J/K` within a group)
-2. **Bookmark + password manager** — an encrypted vault for bookmarks, accounts, and private notes, fully independent of Chrome's built-in systems, with one-key autofill and automatic save-on-login
+2. **Tab group manager** — your own snapshot library of tab groups (`Alt+,`): reopen a whole group after a browser restart, keep it in sync with the live Chrome group, and freeze pages you don't want overwritten
+3. **Bookmark + password manager** — an encrypted vault for bookmarks, accounts, and private notes, fully independent of Chrome's built-in systems, with one-key autofill and automatic save-on-login
 
-Everything is driven by four-arrow-key thinking: open, search, fill, and organize without leaving the keyboard.
+Everything is driven by keyboard-first thinking: open, search, fill, and organize without leaving the keyboard.
 
 ## Features
 
@@ -30,6 +31,16 @@ Everything is driven by four-arrow-key thinking: open, search, fill, and organiz
 - A contiguous run of ungrouped tabs acts as an implicit group — plain tabs join the navigation too
 - Each group remembers its last-active tab; switching collapses all other groups
 - No wrap-around, scoped to the current window — multiple Chrome windows never interfere
+
+**Tab group manager**
+
+- `Alt+,` opens the group manager: a row of colored group chips plus the selected group's pages and a bookmark search panel
+- Each group is a **vipper-owned snapshot** (name + one of Chrome's 9 group colors + ordered pages) — reopening rebuilds a real Chrome tab group; Chrome's own saved tab groups have no extension API, so the two are independent stores
+- **Live two-way sync** while a group is open: pages added / closed / navigated / dragged in or out of the Chrome group flow back into the snapshot, and edits here (remove, reorder, add) act on the browser tabs immediately
+- **Lock a page** to freeze it: closing or navigating it in the browser never overwrites the snapshot, so next open still has it
+- Closing a single tab removes its page; closing the window or the whole group only clears the live mapping — the snapshot survives, which is the whole point after a browser restart
+- `←/→` walks the chips, `Enter` opens the group, `/` jumps between chips and search; pinyin search (same index as the bookmark vault), `↑/↓` to pick a result, `Enter` appends it to the group
+- `+add tab` takes a URL by hand or grabs the current tab; long-press to drag pages into order
 
 **Bookmark + password manager**
 
@@ -58,9 +69,10 @@ Everything is driven by four-arrow-key thinking: open, search, fill, and organiz
 | `Alt+H` / `Alt+L` | Switch to previous / next tab group |
 | `Alt+J` / `Alt+K` | Switch tab within the group |
 | `Alt+.` | Toggle the manager window (bind once, see installation) |
+| `Alt+,` | Toggle the tab group manager (bind once) |
 | `Alt+P` | Fill credentials on the current login page (bind once) |
 
-> Chrome caps an extension at 4 preset shortcuts, so `Alt+.` and `Alt+P` are bound manually in `chrome://extensions/shortcuts` — a one-time, 30-second step.
+> Chrome caps an extension at 4 preset shortcuts, so `Alt+.`, `Alt+,` and `Alt+P` are bound manually in `chrome://extensions/shortcuts` — a one-time, 30-second step.
 
 ## Prerequisites (Chrome side)
 
@@ -68,7 +80,7 @@ vipper does not take over Chrome's native systems — configure these to your li
 
 - **Tab groups are a native Chrome feature**: right-click any tab → "Add tab to new group". Enabling "Save and sync tab groups" in Chrome settings saves groups to the bookmark bar and syncs them across devices — fully independent of vipper's own bookmark vault
 - **Native bookmarks and password manager keep working**: vipper stores bookmarks / credentials completely separately and neither disables nor reads Chrome's counterparts. Whether Chrome's own "save password" prompt stays on is your choice under Settings → Autofill and passwords → Google Password Manager
-- **Shortcut conflicts**: if the four navigation keys (`Alt+H/J/K/L`) or the two manual keys (`Alt+.` / `Alt+P`) clash with other extensions, adjust them in `chrome://extensions/shortcuts`
+- **Shortcut conflicts**: if the four navigation keys (`Alt+H/J/K/L`) or the three manual keys (`Alt+.` / `Alt+,` / `Alt+P`) clash with other extensions, adjust them in `chrome://extensions/shortcuts`
 
 ## Installation
 
@@ -77,7 +89,7 @@ pnpm install
 pnpm build
 ```
 
-Then load `.output/chrome-mv3` via `chrome://extensions` → Developer mode → **Load unpacked**, and bind the two shortcuts.
+Then load `.output/chrome-mv3` via `chrome://extensions` → Developer mode → **Load unpacked**, and bind the three manual shortcuts.
 
 Full walkthrough — including the Hyprland window rules that make the popup float and center on Wayland: **[Installation guide](docs/guide/installation.md)**
 
