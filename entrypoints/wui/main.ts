@@ -1267,33 +1267,52 @@ function selectGroup(id: string): void {
     ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 
-/** 连接线 + 管理栏边框跟随选中组颜色；连接线对齐选中 chip 中心（滚出 chips 视口时隐藏） */
+/**
+ * 连接折线 + 管理栏边框跟随选中组颜色。
+ * 折线路径固定为：选中 chip 底部中点 → chips 行与两栏间空档的中线 → 管理栏顶边中点（两个 90° 转弯）。
+ * 画在覆盖整个 groups 页面的 SVG 上，chips 溢出到右半区时落点仍是管理栏中线，不会跑进右栏。
+ * 选中 chip 滚出 chips 视口时隐藏。
+ */
 function updateGroupAccents(): void {
+  if (viewMode !== 'groups') return; // resize/scroll 监听常驻，书签视图下不必算
   const sel = groupIdx.find((g) => g.id === selectedGroupId);
-  const line = $('#gp-connector-line');
+  // SVG 元素没有 hidden IDL 属性（那是 HTMLElement 的），显隐必须走属性
+  const link = document.querySelector<SVGSVGElement>('#gp-link')!;
+  const path = document.querySelector<SVGPolylineElement>('#gp-link-path')!;
+  const hide = () => link.setAttribute('hidden', '');
   if (!sel) {
     $('#gp-panel').style.borderColor = '';
-    line.hidden = true;
+    hide();
     return;
   }
   const colorVar = `var(${groups.GROUP_COLOR_VARS[sel.color]})`;
   $('#gp-panel').style.borderColor = colorVar;
   const chip = document.querySelector<HTMLElement>(`#gp-chips [data-id="${sel.id}"]`);
   if (!chip) {
-    line.hidden = true;
+    hide();
     return;
   }
   const chipsBox = $('#gp-chips').getBoundingClientRect();
-  const leftBox = $('.gp-left').getBoundingClientRect();
-  const r = chip.getBoundingClientRect();
-  const cx = r.left + r.width / 2;
+  const chipBox = chip.getBoundingClientRect();
+  const cx = chipBox.left + chipBox.width / 2;
   if (cx < chipsBox.left || cx > chipsBox.right) {
-    line.hidden = true;
+    hide();
     return;
   }
-  line.hidden = false;
-  line.style.background = colorVar;
-  line.style.left = `${cx - leftBox.left}px`;
+  const pageBox = $('#page-groups').getBoundingClientRect();
+  const panelBox = $('#gp-panel').getBoundingClientRect();
+  const mainBox = $('.gp-main').getBoundingClientRect();
+  const x1 = cx - pageBox.left;
+  // 90° 折点取 chips 行下沿与两栏上沿之间空档的中线：水平段必须走在两栏上方，
+  // 否则会压到右栏（右栏顶边比左管理栏高 36px）的边框与内容
+  const y0 = chipBox.bottom - pageBox.top;
+  const y2 = panelBox.top - pageBox.top;
+  const channel = Math.max(2, (mainBox.top - chipBox.bottom) / 2);
+  const y1 = Math.min(y2 - 1, y0 + channel);
+  const x2 = panelBox.left + panelBox.width / 2 - pageBox.left;
+  path.setAttribute('points', `${x1},${y0} ${x1},${y1} ${x2},${y1} ${x2},${y2}`);
+  path.style.stroke = colorVar;
+  link.removeAttribute('hidden');
 }
 
 /** 当前选中组的完整详情（条目操作的直接数据源） */

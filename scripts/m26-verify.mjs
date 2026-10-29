@@ -6,8 +6,9 @@
  * - storage 层：addGroup/saveGroup/listGroups/getGroup 读写与索引同步；空组名/非法颜色拒绝；lastOpened 持久化
  * - 视图路由：#groups 显示 groups 视图、隐藏书签视图；无 hash 时书签视图不受影响
  * - chips：渲染（组色）、单击选中、新建组（命名 + 9 色）、Esc 取消、溢出渐隐
- * - 布局：三段式（chips 行占满整行；右栏顶部高于左管理栏，连接区 24px）
- * - 组色 accents：连接线 + 管理栏边框跟随选中组颜色；连接线对齐选中 chip 中心
+ * - 布局：三段式（chips 行占满整行；右栏顶部高于左管理栏，连接区 36px）
+ * - 组色 accents：连接折线 + 管理栏边框跟随选中组颜色
+ * - 连接折线几何：chip 底中 → 空档中线 → 管理栏顶边中点；chips 溢出、选中 chip 在右半区时落点不变
  * - 键盘：`/` 在 chips 与搜索框间切换光标（搜索非空时输入普通字符）；←/→ 移动且不越界
  * - 初始选中 = 最后一次回车打开过的组（storage.local）
  */
@@ -87,6 +88,28 @@ const chips = (page) => page(`JSON.stringify([...document.querySelectorAll('.gp-
   color: c.style.color,
 })))`).then(JSON.parse);
 
+/** 连接折线几何（points 坐标为相对 groups 页面的 CSS px） */
+const linkGeom = (page) => page(`(() => {
+  const svg = document.querySelector('#gp-link');
+  const path = document.querySelector('#gp-link-path');
+  const chip = document.querySelector('.gp-chip.selected');
+  const chipBox = chip.getBoundingClientRect();
+  const panel = document.querySelector('#gp-panel');
+  const panelBox = panel.getBoundingClientRect();
+  const pageBox = document.querySelector('#page-groups').getBoundingClientRect();
+  return JSON.stringify({
+    hidden: svg.hasAttribute('hidden'),
+    stroke: path.style.stroke,
+    border: panel.style.borderColor,
+    points: (path.getAttribute('points') || '').split(' ').filter(Boolean)
+      .map((p) => p.split(',').map(Number)),
+    chip: { cx: chipBox.left + chipBox.width / 2, bottom: chipBox.bottom },
+    chipsRight: document.querySelector('#gp-chips').getBoundingClientRect().right,
+    panel: { cx: (panelBox.left + panelBox.right) / 2, top: panelBox.top },
+    page: { left: pageBox.left, top: pageBox.top },
+  });
+})()`).then(JSON.parse);
+
 let page = await openGroups();
 
 check('视图路由：#groups 显示 groups 视图、隐藏书签视图', await page(
@@ -117,18 +140,24 @@ let cs = await chips(page);
 check('chips：3 个、标题正确、初始选中 = lastOpened(work)',
   cs.length === 3 && cs[0].title === 'shop2' && cs[1].title === 'work' && cs[1].selected, cs);
 
-check('组色 accents：管理栏边框 + 连接线 = 选中组颜色（work=green）', await page(`(() => {
+check('组色 accents：管理栏边框 + 连接折线 = 选中组颜色（work=green）', await page(`(() => {
   const panel = document.querySelector('#gp-panel');
-  const line = document.querySelector('#gp-connector-line');
+  const svg = document.querySelector('#gp-link');
+  const path = document.querySelector('#gp-link-path');
   return panel.style.borderColor === 'var(--cat-green)'
-    && !line.hidden && line.style.background === 'var(--cat-green)';
+    && !svg.hasAttribute('hidden') && path.style.stroke === 'var(--cat-green)';
 })()`));
 
-check('连接线：水平对齐选中 chip 中心', await page(`(() => {
-  const chip = document.querySelector('.gp-chip.selected').getBoundingClientRect();
-  const line = document.querySelector('#gp-connector-line').getBoundingClientRect();
-  return Math.abs((chip.left + chip.width / 2) - (line.left + line.width / 2)) < 3;
-})()`));
+let link = await linkGeom(page);
+const [start, bend1, bend2, end] = link.points;
+check('连接折线几何：chip 底中 → 空档中线 → 管理栏顶边中点', !link.hidden
+  && link.points.length === 4
+  && Math.abs(start[0] - (link.chip.cx - link.page.left)) < 1
+  && Math.abs(start[1] - (link.chip.bottom - link.page.top)) < 1
+  && Math.abs(end[0] - (link.panel.cx - link.page.left)) < 1
+  && Math.abs(end[1] - (link.panel.top - link.page.top)) < 1
+  && Math.abs(bend1[1] - bend2[1]) < 0.5 && bend1[1] > start[1] && bend1[1] < end[1]
+  && Math.abs(bend1[0] - start[0]) < 0.5 && Math.abs(bend2[0] - end[0]) < 0.5, link);
 
 check('布局：chips 行占满整行；左管理栏顶部下压（连接区 36px）', await page(`(() => {
   const row = document.querySelector('.gp-chips-row').getBoundingClientRect();
@@ -145,7 +174,7 @@ check('单击选中：selected 移动 + 边框/连线变色（shop2=red）', awa
   const chip = document.querySelector('.gp-chip[data-id="${seed.shop}"]');
   return chip.classList.contains('selected')
     && document.querySelector('#gp-panel').style.borderColor === 'var(--cat-red)'
-    && document.querySelector('#gp-connector-line').style.background === 'var(--cat-red)';
+    && document.querySelector('#gp-link-path').style.stroke === 'var(--cat-red)';
 })()`));
 
 // ---- 新建组：命名 + 9 色 ----
@@ -215,6 +244,31 @@ check('溢出：chips 横向滚动 + 边缘渐隐类', await page(`(() => {
   const box = document.querySelector('#gp-chips');
   return box.scrollWidth > box.clientWidth && box.classList.contains('overflowing');
 })()`));
+
+// ---- 回归：chips 溢出、选中 chip 在右半区时，折线落点仍是管理栏顶边中点（曾整条线跑进右栏）----
+await page(`([...document.querySelectorAll('.gp-chip')].at(-1).click())`);
+await sleep(250);
+link = await linkGeom(page);
+const [wStart, , , wEnd] = link.points;
+check('溢出回归：选中 chip 位于右半区', link.chip.cx > link.panel.cx + 100,
+  { chipCx: link.chip.cx, panelCx: link.panel.cx });
+check('溢出回归：折线起点 = chip 底中、终点 = 管理栏顶边中点', !link.hidden
+  && Math.abs(wStart[0] - (link.chip.cx - link.page.left)) < 1
+  && Math.abs(wStart[1] - (link.chip.bottom - link.page.top)) < 1
+  && Math.abs(wEnd[0] - (link.panel.cx - link.page.left)) < 1
+  && Math.abs(wEnd[1] - (link.panel.top - link.page.top)) < 1
+  && wStart[0] <= link.chipsRight - link.page.left, link);
+check('溢出回归：折线颜色 = 选中组颜色', link.stroke === link.border,
+  { stroke: link.stroke, border: link.border });
+
+// ---- 选中 chip 滚出 chips 视口：折线隐藏 ----
+await page(`document.querySelectorAll('.gp-chip')[0].click()`);
+await sleep(200);
+await page(`document.querySelector('#gp-chips').scrollLeft = document.querySelector('#gp-chips').scrollWidth`);
+await sleep(200);
+check('滚动：选中 chip 滚出视口后折线隐藏', await page(
+  `document.querySelector('#gp-link').hasAttribute('hidden')`,
+));
 await closeWui();
 
 // ---- 书签视图回归：无 hash 不受影响 ----
