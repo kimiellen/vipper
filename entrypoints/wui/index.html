@@ -606,7 +606,37 @@
     border-radius: var(--radius-md);
   }
   .gp-panel-head { flex: none; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
+  #gp-add-menu { display: flex; gap: var(--space-2); margin-top: var(--space-2); }
+  .gp-head-hint { margin-left: var(--space-2); font-size: var(--text-xs); color: var(--warning); }
   .gp-entries { flex: 1; min-height: 0; overflow-y: auto; padding: var(--space-2); }
+  /* 条目行：favicon + 标题/url 两行 + 锁定/删除按钮；长按进入拖动 */
+  .gp-entry {
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: var(--space-2); margin-bottom: var(--space-2);
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md);
+  }
+  .gp-entry:hover { background: var(--bg-subtle); }
+  .gp-entry.dragging { opacity: 0.7; outline: 1px dashed var(--accent); user-select: none; }
+  .gp-entry-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .gp-entry-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gp-entry-url {
+    font-size: var(--text-xs); color: var(--fg-muted);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .gp-entry-btn {
+    flex: none; background: none; border: none; cursor: pointer;
+    color: var(--fg-muted); padding: var(--space-1); border-radius: var(--radius-sm);
+  }
+  .gp-entry-btn:hover { color: var(--fg); background: var(--bg-hover); }
+  .gp-entry-lock.on { color: var(--accent); }
+  .gp-entry-del:hover { color: var(--danger); }
+  /* 手动添加条目内联表单 */
+  .gp-add-form {
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: var(--space-2); margin-bottom: var(--space-2);
+    background: var(--bg); border: 1px dashed var(--border-strong); border-radius: var(--radius-md);
+  }
+  .gp-add-form .input { min-width: 0; }
   /* 右栏：顶部与 chips 行平齐（不占连接区高度） */
   .gp-right { display: flex; flex-direction: column; gap: var(--space-2); min-height: 0; }
   .gp-results { flex: 1; min-height: 0; overflow-y: auto; }
@@ -718,6 +748,11 @@
       <div class="gp-panel" id="gp-panel">
         <div class="gp-panel-head">
           <button class="btn btn-ghost btn-sm" id="gp-add-tab" data-zh="＋ 添加页面" data-en="＋ Add Tab">＋ 添加页面</button>
+          <span class="gp-head-hint" id="gp-head-hint" hidden></span>
+          <div id="gp-add-menu" hidden>
+            <button class="btn btn-ghost btn-sm" id="gp-add-manual" data-zh="✎ 手动输入 URL" data-en="✎ Enter URL">✎ 手动输入 URL</button>
+            <button class="btn btn-ghost btn-sm" id="gp-add-grab" data-zh="⇩ 抓取当前标签页" data-en="⇩ Grab current tab">⇩ 抓取当前标签页</button>
+          </div>
         </div>
         <div class="gp-entries" id="gp-entries"></div>
       </div>

@@ -77,6 +77,12 @@ const T = {
   noGroups: { zh: '＋ 新建一个标签组开始', en: '＋ Create a tab group to start' },
   noEntries: { zh: '该组还没有页面', en: 'No pages in this group yet' },
   groupNamePh: { zh: '组名', en: 'Group name' },
+  entryUrlPh: { zh: '页面 URL', en: 'Page URL' },
+  entryTitlePh: { zh: '标题（可空）', en: 'Title (optional)' },
+  lockEntry: { zh: '锁定（不随浏览器侧变化）', en: 'Lock (freeze against browser changes)' },
+  unlockEntry: { zh: '取消锁定', en: 'Unlock' },
+  delEntry: { zh: '删除页面', en: 'Remove page' },
+  grabFail: { zh: '找不到来源标签页', en: 'No source tab found' },
 } as const;
 
 /** 纯文案键（值为 {zh,en} 字符串）；函数型文案直接用 T.key[lang](...) */
@@ -1232,7 +1238,7 @@ async function renderGroupsView(): Promise<void> {
     selectedGroupId = (groupIdx.some((g) => g.id === last) ? last : groupIdx[0]?.id) ?? null;
   }
   renderGroupChips();
-  renderGroupPanel();
+  await renderGroupPanel();
 }
 
 function renderGroupChips(): void {
@@ -1255,7 +1261,7 @@ function renderGroupChips(): void {
 function selectGroup(id: string): void {
   selectedGroupId = id;
   renderGroupChips();
-  renderGroupPanel();
+  void renderGroupPanel();
   document
     .querySelector(`#gp-chips [data-id="${id}"]`)
     ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -1290,17 +1296,203 @@ function updateGroupAccents(): void {
   line.style.left = `${cx - leftBox.left}px`;
 }
 
-function renderGroupPanel(): void {
+/** 当前选中组的完整详情（条目操作的直接数据源） */
+let selectedGroupDef: groups.TabGroupDef | null = null;
+
+async function renderGroupPanel(): Promise<void> {
   const sel = groupIdx.find((g) => g.id === selectedGroupId);
   ($('#gp-add-tab') as HTMLButtonElement).disabled = !sel;
+  closeAddMenu();
   const box = $('#gp-entries');
   box.innerHTML = '';
   if (!sel) {
+    selectedGroupDef = null;
     box.append(el('div', 'empty', t('noGroups')));
     return;
   }
-  if (sel.entryCount === 0) box.append(el('div', 'empty', t('noEntries')));
-  // 条目列表渲染与操作（锁定/删除/拖动排序）= M27
+  const def = await groups.getGroup(sel.id);
+  if (sel.id !== selectedGroupId) return; // await 期间切换了选中，放弃本次渲染
+  selectedGroupDef = def;
+  if (!def || def.entries.length === 0) {
+    box.append(el('div', 'empty', t('noEntries')));
+    return;
+  }
+  for (const entry of def.entries) box.append(entryRow(entry));
+}
+
+function entryRow(entry: groups.GroupEntry): HTMLDivElement {
+  const row = el('div', 'gp-entry');
+  row.dataset.id = entry.id;
+  const fav = el('img', 'favicon');
+  fav.src = faviconUrl(entry.url);
+  fav.alt = '';
+  const main = el('div', 'gp-entry-main');
+  main.append(el('span', 'gp-entry-title', entry.title), el('span', 'gp-entry-url mono', entry.url));
+  const lock = el('button', `gp-entry-btn gp-entry-lock${entry.locked ? ' on' : ''}`, entry.locked ? '🔒' : '🔓');
+  lock.title = entry.locked ? t('unlockEntry') : t('lockEntry');
+  lock.addEventListener('click', () => void toggleEntryLock(entry.id));
+  const del = el('button', 'gp-entry-btn gp-entry-del', '✕');
+  del.title = t('delEntry');
+  del.addEventListener('click', () => void removeEntry(entry.id));
+  row.append(fav, main, lock, del);
+  attachEntryDrag(row);
+  return row;
+}
+
+/** 条目变更的统一出口：写回详情并刷新面板（索引 entryCount 由 saveGroup 同步） */
+async function mutateEntries(fn: (entries: groups.GroupEntry[]) => void): Promise<void> {
+  if (!selectedGroupDef) return;
+  fn(selectedGroupDef.entries);
+  await groups.saveGroup(selectedGroupDef);
+  await renderGroupPanel();
+}
+
+async function toggleEntryLock(entryId: string): Promise<void> {
+  await mutateEntries((entries) => {
+    const e = entries.find((x) => x.id === entryId);
+    if (e) e.locked = !e.locked;
+  });
+}
+
+async function removeEntry(entryId: string): Promise<void> {
+  await mutateEntries((entries) => {
+    const i = entries.findIndex((x) => x.id === entryId);
+    if (i !== -1) entries.splice(i, 1);
+  });
+}
+
+/** 追加条目（组末尾）；无 scheme 的输入补 https:// */
+async function appendEntry(input: { url: string; title: string }): Promise<void> {
+  const url = /^[a-z][a-z0-9+.-]*:/i.test(input.url) ? input.url : `https://${input.url}`;
+  await mutateEntries((entries) => {
+    entries.push({ id: crypto.randomUUID(), url, title: input.title.trim() || url, locked: false });
+  });
+}
+
+// ---- +add tab：二选一菜单（手动输入 / 抓取当前标签页） ----
+
+const addMenuOpen = (): boolean => !$('#gp-add-menu').hidden;
+
+function closeAddMenu(): void {
+  $('#gp-add-menu').hidden = true;
+  closeAddForm();
+}
+
+function openAddMenu(): void {
+  $('#gp-add-menu').hidden = false;
+}
+
+let addFormEl: HTMLDivElement | null = null;
+const addFormOpen = (): boolean => addFormEl !== null;
+
+function openAddForm(): void {
+  closeAddForm();
+  const form = el('div', 'gp-add-form');
+  const url = el('input', 'input') as HTMLInputElement;
+  url.placeholder = t('entryUrlPh');
+  const title = el('input', 'input') as HTMLInputElement;
+  title.placeholder = t('entryTitlePh');
+  const ok = el('button', 'btn btn-primary btn-sm', '✓');
+  const submit = () => {
+    if (!url.value.trim()) {
+      url.style.borderColor = 'var(--danger)';
+      return;
+    }
+    void appendEntry({ url: url.value, title: title.value });
+  };
+  ok.addEventListener('click', submit);
+  for (const input of [url, title]) {
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        submit();
+      }
+    });
+  }
+  const cancel = el('button', 'btn btn-ghost btn-sm', '✕');
+  cancel.addEventListener('click', closeAddForm);
+  form.append(url, title, ok, cancel);
+  $('#gp-entries').prepend(form);
+  addFormEl = form;
+  url.focus();
+}
+
+function closeAddForm(): void {
+  addFormEl?.remove();
+  addFormEl = null;
+}
+
+/** 抓取浏览器当前活动标签：优先弹窗来源窗口，回退最近正常窗口 */
+async function grabCurrentTab(): Promise<void> {
+  let tab: chrome.tabs.Tab | undefined;
+  const src = (await chrome.storage.session.get('launcherSource')).launcherSource as
+    | { windowId?: number }
+    | undefined;
+  if (src?.windowId !== undefined) {
+    [tab] = await chrome.tabs.query({ active: true, windowId: src.windowId });
+  }
+  if (!tab) {
+    // wui 自身是 popup 窗口，正常窗口里的活动标签即用户来源页
+    for (const w of await chrome.windows.getAll({ windowTypes: ['normal'] })) {
+      const [t] = await chrome.tabs.query({ active: true, windowId: w.id });
+      if (t?.url && !t.url.startsWith(chrome.runtime.getURL(''))) {
+        tab = t;
+        break;
+      }
+    }
+  }
+  if (!tab?.url) {
+    const hint = $('#gp-head-hint');
+    hint.textContent = t('grabFail');
+    hint.hidden = false;
+    setTimeout(() => { hint.hidden = true; }, 2000);
+    return;
+  }
+  await appendEntry({ url: tab.url, title: tab.title ?? tab.url });
+}
+
+// ---- 长按拖动排序（400ms 长按进入拖动，指针位置决定插入点） ----
+
+function attachEntryDrag(row: HTMLDivElement): void {
+  row.addEventListener('pointerdown', (e) => {
+    if ((e.target as HTMLElement).closest('button, input')) return; // 按钮/表单不触发拖动
+    let dragging = false;
+    const timer = setTimeout(() => {
+      dragging = true;
+      row.classList.add('dragging');
+    }, 400);
+    const onMove = (ev: PointerEvent) => {
+      if (!dragging) return;
+      const box = $('#gp-entries');
+      const others = [...box.querySelectorAll<HTMLElement>('.gp-entry:not(.dragging)')];
+      const after = others.find((r) => {
+        const rect = r.getBoundingClientRect();
+        return ev.clientY < rect.top + rect.height / 2;
+      });
+      box.insertBefore(row, after ?? null);
+    };
+    const onUp = () => {
+      clearTimeout(timer);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      row.classList.remove('dragging');
+      if (dragging) void persistEntryOrder();
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  });
+}
+
+/** 拖动落点即新顺序：按 DOM 顺序重排 entries 并写回 */
+async function persistEntryOrder(): Promise<void> {
+  if (!selectedGroupDef) return;
+  const order = [...document.querySelectorAll<HTMLElement>('#gp-entries .gp-entry')].map(
+    (r) => r.dataset.id!,
+  );
+  selectedGroupDef.entries.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+  await groups.saveGroup(selectedGroupDef);
 }
 
 const newGroupOpen = (): boolean => !$('#gp-new').hidden;
@@ -1346,12 +1538,13 @@ async function confirmNewGroup(): Promise<void> {
 
 /** groups 键盘流：`/` 在 chips 与搜索框间切换光标；chips 上 ←/→ 移动选中；Esc 逐层退出 */
 function handleGroupsKey(e: KeyboardEvent): void {
-  if (newGroupOpen()) {
+  if (newGroupOpen() || addFormOpen() || addMenuOpen()) {
     if (e.key === 'Escape') {
       closeNewGroupForm();
+      closeAddMenu(); // 内含 closeAddForm
       e.preventDefault();
     }
-    return; // 表单内输入不劫持（Enter 由输入框自身监听提交）
+    return; // 表单/菜单打开时输入不劫持（Enter 由输入框自身监听提交）
   }
   const search = $('#gp-search') as HTMLInputElement;
   const inSearch = document.activeElement === search;
@@ -1390,6 +1583,18 @@ function moveGroupSelection(delta: number): void {
 }
 
 $('#gp-add').addEventListener('click', openNewGroupForm);
+$('#gp-add-tab').addEventListener('click', () => {
+  if (addMenuOpen()) closeAddMenu();
+  else openAddMenu();
+});
+$('#gp-add-manual').addEventListener('click', () => {
+  $('#gp-add-menu').hidden = true;
+  openAddForm();
+});
+$('#gp-add-grab').addEventListener('click', () => {
+  $('#gp-add-menu').hidden = true;
+  void grabCurrentTab();
+});
 $('#gp-new-cancel').addEventListener('click', closeNewGroupForm);
 $('#gp-new-ok').addEventListener('click', () => void confirmNewGroup());
 $('#gp-new-name').addEventListener('keydown', (e) => {

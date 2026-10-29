@@ -274,13 +274,14 @@
 - [x] 验证：`scripts/m26-verify.mjs` 27/27 通过 + `pnpm typecheck` / `pnpm build` + m21 11/11、m9d 15/15 回归
   - 备注：`+add tab` 按钮已入骨架（M27 接行为）；组色用 Catppuccin token 近似 Chrome 9 色（设计系统 token 唯一来源约束）
 
-## M27：左栏条目管理
+## M27：左栏条目管理 ✅（2026-10-29）
 
-- [ ] 条目列表渲染（url/title、锁定/删除按钮）
-- [ ] `+add tab` 二选一：手动输入 URL / 抓取浏览器当前活动标签
-- [ ] 锁定、删除操作
-- [ ] 长按拖动排序
-- [ ] 验证：`scripts/m27-verify.mjs` + 回归
+- [x] 条目列表渲染：favicon + 标题/url 两行 + 锁定（🔓/🔒）/删除按钮（`entryRow`）
+- [x] `+add tab` 二选一菜单：手动输入（内联表单，无 scheme 补 https://，追加到组末尾）/ 抓取浏览器当前活动标签（launcherSource 来源窗口优先，回退最近正常窗口）
+- [x] 锁定、删除操作（`mutateEntries` 统一出口：改详情 → saveGroup → 重渲染）
+- [x] 长按拖动排序：400ms 长按进入拖动，指针位置决定插入点，落点顺序写回 storage
+- [x] Esc 逐层取消（添加表单 → 菜单 → 页面）；表单内 Enter 提交
+- [x] 验证：`scripts/m27-verify.mjs` 13/13 通过 + m26 27/27、m21 11/11、m9d 15/15 回归 + `pnpm typecheck` / `pnpm build`
 
 ## M28：回车打开组
 
