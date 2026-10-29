@@ -4,6 +4,7 @@ import { PASSWORD_SELECTOR, USERNAME_CANDIDATE_SELECTOR } from '../utils/loginFo
 import * as keychain from '../utils/keychain';
 import * as vault from '../utils/vault';
 import * as groups from '../utils/groups';
+import { setupGroupSync } from '../utils/groupSync';
 import { computeLauncherSize, type DisplayLike, type WindowLike } from '../utils/launcherSize';
 
 /** 每组上次活跃标签的 storage.session key */
@@ -670,6 +671,7 @@ function scheduleAutoArchive(): void {
 export default defineBackground(() => {
   trackLastActiveTab();
   handleMessages();
+  setupGroupSync(); // M29：浏览器 → 管理页回流
   scheduleAutoArchive();
   chrome.commands.onCommand.addListener((command) => void handleCommand(command));
 

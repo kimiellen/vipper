@@ -292,12 +292,15 @@
 - [x] wui chips 上 Enter → `vipper:open-group` 消息；SW 完成后关闭弹窗
 - [x] 验证：`scripts/m28-verify.mjs` 9/9 通过（真实 chrome 组核对）+ m26 27/27、m27 13/13、m9d 15/15、m21 11/11 回归 + `pnpm typecheck` / `pnpm build`
 
-## M29：浏览器 → 管理页回流
+## M29：浏览器 → 管理页回流 ✅（2026-10-29）
 
-- [ ] `tabs.onUpdated`：同 tabId URL 变化 = 条目跳转，改写 entry.url
-- [ ] `tabs.onRemoved` = 条目删除；groupId 变化 = 条目进出组
-- [ ] 锁定条目全部豁免
-- [ ] 验证：`scripts/m29-verify.mjs` + 回归
+- [x] `utils/groupSync.ts`：每组 promise 队列串行化读写（防事件交错竞态）；映射存 storage.session 不依赖内存态
+- [x] `tabs.onUpdated(url/title)`：同 tabId 跳转 → 改写未锁定条目 url/标题
+- [x] `tabs.onRemoved`：单个标签关闭 = 未锁定条目删除；`isWindowClosing` = 快照保留仅清映射（spec 关闭语义补注）；`tabGroups.onRemoved` = 映射作废快照保留
+- [x] 进出组：实测 Chrome 154 的 `onUpdated` 会派发 groupId 变化（探针确认），连同 onCreated/onMoved/onAttached/onDetached 去抖 200ms 重扫成员：进组新增条目、出组删未锁定条目、条目顺序对齐浏览器标签顺序
+- [x] 锁定条目全部豁免（跳转/关闭/出组均不改写不删除）
+- [x] 回流写入后 `vipper:group-synced` 消息通知 wui 实时刷新选中组
+- [x] 验证：`scripts/m29-verify.mjs` 12/12 通过（本地 http 服务做真实导航——Chrome 禁止顶层导航到 data: URL）+ m26 27/27、m27 13/13、m28 9/9、m9d 15/15、m21 11/11 回归 + `pnpm typecheck` / `pnpm build`
 
 ## M30：管理页 → 浏览器同步
 

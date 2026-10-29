@@ -136,3 +136,13 @@ export async function getOpenGroupMapping(groupId: string): Promise<OpenGroupMap
 export async function clearOpenGroupMapping(groupId: string): Promise<void> {
   await chrome.storage.session.remove(openKey(groupId));
 }
+
+/** 全部打开态映射（vipperGroupId → mapping）；回流按 tabId/chromeGroupId 反查用 */
+export async function listOpenGroupMappings(): Promise<Record<string, OpenGroupMapping>> {
+  const all = await chrome.storage.session.get(null);
+  const out: Record<string, OpenGroupMapping> = {};
+  for (const [k, v] of Object.entries(all)) {
+    if (k.startsWith('opengrp:')) out[k.slice('opengrp:'.length)] = v as OpenGroupMapping;
+  }
+  return out;
+}

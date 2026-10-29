@@ -1613,6 +1613,13 @@ $('#view-seg').addEventListener('click', (e) => {
 $('#gp-chips').addEventListener('scroll', updateGroupAccents);
 window.addEventListener('resize', updateGroupAccents);
 
+// SW 回流通知（M29）：选中组被浏览器侧改写时刷新 chips + 面板
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg?.type === 'vipper:group-synced' && viewMode === 'groups' && msg.groupId === selectedGroupId) {
+    void renderGroupsView();
+  }
+});
+
 // ---------- 键盘导航（↓ 进列表、↑/↓ 移动、回车打开、Esc 取消/关闭） ----------
 
 function moveSelection(delta: number): void {

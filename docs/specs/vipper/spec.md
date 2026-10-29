@@ -200,7 +200,8 @@ chrome.storage.local 是 LevelDB 键值库（声明 `unlimitedStorage` 去配额
 ### 同步模型（双向实时）
 
 - 组打开时在 `chrome.storage.session` 建立 `tabId ↔ entryId` 映射（SW 事件驱动，不依赖内存态）
-- **浏览器 → 管理页**：`tabs.onUpdated`（同 tabId URL 变化 = 该条目跳转，改写 entry.url）；`tabs.onRemoved`（= 条目删除）；`tabs.onAttached/onDetached` 或 groupId 变化（= 条目进出组）；锁定条目全部豁免
+- **浏览器 → 管理页**：`tabs.onUpdated`（同 tabId URL/标题变化 = 该条目跳转，改写 entry）；`tabs.onRemoved`（单个标签关闭 = 条目删除）；groupId 变化（进组 = 新增条目，出组 = 删除条目，条目顺序对齐浏览器标签顺序）；锁定条目全部豁免
+- **关闭语义**（2026-10-29 补注）：**单个标签关闭才算"删除页面"**；整窗关闭（`onRemoved` 的 `isWindowClosing`）与 chrome 组整体关闭都只让映射作废、**快照完整保留**——否则每次关浏览器都会清空快照，违背 feature 目标
 - **管理页 → 浏览器**（组当前打开时实时生效）：删条目 → `tabs.remove`；拖动排序 → `tabs.move`；添加条目 → `tabs.create` + `tabs.group` 入组
 - **冷启动重建**：回车打开 = 批量 `tabs.create`（按 entries 顺序）+ `tabs.group` + `tabGroups.update(color/title)`，随后建立映射
 
