@@ -309,6 +309,6 @@
 
 ## M32：Alt+, 命令 + 收尾
 
-- [ ] manifest 声明命令（无 suggested_key）+ SW 接线（打开 wui 直达 groups 视图）
-- [ ] docs/install.md 手动绑键说明；README 同步
-- [ ] 验证：`pnpm build` + 全量回归脚本
+- [x] manifest 声明 `open-groups` 命令（无 suggested_key）+ SW 接线（`openGroupsLauncher`：直达 wui.html#groups，toggle 语义同 Alt+.）；docs/install.md 绑键说明——**提前到 2026-10-29 完成**（用户实测需要），CDP 实测命令注册/呼出/toggle 关闭通过
+- [ ] README 同步
+- [ ] 验证：全量回归脚本

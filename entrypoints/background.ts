@@ -88,11 +88,11 @@ async function launcherSize(): Promise<{ width: number; height: number }> {
   return computeLauncherSize(displays, source);
 }
 
-async function createLauncher(): Promise<void> {
-  const wuiUrl = chrome.runtime.getURL('wui.html');
-  // 记录来源标签（窗口 + 所在组），供"回车在来源组打开"使用
+async function createLauncher(url = chrome.runtime.getURL('wui.html')): Promise<void> {
+  const wuiBase = chrome.runtime.getURL('wui.html');
+  // 记录来源标签（窗口 + 所在组），供"回车在来源组打开"使用；来源是 wui 自身（含 #groups）则不记
   const [source] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (source?.windowId !== undefined && source.url !== wuiUrl) {
+  if (source?.windowId !== undefined && !source.url?.startsWith(wuiBase)) {
     await chrome.storage.session.set({
       launcherSource: {
         windowId: source.windowId,
@@ -102,12 +102,24 @@ async function createLauncher(): Promise<void> {
   }
   const { width, height } = await launcherSize();
   await chrome.windows.create({
-    url: wuiUrl,
+    url,
     type: 'popup',
     width,
     height,
     focused: true,
   });
+}
+
+/** Alt+,：呼出 groups 视图（wui.html#groups）。已打开时 toggle 关闭（与 Alt+. 同语义） */
+async function openGroupsLauncher(): Promise<void> {
+  const groupsUrl = chrome.runtime.getURL('wui.html#groups');
+  const existing = (await chrome.windows.getAll({ populate: true }))
+    .find((w) => w.tabs?.some((t) => t.url === groupsUrl));
+  if (existing?.id !== undefined) {
+    await chrome.windows.remove(existing.id);
+    return;
+  }
+  await createLauncher(groupsUrl);
 }
 
 /** Alt+.：呼出 wui 管理页。已打开时纯 toggle 关闭（spec 2026-10-15：Wayland 唤回聚焦不可靠，失焦时连按两次关+开即可重获焦点） */
@@ -569,6 +581,7 @@ async function handleCommand(command: string): Promise<void> {
   if (command === 'tab-prev') await switchTab(-1);
   if (command === 'tab-next') await switchTab(1);
   if (command === 'open-launcher') await openLauncher();
+  if (command === 'open-groups') await openGroupsLauncher();
   if (command === 'autofill') await handleAutofill();
 }
 

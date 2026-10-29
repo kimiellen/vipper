@@ -33,6 +33,9 @@ export default defineConfig({
       'open-launcher': {
         description: '打开书签管理器',
       },
+      'open-groups': {
+        description: '打开标签组管理页（建议绑定 Alt+,）',
+      },
       'autofill': {
         description: '在当前登录页填充账号密码（建议绑定 Alt+P）',
       },

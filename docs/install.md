@@ -10,11 +10,11 @@
 
 标签导航 4 键开箱即用（Alt+H/L、Alt+J/K）。
 
-`Alt+.`（打开书签管理器）因 Chrome 的 suggested_key 上限（4 个）无法预置，**需手动绑定一次**：
+以下命令因 Chrome 的 suggested_key 上限（4 个）无法预置，**需各手动绑定一次**：
 
 1. 打开 `chrome://extensions/shortcuts`
-2. 找到 vipper 的「打开书签管理器」
-3. 点击输入框，按下 `Alt+.` 完成绑定
+2. 「打开书签管理器」→ 点击输入框，按下 `Alt+.`
+3. 「打开标签组管理页」→ 点击输入框，按下 `Alt+,`
 
 > 手动验收按键时注意：先打开 vipper 卡片的 **Service Worker** DevTools 再按键。MV3 service worker 30 秒休眠会断开控制台，断开后日志不可见。
 
