@@ -524,9 +524,83 @@ async function handleAutofill(): Promise<void> {
   await sendCandidates(tab.id, tab.url);
 }
 
+/**
+ * 回车打开 vipper 标签组（spec: 冷启动重建）：按 entries 顺序批量建标签 → 合成 chrome 组
+ * → 落 tabId↔entryId 映射（M29/M30 双向同步用）→ 记为最后打开的组。
+ * 已打开过（映射仍有效）时不重复开，改为激活该组第一个标签。
+ */
+async function openVipperGroup(groupId: string, senderWindowId?: number): Promise<void> {
+  const def = await groups.getGroup(groupId);
+  if (!def || def.entries.length === 0) return;
+
+  // 已打开：chrome 组还在则激活，不重复建标签
+  const existing = await groups.getOpenGroupMapping(groupId);
+  if (existing) {
+    try {
+      const chromeGroup = await chrome.tabGroups.get(existing.chromeGroupId);
+      const firstTabId = Number(Object.keys(existing.tabs)[0]);
+      if (!Number.isNaN(firstTabId)) await chrome.tabs.update(firstTabId, { active: true });
+      await chrome.windows.update(chromeGroup.windowId, { focused: true }).catch(() => {});
+      if (senderWindowId !== undefined) await chrome.windows.remove(senderWindowId);
+      return;
+    } catch {
+      await groups.clearOpenGroupMapping(groupId); // chrome 组已消失，映射作废后走重建
+    }
+  }
+
+  // 目标窗口：弹窗来源窗口优先，回退最近正常窗口，都没有则新建
+  const { launcherSource } = (await chrome.storage.session.get('launcherSource')) as {
+    launcherSource?: { windowId: number };
+  };
+  let windowId: number | undefined;
+  for (const candidate of [launcherSource?.windowId, ...(await chrome.windows.getAll({ windowTypes: ['normal'] })).map((w) => w.id)]) {
+    if (candidate === undefined) continue;
+    try {
+      await chrome.windows.get(candidate);
+      windowId = candidate;
+      break;
+    } catch { /* 窗口已失效，试下一个 */ }
+  }
+
+  // 先关 wui 弹窗再操作：headless Chromium 有 popup 在场时分组会失败的 quirk（M3 同款）
+  if (senderWindowId !== undefined) await chrome.windows.remove(senderWindowId);
+
+  const tabsMap: Record<number, string> = {};
+  const tabIds: number[] = [];
+  if (windowId === undefined) {
+    const win = await chrome.windows.create({ url: def.entries[0]!.url, type: 'normal', focused: true });
+    windowId = win!.id!;
+    const first = win!.tabs?.[0];
+    if (first?.id !== undefined) {
+      tabIds.push(first.id);
+      tabsMap[first.id] = def.entries[0]!.id;
+    }
+    for (const entry of def.entries.slice(1)) {
+      const t = await chrome.tabs.create({ windowId, url: entry.url, active: false });
+      tabIds.push(t.id!);
+      tabsMap[t.id!] = entry.id;
+    }
+  } else {
+    for (const entry of def.entries) {
+      const t = await chrome.tabs.create({ windowId, url: entry.url, active: false });
+      tabIds.push(t.id!);
+      tabsMap[t.id!] = entry.id;
+    }
+  }
+  // tabIds 必然非空（entries 非空已提前返回）；group 的 Promise 返回类型受回调重载干扰需断言
+  const chromeGroupId = (await chrome.tabs.group({ tabIds: tabIds as [number, ...number[]] })) as unknown as number;
+  await chrome.tabGroups.update(chromeGroupId, { title: def.title, color: def.color });
+  await groups.setOpenGroupMapping(groupId, { chromeGroupId, windowId, tabs: tabsMap });
+  await groups.setLastOpenedGroupId(groupId);
+  await chrome.tabs.update(tabIds[0]!, { active: true });
+}
+
 /** wui 管理页与 content script 的消息入口 */
 function handleMessages(): void {
   chrome.runtime.onMessage.addListener((msg, sender) => {
+    if (msg?.type === 'vipper:open-group' && typeof msg.groupId === 'string') {
+      void openVipperGroup(msg.groupId, sender.tab?.windowId);
+    }
     if (msg?.type === 'vipper:open') {
       void (async () => {
         const { launcherSource } = (await chrome.storage.session.get('launcherSource')) as {

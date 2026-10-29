@@ -283,12 +283,14 @@
 - [x] Esc 逐层取消（添加表单 → 菜单 → 页面）；表单内 Enter 提交
 - [x] 验证：`scripts/m27-verify.mjs` 13/13 通过 + m26 27/27、m21 11/11、m9d 15/15 回归 + `pnpm typecheck` / `pnpm build`
 
-## M28：回车打开组
+## M28：回车打开组 ✅（2026-10-29）
 
-- [ ] 批量 `tabs.create`（按 entries 顺序）+ `tabs.group` + `tabGroups.update(color/title)`
-- [ ] storage.session 建立 tabId ↔ entryId 映射
-- [ ] 记录最后打开的组（M26 的光标初始位置数据源）
-- [ ] 验证：`scripts/m28-verify.mjs`（真实浏览器组核对）+ 回归
+- [x] `openVipperGroup`（background）：批量 `tabs.create`（按 entries 顺序）+ `tabs.group` + `tabGroups.update(color/title)`；目标窗口 = 来源窗口 → 最近正常窗口 → 新建窗口；沿用 M3 quirk 先关 wui 弹窗再入组
+- [x] storage.session 建立映射 `opengrp:<id>`（chromeGroupId + windowId + tabId→entryId）
+- [x] 记录最后打开的组（meta:lastOpenedGroup）
+- [x] 重复回车保护：映射有效（chrome 组仍在）时激活既有组，不重复建标签
+- [x] wui chips 上 Enter → `vipper:open-group` 消息；SW 完成后关闭弹窗
+- [x] 验证：`scripts/m28-verify.mjs` 9/9 通过（真实 chrome 组核对）+ m26 27/27、m27 13/13、m9d 15/15、m21 11/11 回归 + `pnpm typecheck` / `pnpm build`
 
 ## M29：浏览器 → 管理页回流
 

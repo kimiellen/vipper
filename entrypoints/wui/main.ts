@@ -1569,10 +1569,13 @@ function handleGroupsKey(e: KeyboardEvent): void {
   if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
     moveGroupSelection(e.key === 'ArrowRight' ? 1 : -1);
     e.preventDefault();
+  } else if (e.key === 'Enter' && selectedGroupId) {
+    // 回车打开组：SW 批量建标签 + 合成 chrome 组后关闭本弹窗
+    void chrome.runtime.sendMessage({ type: 'vipper:open-group', groupId: selectedGroupId });
+    e.preventDefault();
   } else if (e.key === 'Escape') {
     window.close();
   }
-  // Enter 在浏览器中打开选中组 = M28
 }
 
 function moveGroupSelection(delta: number): void {

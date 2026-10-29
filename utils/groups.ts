@@ -113,3 +113,26 @@ export async function getLastOpenedGroupId(): Promise<string | null> {
 export async function setLastOpenedGroupId(id: string): Promise<void> {
   await chrome.storage.local.set({ [LAST_OPENED]: id });
 }
+
+// ---------- 打开态映射（storage.session；SW 事件驱动不依赖内存态，spec: 同步模型） ----------
+
+/** 组打开时的映射：chrome 组 id + tabId → entryId（浏览器↔管理页双向同步的事实来源） */
+export interface OpenGroupMapping {
+  chromeGroupId: number;
+  windowId: number;
+  tabs: Record<number, string>; // tabId → entryId
+}
+
+const openKey = (groupId: string) => `opengrp:${groupId}`;
+
+export async function setOpenGroupMapping(groupId: string, mapping: OpenGroupMapping): Promise<void> {
+  await chrome.storage.session.set({ [openKey(groupId)]: mapping });
+}
+
+export async function getOpenGroupMapping(groupId: string): Promise<OpenGroupMapping | null> {
+  return ((await chrome.storage.session.get(openKey(groupId)))[openKey(groupId)] as OpenGroupMapping | undefined) ?? null;
+}
+
+export async function clearOpenGroupMapping(groupId: string): Promise<void> {
+  await chrome.storage.session.remove(openKey(groupId));
+}
