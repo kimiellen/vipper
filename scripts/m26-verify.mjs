@@ -92,9 +92,26 @@ let page = await openGroups();
 check('视图路由：#groups 显示 groups 视图、隐藏书签视图', await page(
   `!document.querySelector('#page-groups').hidden && document.querySelector('#page-bookmarks').hidden`,
 ));
-check('视图路由：view-seg 激活 groups', await page(
-  `document.querySelector('#view-seg .seg-btn.active')?.dataset.view === 'groups'`,
+check('视图路由：不提供页面内切换按钮（只由快捷键区分）', await page(
+  `document.querySelector('#view-seg') === null`,
 ));
+check('布局：左右两栏等宽（与内容无关）', await page(`(() => {
+  const l = document.querySelector('.gp-left').getBoundingClientRect();
+  const r = document.querySelector('.gp-right').getBoundingClientRect();
+  return Math.abs(l.width - r.width) <= 1;
+})()`));
+check('布局：右侧搜索栏整体带边框（含结果区/输入框/TAGS/LINS）', await page(`(() => {
+  const r = document.querySelector('.gp-right');
+  const cs = getComputedStyle(r);
+  return parseFloat(cs.borderTopWidth) >= 1 && r.querySelector('#gp-search')
+    && r.querySelector('#gp-tag-filter') && r.querySelector('#gp-link-filter')
+    && r.querySelector('#gp-results');
+})()`));
+check('布局：+标签组 按钮与右侧栏有间距（不贴住）', await page(`(() => {
+  const btn = document.querySelector('#gp-add').getBoundingClientRect();
+  const right = document.querySelector('.gp-right').getBoundingClientRect();
+  return right.top - btn.bottom >= 8;
+})()`));
 
 let cs = await chips(page);
 check('chips：3 个、标题正确、初始选中 = lastOpened(work)',
@@ -113,12 +130,12 @@ check('连接线：水平对齐选中 chip 中心', await page(`(() => {
   return Math.abs((chip.left + chip.width / 2) - (line.left + line.width / 2)) < 3;
 })()`));
 
-check('布局：chips 行占满整行；右栏顶部高于左管理栏（连接区下压）', await page(`(() => {
+check('布局：chips 行占满整行；左管理栏顶部下压（连接区 36px）', await page(`(() => {
   const row = document.querySelector('.gp-chips-row').getBoundingClientRect();
   const right = document.querySelector('.gp-right').getBoundingClientRect();
   const panel = document.querySelector('#gp-panel').getBoundingClientRect();
   return Math.abs(row.width - document.documentElement.clientWidth) < 2
-    && panel.top - right.top >= 20;
+    && panel.top - right.top >= 10;
 })()`));
 
 // ---- 单击选中：accents 跟随 ----

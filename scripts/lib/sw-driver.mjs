@@ -57,6 +57,13 @@ export async function connectSW(port = 9333) {
   );
   const sw = await attachEval(swTarget.targetId);
 
+  // SW target 出现时脚本可能还在求值：等调试钩子挂载好，避免首个 __vipper.* 调用报 ReferenceError
+  for (let i = 0; i < 40; i++) {
+    const ready = await sw(`typeof globalThis.__vipper === 'object'`).catch(() => false);
+    if (ready) break;
+    await sleep(150);
+  }
+
   /** 等待并附加到 URL 包含 urlPart 的页面（如扩展弹窗），返回页面内 eval 函数 */
   async function attachPage(urlPart) {
     const t = await waitTarget((x) => x.type === 'page' && x.url.includes(urlPart), `page:${urlPart}`);

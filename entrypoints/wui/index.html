@@ -565,7 +565,8 @@
   .page-groups { height: 100%; display: flex; flex-direction: column; }
   .gp-chips-row {
     flex: none; display: flex; align-items: center; gap: var(--space-2);
-    padding: var(--space-3) var(--space-4) 0;
+    /* 底部留白：chips 行与下方两栏之间拉开距离（右侧搜索栏不再贴着按钮） */
+    padding: var(--space-3) var(--space-4);
   }
   .gp-chips {
     flex: 1; min-width: 0; display: flex; gap: var(--space-2);
@@ -593,21 +594,26 @@
   .gp-dot.on { border-color: var(--fg); }
   .gp-main {
     flex: 1; min-height: 0; display: grid;
-    grid-template-columns: 1fr 1fr; gap: var(--space-4);
+    /* 两栏恒等切分：minmax(0,1fr) 让内容再长也撑不宽那一栏 */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-4);
     padding: 0 var(--space-4) var(--space-4);
   }
-  .gp-left { display: flex; flex-direction: column; min-height: 0; }
-  /* 连接区：选中 chip 正下方到管理栏顶边的竖线（位置由 JS 按 chip 中心计算） */
-  .gp-connector { flex: none; height: 24px; position: relative; }
+  .gp-left { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+  /* 连接区：从选中 chip 下沿（负 margin 吸进 chips 行留白）画到管理栏顶边 */
+  .gp-connector { flex: none; height: 36px; margin-top: calc(-1 * var(--space-3)); position: relative; }
   .gp-connector-line { position: absolute; top: 0; bottom: 0; width: 2px; transform: translateX(-50%); }
   .gp-panel {
     flex: 1; min-height: 0; display: flex; flex-direction: column;
     background: var(--bg-raised); border: 1px solid var(--border);
     border-radius: var(--radius-md);
   }
-  .gp-panel-head { flex: none; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
+  .gp-panel-head {
+    flex: none; display: flex; flex-direction: column; gap: var(--space-2);
+    padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border);
+  }
+  .gp-head-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
   #gp-add-menu { display: flex; gap: var(--space-2); margin-top: var(--space-2); }
-  .gp-head-hint { margin-left: var(--space-2); font-size: var(--text-xs); color: var(--warning); }
+  .gp-head-hint { margin-right: auto; font-size: var(--text-xs); color: var(--warning); }
   .gp-entries { flex: 1; min-height: 0; overflow-y: auto; padding: var(--space-2); }
   /* 条目行：favicon + 标题/url 两行 + 锁定/删除按钮；长按进入拖动 */
   .gp-entry {
@@ -623,13 +629,17 @@
     font-size: var(--text-xs); color: var(--fg-muted);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .gp-entry-btn {
-    flex: none; background: none; border: none; cursor: pointer;
+  .gp-entry-btn, .icon-btn {
+    flex: none; display: inline-flex; align-items: center; justify-content: center;
+    background: none; border: none; cursor: pointer; line-height: 0;
     color: var(--fg-muted); padding: var(--space-1); border-radius: var(--radius-sm);
   }
-  .gp-entry-btn:hover { color: var(--fg); background: var(--bg-hover); }
+  .gp-entry-btn:hover, .icon-btn:hover { color: var(--fg); background: var(--bg-hover); }
   .gp-entry-lock.on { color: var(--accent); }
   .gp-entry-del:hover { color: var(--danger); }
+  /* 删除标签组：首次点击进入确认态（danger 底色），再次点击执行 */
+  .gp-del-group:hover { color: var(--danger); background: var(--danger-soft); }
+  .gp-del-group.confirming { color: var(--danger); background: var(--danger-soft); }
   /* 手动添加条目内联表单 */
   .gp-add-form {
     display: flex; align-items: center; gap: var(--space-2);
@@ -637,8 +647,13 @@
     background: var(--bg); border: 1px dashed var(--border-strong); border-radius: var(--radius-md);
   }
   .gp-add-form .input { min-width: 0; }
-  /* 右栏：顶部与 chips 行平齐（不占连接区高度） */
-  .gp-right { display: flex; flex-direction: column; gap: var(--space-2); min-height: 0; }
+  /* 右栏：整体带边框（参考 wui results 栏），边框包住搜索结果 + 搜索输入框 + TAGS/LINS */
+  .gp-right {
+    display: flex; flex-direction: column; gap: var(--space-2);
+    min-height: 0; min-width: 0;
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius-md); padding: var(--space-2) var(--space-3) var(--space-3);
+  }
   .gp-filter-row { flex: none; display: flex; gap: var(--space-2); align-items: center; }
   .gp-filter-row #gp-search { flex: 1; min-width: 0; }
   .gp-results { flex: 1; min-height: 0; overflow-y: auto; }
@@ -750,10 +765,6 @@
       <button class="btn btn-ghost btn-sm" id="gp-new-cancel">✕</button>
     </div>
     <button class="btn btn-primary" id="gp-add" data-zh="＋ 标签组" data-en="＋ Tab Group">＋ 标签组</button>
-    <div class="seg" id="view-seg">
-      <button class="seg-btn" data-view="bookmarks" data-zh="书签" data-en="Bookmarks">书签</button>
-      <button class="seg-btn" data-view="groups" data-zh="标签组" data-en="Groups">标签组</button>
-    </div>
   </div>
 
   <!-- 下方左右平分：左 = 选中组管理栏（顶部下压留连接线空间），右 = 书签搜索栏（与 chips 行平齐） -->
@@ -762,8 +773,11 @@
       <div class="gp-connector"><div class="gp-connector-line" id="gp-connector-line" hidden></div></div>
       <div class="gp-panel" id="gp-panel">
         <div class="gp-panel-head">
-          <button class="btn btn-ghost btn-sm" id="gp-add-tab" data-zh="＋ 添加页面" data-en="＋ Add Tab">＋ 添加页面</button>
-          <span class="gp-head-hint" id="gp-head-hint" hidden></span>
+          <div class="gp-head-row">
+            <button class="btn btn-ghost btn-sm" id="gp-add-tab" data-zh="＋ 添加页面" data-en="＋ Add Tab">＋ 添加页面</button>
+            <span class="gp-head-hint" id="gp-head-hint" hidden></span>
+            <button class="icon-btn gp-del-group" id="gp-del-group" hidden></button>
+          </div>
           <div id="gp-add-menu" hidden>
             <button class="btn btn-ghost btn-sm" id="gp-add-manual" data-zh="✎ 手动输入 URL" data-en="✎ Enter URL">✎ 手动输入 URL</button>
             <button class="btn btn-ghost btn-sm" id="gp-add-grab" data-zh="⇩ 抓取当前标签页" data-en="⇩ Grab current tab">⇩ 抓取当前标签页</button>

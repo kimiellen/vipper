@@ -84,6 +84,8 @@ const T = {
   delEntry: { zh: '删除页面', en: 'Remove page' },
   grabFail: { zh: '找不到来源标签页', en: 'No source tab found' },
   noGroupSel: { zh: '先在上方选择一个标签组', en: 'Select a tab group first' },
+  delGroup: { zh: '删除此标签组', en: 'Delete this tab group' },
+  delGroupConfirm: { zh: '再次点击确认删除', en: 'Click again to confirm' },
 } as const;
 
 /** 纯文案键（值为 {zh,en} 字符串）；函数型文案直接用 T.key[lang](...) */
@@ -1219,18 +1221,10 @@ let groupIdx: groups.GroupIndexEntry[] = [];
 let selectedGroupId: string | null = null;
 let newGroupColor: groups.GroupColor = 'blue';
 
-function switchView(v: ViewMode): void {
-  viewMode = v;
-  history.replaceState(null, '', v === 'groups' ? '#groups' : location.pathname);
-  applyViewMode();
-}
-
+/** 书签视图 / groups 视图只由快捷键（Alt+. / Alt+,）区分，页面内不提供切换按钮 */
 function applyViewMode(): void {
   $('#page-bookmarks').hidden = viewMode !== 'bookmarks';
   $('#page-groups').hidden = viewMode !== 'groups';
-  document.querySelectorAll('#view-seg .seg-btn').forEach((b) => {
-    b.classList.toggle('active', (b as HTMLElement).dataset.view === viewMode);
-  });
   if (viewMode === 'groups') void renderGroupsView();
   else $('#search').focus();
 }
@@ -1308,6 +1302,8 @@ let selectedGroupDef: groups.TabGroupDef | null = null;
 async function renderGroupPanel(): Promise<void> {
   const sel = groupIdx.find((g) => g.id === selectedGroupId);
   ($('#gp-add-tab') as HTMLButtonElement).disabled = !sel;
+  $('#gp-del-group').hidden = !sel;
+  disarmDeleteGroup();
   closeAddMenu();
   const box = $('#gp-entries');
   box.innerHTML = '';
@@ -1326,6 +1322,36 @@ async function renderGroupPanel(): Promise<void> {
   for (const entry of def.entries) box.append(entryRow(entry));
 }
 
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/** 内联线框图标（16×16，stroke=currentColor）：lock 闭合 / unlock 开启 / trash 删除 */
+function svgIcon(kind: 'lock' | 'unlock' | 'trash'): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  for (const [k, v] of Object.entries({
+    viewBox: '0 0 16 16', width: '16', height: '16',
+    fill: 'none', stroke: 'currentColor', 'stroke-width': '1.5',
+    'stroke-linecap': 'round', 'stroke-linejoin': 'round',
+  })) svg.setAttribute(k, v);
+
+  const path = (d: string) => {
+    const p = document.createElementNS(SVG_NS, 'path');
+    p.setAttribute('d', d);
+    svg.append(p);
+  };
+  if (kind === 'trash') {
+    path('M3 4.5h10M6.5 4.5v-1h3v1M4.6 4.5l.6 8h5.6l.6-8M6.8 7v3.6M9.2 7v3.6');
+    return svg;
+  }
+  const body = document.createElementNS(SVG_NS, 'rect');
+  for (const [k, v] of Object.entries({ x: '3.5', y: '7.5', width: '9', height: '5.5', rx: '1.5' })) {
+    body.setAttribute(k, v);
+  }
+  svg.append(body);
+  // 闭合锁梁居中；开启锁梁向右上敞开，状态一眼可辨
+  path(kind === 'lock' ? 'M5.5 7.5V5.2a2.5 2.5 0 0 1 5 0v2.3' : 'M10.5 7.5V5.2a2.5 2.5 0 0 0-5-.7');
+  return svg;
+}
+
 function entryRow(entry: groups.GroupEntry): HTMLDivElement {
   const row = el('div', 'gp-entry');
   row.dataset.id = entry.id;
@@ -1334,10 +1360,12 @@ function entryRow(entry: groups.GroupEntry): HTMLDivElement {
   fav.alt = '';
   const main = el('div', 'gp-entry-main');
   main.append(el('span', 'gp-entry-title', entry.title), el('span', 'gp-entry-url mono', entry.url));
-  const lock = el('button', `gp-entry-btn gp-entry-lock${entry.locked ? ' on' : ''}`, entry.locked ? '🔒' : '🔓');
+  const lock = el('button', `gp-entry-btn gp-entry-lock${entry.locked ? ' on' : ''}`);
+  lock.append(svgIcon(entry.locked ? 'lock' : 'unlock'));
   lock.title = entry.locked ? t('unlockEntry') : t('lockEntry');
   lock.addEventListener('click', () => void toggleEntryLock(entry.id));
-  const del = el('button', 'gp-entry-btn gp-entry-del', '✕');
+  const del = el('button', 'gp-entry-btn gp-entry-del');
+  del.append(svgIcon('trash'));
   del.title = t('delEntry');
   del.addEventListener('click', () => void removeEntry(entry.id));
   row.append(fav, main, lock, del);
@@ -1561,6 +1589,11 @@ async function confirmNewGroup(): Promise<void> {
 
 /** groups 键盘流：`/` 在 chips 与搜索框间切换光标；chips 上 ←/→ 移动选中；Esc 逐层退出 */
 function handleGroupsKey(e: KeyboardEvent): void {
+  if (delGroupArmed && e.key === 'Escape') {
+    disarmDeleteGroup();
+    e.preventDefault();
+    return;
+  }
   if (newGroupOpen() || addFormOpen() || addMenuOpen()) {
     if (e.key === 'Escape') {
       closeNewGroupForm();
@@ -1682,6 +1715,42 @@ function pickGpSelected(): void {
   if (entry) pickGpEntry(entry);
 }
 
+// ---- 删除标签组（二次确认：首次点击进入确认态，3s 内再次点击才删除） ----
+
+let delGroupArmed = false;
+let delGroupTimer: ReturnType<typeof setTimeout> | null = null;
+
+function disarmDeleteGroup(): void {
+  delGroupArmed = false;
+  if (delGroupTimer) clearTimeout(delGroupTimer);
+  delGroupTimer = null;
+  const btn = $('#gp-del-group');
+  if (!btn) return;
+  btn.classList.remove('confirming');
+  btn.title = t('delGroup');
+}
+
+function onDeleteGroupClick(): void {
+  if (!selectedGroupId) return;
+  const btn = $('#gp-del-group');
+  if (!delGroupArmed) {
+    delGroupArmed = true;
+    btn.classList.add('confirming');
+    btn.title = t('delGroupConfirm');
+    delGroupTimer = setTimeout(disarmDeleteGroup, 3000);
+    return;
+  }
+  const id = selectedGroupId;
+  disarmDeleteGroup();
+  void (async () => {
+    await groups.deleteGroup(id);
+    selectedGroupId = null; // 选中回退到 lastOpened / 第一个组
+    await renderGroupsView();
+  })();
+}
+
+$('#gp-del-group').append(svgIcon('trash'));
+$('#gp-del-group').addEventListener('click', onDeleteGroupClick);
 $('#gp-add').addEventListener('click', openNewGroupForm);
 $('#gp-add-tab').addEventListener('click', () => {
   if (addMenuOpen()) closeAddMenu();
@@ -1702,10 +1771,6 @@ $('#gp-new-name').addEventListener('keydown', (e) => {
     e.preventDefault();
     void confirmNewGroup();
   }
-});
-$('#view-seg').addEventListener('click', (e) => {
-  const btn = (e.target as HTMLElement).closest<HTMLElement>('.seg-btn');
-  if (btn?.dataset.view) switchView(btn.dataset.view as ViewMode);
 });
 $('#gp-chips').addEventListener('scroll', updateGroupAccents);
 window.addEventListener('resize', updateGroupAccents);

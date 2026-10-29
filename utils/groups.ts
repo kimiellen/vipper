@@ -105,6 +105,16 @@ export async function saveGroup(group: TabGroupDef): Promise<void> {
   await writeIndex(idx);
 }
 
+/**
+ * 删除组：移除详情与索引，并作废打开态映射。
+ * 不关闭浏览器里已存在的标签（快照删除不等于替用户关页面）。
+ */
+export async function deleteGroup(id: string): Promise<void> {
+  await chrome.storage.local.remove(grpKey(id));
+  await writeIndex((await listGroups()).filter((e) => e.id !== id));
+  await chrome.storage.session.remove(openKey(id));
+}
+
 /** 最后一次回车打开过的组（chips 光标初始位置，跨重启保留） */
 export async function getLastOpenedGroupId(): Promise<string | null> {
   return ((await chrome.storage.local.get(LAST_OPENED))[LAST_OPENED] as string | undefined) ?? null;

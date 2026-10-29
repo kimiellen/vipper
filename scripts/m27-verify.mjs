@@ -63,7 +63,8 @@ const domEntries = (page) => page(`JSON.stringify([...document.querySelectorAll(
   title: r.querySelector('.gp-entry-title').textContent,
   url: r.querySelector('.gp-entry-url').textContent,
   locked: r.querySelector('.gp-entry-lock').classList.contains('on'),
-  lockText: r.querySelector('.gp-entry-lock').textContent,
+  hasSvg: !!r.querySelector('.gp-entry-lock svg') && !!r.querySelector('.gp-entry-del svg'),
+  shackle: r.querySelector('.gp-entry-lock svg path:last-child')?.getAttribute('d') ?? '',
   favicon: !!r.querySelector('img.favicon'),
 })))`).then(JSON.parse);
 
@@ -74,9 +75,10 @@ let page = await openGroups();
 
 // ---- 渲染 ----
 let rows = await domEntries(page);
-check('渲染：3 条条目（标题/url/favicon/解锁态）',
+check('渲染：3 条条目（标题/url/favicon/SVG 图标）',
   rows.length === 3 && rows[0].title === '页面A' && rows[0].url === 'https://a.com'
-  && rows[0].favicon && rows[0].lockText === '🔓' && !rows[0].locked, rows);
+  && rows[0].favicon && rows[0].hasSvg && !rows[0].locked
+  && rows[0].shackle.includes('10.5'), rows);
 
 // ---- 锁定 / 取消锁定 ----
 await page(`document.querySelector('.gp-entry[data-id="e1"] .gp-entry-lock').click()`);
@@ -84,7 +86,8 @@ await sleep(300);
 let es = await stored(seed.a);
 check('锁定：storage locked=true', es[0].id === 'e1' && es[0].locked === true, es[0]);
 rows = await domEntries(page);
-check('锁定：按钮态 🔒 + on', rows[0].locked && rows[0].lockText === '🔒', rows[0]);
+check('锁定：SVG 切换为闭合锁 + on',
+  rows[0].locked && rows[0].shackle.includes('5.5'), rows[0]);
 await page(`document.querySelector('.gp-entry[data-id="e1"] .gp-entry-lock').click()`);
 await sleep(300);
 es = await stored(seed.a);
@@ -174,6 +177,33 @@ es = await stored(seed.a);
 const grabbed = es[es.length - 1];
 check('抓取当前标签：来源窗口活动标签入组（url + 标题）',
   grabbed?.url.startsWith('data:text/html') && grabbed?.title === 'Grab Page', grabbed);
+await closeWui();
+
+// ---- 删除标签组：二次确认 ----
+await sw(`chrome.windows.create({ url: chrome.runtime.getURL('wui.html#groups'), type: 'popup', width: 1280, height: 800 }).then(() => true)`);
+page = await attachPage('wui.html#groups');
+for (let i = 0; i < 40; i++) {
+  const ready = await page(`!!document.querySelector('#page-groups') && !document.querySelector('#page-groups').hidden`).catch(() => false);
+  if (ready) break;
+  await sleep(250);
+}
+await sleep(400);
+await page(`document.querySelector('.gp-chip[data-id="${seed.b}"]').click()`);
+await sleep(250);
+await page(`document.querySelector('#gp-del-group').click()`);
+await sleep(250);
+const stillThere = await sw(`__vipper.groups.getGroup(${JSON.stringify(seed.b)}).then((g) => g !== null)`);
+check('删除组：首次点击仅进入确认态（组仍在）',
+  stillThere === true && await page(`document.querySelector('#gp-del-group').classList.contains('confirming')`),
+  { stillThere });
+await page(`document.querySelector('#gp-del-group').click()`);
+await sleep(500);
+const gone = await sw(`__vipper.groups.getGroup(${JSON.stringify(seed.b)}).then((g) => g === null)`);
+const chipCount = await page(`document.querySelectorAll('.gp-chip').length`);
+check('删除组：二次点击后删除（storage + chips + 选中回退）',
+  gone === true && chipCount === 1
+    && await page(`document.querySelector('.gp-chip.selected')?.dataset.id === ${JSON.stringify(seed.a)}`),
+  { gone, chipCount });
 await closeWui();
 
 summary();
