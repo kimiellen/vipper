@@ -179,6 +179,56 @@ async function resync(groupId: string): Promise<void> {
   }
 }
 
+// ---------- 管理页 → 浏览器（M30）：组打开时实时作用到浏览器标签 ----------
+
+function tabIdOf(mapping: groups.OpenGroupMapping, entryId: string): number | undefined {
+  const key = Object.keys(mapping.tabs).find((k) => mapping.tabs[Number(k)] === entryId);
+  return key === undefined ? undefined : Number(key);
+}
+
+/**
+ * wui 改完快照后推送的浏览器侧操作。组未打开（无映射）时 no-op——快照是唯一事实来源，
+ * 下次回车打开时自然按快照重建。与回流路径幂等对接：
+ * remove → SW 的 onRemoved 发现 entry 已删只清映射；reorder → resync 见顺序已对齐不写盘；
+ * add → 映射先于去抖 resync 落盘，不会产生重复条目。
+ */
+export function handleGroupPush(groupId: string, op: 'add' | 'remove' | 'reorder', entryId?: string): void {
+  enqueue(groupId, async () => {
+    const mapping = await groups.getOpenGroupMapping(groupId);
+    if (!mapping) return;
+    if (op === 'remove' && entryId) {
+      const tabId = tabIdOf(mapping, entryId);
+      if (tabId !== undefined) await chrome.tabs.remove(tabId).catch(() => {});
+      return;
+    }
+    if (op === 'add' && entryId) {
+      const def = await groups.getGroup(groupId);
+      const entry = def?.entries.find((e) => e.id === entryId);
+      if (!entry) return;
+      const tab = await chrome.tabs.create({ windowId: mapping.windowId, url: entry.url, active: false });
+      await chrome.tabs.group({ groupId: mapping.chromeGroupId, tabIds: [tab.id!] });
+      const cur = await groups.getOpenGroupMapping(groupId);
+      if (!cur) return; // 组建标签期间被整体关闭
+      cur.tabs[tab.id!] = entryId;
+      await groups.setOpenGroupMapping(groupId, cur);
+      return;
+    }
+    if (op === 'reorder') {
+      const def = await groups.getGroup(groupId);
+      if (!def) return;
+      const current = await chrome.tabs.query({ groupId: mapping.chromeGroupId });
+      if (current.length < 2) return;
+      const start = Math.min(...current.map((t) => t.index));
+      // 组内标签按 def 条目顺序重排；锁定且无标签映射的条目不参与
+      const desired = def.entries
+        .map((e) => tabIdOf(mapping, e.id))
+        .filter((id): id is number => id !== undefined);
+      if (desired.length !== current.length) return; // 成员不一致时放弃（等回流对齐）
+      await chrome.tabs.move(desired as [number, ...number[]], { index: start });
+    }
+  });
+}
+
 // ---------- 接线 ----------
 
 export function setupGroupSync(): void {

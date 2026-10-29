@@ -1354,19 +1354,35 @@ async function toggleEntryLock(entryId: string): Promise<void> {
   });
 }
 
+/** 管理页 → 浏览器推送（M30）：组打开时由 SW 实时作用到浏览器标签；未打开时 SW no-op */
+function pushGroupOp(op: 'add' | 'remove' | 'reorder', entryId?: string): void {
+  if (!selectedGroupId) return;
+  void chrome.runtime
+    .sendMessage({ type: 'vipper:group-push', groupId: selectedGroupId, op, entryId })
+    .catch(() => {});
+}
+
 async function removeEntry(entryId: string): Promise<void> {
   await mutateEntries((entries) => {
     const i = entries.findIndex((x) => x.id === entryId);
     if (i !== -1) entries.splice(i, 1);
   });
+  pushGroupOp('remove', entryId);
 }
 
 /** 追加条目（组末尾）；无 scheme 的输入补 https:// */
 async function appendEntry(input: { url: string; title: string }): Promise<void> {
   const url = /^[a-z][a-z0-9+.-]*:/i.test(input.url) ? input.url : `https://${input.url}`;
+  const entry: groups.GroupEntry = {
+    id: crypto.randomUUID(),
+    url,
+    title: input.title.trim() || url,
+    locked: false,
+  };
   await mutateEntries((entries) => {
-    entries.push({ id: crypto.randomUUID(), url, title: input.title.trim() || url, locked: false });
+    entries.push(entry);
   });
+  pushGroupOp('add', entry.id);
 }
 
 // ---- +add tab：二选一菜单（手动输入 / 抓取当前标签页） ----
@@ -1493,6 +1509,7 @@ async function persistEntryOrder(): Promise<void> {
   );
   selectedGroupDef.entries.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
   await groups.saveGroup(selectedGroupDef);
+  pushGroupOp('reorder');
 }
 
 const newGroupOpen = (): boolean => !$('#gp-new').hidden;

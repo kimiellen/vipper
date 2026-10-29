@@ -302,10 +302,12 @@
 - [x] 回流写入后 `vipper:group-synced` 消息通知 wui 实时刷新选中组
 - [x] 验证：`scripts/m29-verify.mjs` 12/12 通过（本地 http 服务做真实导航——Chrome 禁止顶层导航到 data: URL）+ m26 27/27、m27 13/13、m28 9/9、m9d 15/15、m21 11/11 回归 + `pnpm typecheck` / `pnpm build`
 
-## M30：管理页 → 浏览器同步
+## M30：管理页 → 浏览器同步 ✅（2026-10-29）
 
-- [ ] 删条目 → `tabs.remove`；拖动排序 → `tabs.move`；添加条目 → `tabs.create` + 入组（组打开时实时）
-- [ ] 验证：`scripts/m30-verify.mjs` + 回归
+- [x] wui 三处推送 `vipper:group-push`（删条目 / 添加 / 拖动排序）→ SW `handleGroupPush`：删条目 → `tabs.remove`；排序 → `tabs.move`（整块保序移动到组起始位）；添加 → `tabs.create` + 入组 + 映射落盘
+- [x] 组未打开时推送 no-op（快照是唯一事实来源）；与回流路径幂等对接（entry 已删则跳过、顺序已对齐不写盘、映射先于去抖 resync 落盘无重复条目）
+- [x] 锁定条目的管理页删除同样关标签（锁定只豁免浏览器→管理页方向）
+- [x] 验证：`scripts/m30-verify.mjs` 9/9 通过 + m26 27/27、m27 13/13、m28 9/9、m29 12/12、m9d 15/15 回归 + `pnpm typecheck` / `pnpm build`
 
 ## M31：右栏书签搜索接入
 

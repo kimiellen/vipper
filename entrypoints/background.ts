@@ -4,7 +4,7 @@ import { PASSWORD_SELECTOR, USERNAME_CANDIDATE_SELECTOR } from '../utils/loginFo
 import * as keychain from '../utils/keychain';
 import * as vault from '../utils/vault';
 import * as groups from '../utils/groups';
-import { setupGroupSync } from '../utils/groupSync';
+import { setupGroupSync, handleGroupPush } from '../utils/groupSync';
 import { computeLauncherSize, type DisplayLike, type WindowLike } from '../utils/launcherSize';
 
 /** 每组上次活跃标签的 storage.session key */
@@ -601,6 +601,10 @@ function handleMessages(): void {
   chrome.runtime.onMessage.addListener((msg, sender) => {
     if (msg?.type === 'vipper:open-group' && typeof msg.groupId === 'string') {
       void openVipperGroup(msg.groupId, sender.tab?.windowId);
+    }
+    // wui groups 视图：管理页编辑实时作用到浏览器（M30）
+    if (msg?.type === 'vipper:group-push' && typeof msg.groupId === 'string') {
+      handleGroupPush(msg.groupId, msg.op, msg.entryId);
     }
     if (msg?.type === 'vipper:open') {
       void (async () => {
