@@ -39,7 +39,7 @@ Everything is driven by keyboard-first thinking: open, search, fill, and organiz
 - **Live two-way sync** while a group is open: pages added / closed / navigated / dragged in or out of the Chrome group flow back into the snapshot, and edits here (remove, reorder, add) act on the browser tabs immediately
 - **Lock a page** to freeze it: closing or navigating it in the browser never overwrites the snapshot, so next open still has it
 - Closing a single tab removes its page; closing the window or the whole group only clears the live mapping — the snapshot survives, which is the whole point after a browser restart
-- `←/→` walks the chips, `Enter` opens the group, `/` jumps between chips and search; pinyin search (same index as the bookmark vault), `↑/↓` to pick a result, `Enter` appends it to the group
+- `←/→` walks the chips, `Enter` opens the group, `/` jumps to the search box and `Ctrl+/` back to the chips; pinyin search (same index as the bookmark vault), `↑/↓` to pick a result, `Enter` appends it to the group
 - `+add tab` takes a URL by hand or grabs the current tab; long-press to drag pages into order
 
 **Bookmark + password manager**

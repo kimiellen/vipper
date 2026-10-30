@@ -1603,7 +1603,10 @@ async function confirmNewGroup(): Promise<void> {
   }
 }
 
-/** groups 键盘流：`/` 在 chips 与搜索框间切换光标；chips 上 ←/→ 移动选中；Esc 逐层退出 */
+/**
+ * groups 键盘流：`/` 把光标送进搜索框、`Ctrl+/` 送回 chips；chips 上 ←/→ 移动选中；Esc 逐层退出。
+ * 反向不用 `/`：搜索框里的 `/` 始终当普通字符输入（即使框是空的），避免想打 `/` 却被切走。
+ */
 function handleGroupsKey(e: KeyboardEvent): void {
   if (delGroupArmed && e.key === 'Escape') {
     disarmDeleteGroup();
@@ -1620,19 +1623,11 @@ function handleGroupsKey(e: KeyboardEvent): void {
   }
   const search = $('#gp-search') as HTMLInputElement;
   const inSearch = document.activeElement === search;
-  if (e.key === '/') {
-    // 搜索框为空时 `/` 退回 chips；非空时按普通字符输入
-    if (inSearch && search.value === '') {
+  if (inSearch) {
+    if (e.key === '/' && (e.ctrlKey || e.metaKey)) {
       search.blur();
       e.preventDefault();
-    } else if (!inSearch && !(document.activeElement instanceof HTMLInputElement)) {
-      search.focus();
-      e.preventDefault();
-    }
-    return;
-  }
-  if (inSearch) {
-    if (e.key === 'Escape') {
+    } else if (e.key === 'Escape') {
       search.blur();
       e.preventDefault();
     } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -1642,6 +1637,12 @@ function handleGroupsKey(e: KeyboardEvent): void {
       pickGpSelected();
       e.preventDefault();
     }
+    return;
+  }
+  if (e.key === '/' && !e.ctrlKey && !e.metaKey
+    && !(document.activeElement instanceof HTMLInputElement)) {
+    search.focus();
+    e.preventDefault();
     return;
   }
   if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {

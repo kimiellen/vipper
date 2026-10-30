@@ -9,7 +9,7 @@
  * - 布局：三段式（chips 行占满整行；左右两栏顶边平齐，chip 到管理栏之间留连接空档）
  * - 组色 accents：连接折线 + 管理栏边框跟随选中组颜色
  * - 连接折线几何：chip 底中 → 空档中线 → 管理栏顶边中点，两段竖线等长；chips 溢出、选中 chip 在右半区时落点不变
- * - 键盘：`/` 在 chips 与搜索框间切换光标（搜索非空时输入普通字符）；←/→ 移动且不越界
+ * - 键盘：`/` 把光标送进搜索框、`Ctrl+/` 送回 chips（搜索框内 `/` 始终是普通字符）；←/→ 移动且不越界
  * - 初始选中 = 最后一次回车打开过的组（storage.local）
  */
 
@@ -77,9 +77,9 @@ async function closeWui() {
   await sleep(200);
 }
 
-/** 页面内键盘事件（我们的监听都在 document 上） */
-const key = async (page, k) => {
-  await page(`document.dispatchEvent(new KeyboardEvent('keydown', { key: ${JSON.stringify(k)}, bubbles: true, cancelable: true }))`);
+/** 页面内键盘事件（我们的监听都在 document 上）；带 ctrl 时模拟 Ctrl+<key> */
+const key = async (page, k, { ctrl = false } = {}) => {
+  await page(`document.dispatchEvent(new KeyboardEvent('keydown', { key: ${JSON.stringify(k)}, ctrlKey: ${ctrl}, bubbles: true, cancelable: true }))`);
   await sleep(120);
 };
 
@@ -216,15 +216,43 @@ check('新建组：Esc 取消（表单关闭、组数不变）', await page(
   `document.querySelector('#gp-new').hidden && document.querySelectorAll('.gp-chip').length === 4`,
 ));
 
-// ---- `/` 光标切换 ----
+// ---- 光标切换：`/` 进搜索框，`Ctrl+/` 回 chips ----
 await key(page, '/');
 check('`/`：光标从 chips 切到搜索框', await page(`document.activeElement.id === 'gp-search'`));
-await page(`document.querySelector('#gp-search').value = 'x'`);
+
+// 真实按键（CDP 可信事件）：搜索框里 `/` 必须打出字符，且光标不跑
+const slash = { type: 'keyDown', key: '/', code: 'Slash', text: '/', windowsVirtualKeyCode: 191, nativeVirtualKeyCode: 191 };
+await page(`(() => {
+  const input = document.querySelector('#gp-search');
+  input.value = '';
+  input.dispatchEvent(new Event('input'));
+  input.focus();
+})()`);
+await page.send('Input.dispatchKeyEvent', slash);
+await page.send('Input.dispatchKeyEvent', { ...slash, type: 'keyUp', text: undefined });
+await sleep(150);
+check('`/`：搜索框里是普通字符（空框也不切走、不吞键）', await page(
+  `document.activeElement.id === 'gp-search' && document.querySelector('#gp-search').value === '/'`,
+));
+await page.send('Input.dispatchKeyEvent', { ...slash, text: undefined, modifiers: 2 }); // Ctrl+/
+await page.send('Input.dispatchKeyEvent', { ...slash, type: 'keyUp', text: undefined, modifiers: 2 });
+await sleep(150);
+check('`Ctrl+/`：搜索框非空时切回 chips', await page(`document.activeElement === document.body`));
 await key(page, '/');
-check('`/`：搜索非空时按普通输入（不切光标）', await page(`document.activeElement.id === 'gp-search'`));
-await page(`document.querySelector('#gp-search').value = ''`);
-await key(page, '/');
-check('`/`：搜索为空时切回 chips', await page(`document.activeElement === document.body`));
+await page(`(() => {
+  const input = document.querySelector('#gp-search');
+  input.value = '';
+  input.dispatchEvent(new Event('input'));
+})()`);
+await key(page, '/', { ctrl: true });
+check('`Ctrl+/`：搜索框为空时也切回 chips', await page(`document.activeElement === document.body`));
+await key(page, '/', { ctrl: true });
+check('`Ctrl+/`：光标在 chips 时不再抢（停在 chips）', await page(`document.activeElement === document.body`));
+await page(`(() => {
+  const input = document.querySelector('#gp-search');
+  input.value = '';
+  input.dispatchEvent(new Event('input'));
+})()`); // 复位查询，后续用例不受空结果影响
 
 // ---- ←/→ 移动选中（不越界）----
 await page(`document.querySelector('.gp-chip[data-id="${seed.shop}"]').click()`);
