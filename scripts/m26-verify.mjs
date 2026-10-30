@@ -101,6 +101,8 @@ const linkGeom = (page) => page(`(() => {
     hidden: svg.hasAttribute('hidden'),
     stroke: path.style.stroke,
     border: panel.style.borderColor,
+    strokeWidth: Number(path.getAttribute('stroke-width')),
+    panelBorderWidth: parseFloat(getComputedStyle(panel).borderTopWidth),
     points: (path.getAttribute('points') || '').split(' ').filter(Boolean)
       .map((p) => p.split(',').map(Number)),
     chip: { cx: chipBox.left + chipBox.width / 2, bottom: chipBox.bottom },
@@ -159,6 +161,8 @@ check('连接折线几何：chip 底中 → 空档中线 → 管理栏顶边中�
   && Math.abs(bend1[1] - bend2[1]) < 0.5 && bend1[1] > start[1] && bend1[1] < end[1]
   && Math.abs((bend1[1] - start[1]) - (end[1] - bend2[1])) < 0.5
   && Math.abs(bend1[0] - start[0]) < 0.5 && Math.abs(bend2[0] - end[0]) < 0.5, link);
+check('连接折线粗细 = 管理栏边框粗细（1px）', link.strokeWidth === link.panelBorderWidth
+  && link.strokeWidth === 1, { strokeWidth: link.strokeWidth, border: link.panelBorderWidth });
 
 check('布局：chips 行占满整行；左右两栏顶边平齐，chip 到管理栏留连接空档', await page(`(() => {
   const row = document.querySelector('.gp-chips-row').getBoundingClientRect();

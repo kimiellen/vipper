@@ -601,7 +601,8 @@
   }
   .gp-left { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
   /* 连接折线覆盖层：铺满 groups 页面、不参与布局也不吃事件。
-     路径固定为 chip 底中 → 空档中线 → 管理栏顶边中点，chips 溢出到右半区时也不会被左栏截断。 */
+     路径固定为 chip 底中 → 空档中线 → 管理栏顶边中点，chips 溢出到右半区时也不会被左栏截断。
+     线宽取 1（与 .gp-panel 边框一致，见 polyline 上的 stroke-width）。 */
   .gp-link { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
   .gp-link[hidden] { display: none; }
   .gp-panel {
@@ -807,7 +808,7 @@
 
   <!-- 连接折线覆盖层：路径由 updateGroupAccents 计算，stroke 跟随选中组颜色 -->
   <svg class="gp-link" id="gp-link" aria-hidden="true" hidden>
-    <polyline id="gp-link-path" fill="none" stroke-width="2" stroke-linejoin="miter" />
+    <polyline id="gp-link-path" fill="none" stroke-width="1" stroke-linejoin="miter" />
   </svg>
 </div>
 
