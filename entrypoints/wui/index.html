@@ -605,9 +605,13 @@
     font-size: var(--text-sm); white-space: nowrap;
   }
   .gp-chip.selected { border-color: currentColor; font-weight: var(--weight-semibold); }
-  /* 新建组内联表单：名称输入 + 9 色圆点 + ✓/✕ */
-  #gp-new { display: flex; align-items: center; gap: var(--space-2); }
+  /* 新建组内联表单：名称输入 + 9 色圆点 + ✓/✕
+     高度锁定为 .btn 的高度（8px*2 padding + 1.5 行高*14px 字号 + 2px 边框 = 39px）：
+     表单比说明按钮高的话，展开/收起会把下方管理栏和搜索栏顶下去 1.4px */
+  #gp-new { display: flex; align-items: center; gap: var(--space-2); height: 39px; }
   #gp-new-name { width: 140px; }
+  /* 输入框跟随表单高度；padding 收到 7px 才放得下 14px 文字的行高，不裁字 */
+  #gp-new .input { height: 100%; padding-block: 7px; }
   #gp-new-colors { display: flex; align-items: center; gap: var(--space-1); }
   .gp-dot {
     width: 18px; height: 18px; border-radius: var(--radius-full);
