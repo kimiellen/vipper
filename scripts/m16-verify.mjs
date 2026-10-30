@@ -18,7 +18,8 @@ import http from 'node:http';
 import { resolve } from 'node:path';
 import { connectSW, createChecker, sleep } from './lib/sw-driver.mjs';
 
-const PORT = 9333;
+// 端口可由 `VIPPER_CDP_PORT` 覆盖：`verify-all --jobs N` 并行时每个 worker 独立端口
+const PORT = Number(process.env.VIPPER_CDP_PORT) || 9333;
 const FORM = `<!doctype html><html><body>
 <input id="u" name="username" type="text" />
 <input id="p" name="password" type="password" />

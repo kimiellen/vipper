@@ -1,9 +1,13 @@
 /**
- * CDP 共享驱动：连接 Chromium（端口 9333），附加到 vipper 的 service worker 或扩展页面。
+ * CDP 共享驱动：连接 Chromium（默认端口 9333），附加到 vipper 的 service worker 或扩展页面。
  * 供 scripts/ 下各里程碑验收脚本复用。启动方式见 AGENTS.md「自动化测试回路」。
+ *
+ * 端口可由 `VIPPER_CDP_PORT` 覆盖：`verify-all --jobs N` 用不同端口并行跑验收脚本。
  */
 
-export async function connectSW(port = 9333) {
+const defaultPort = () => Number(process.env.VIPPER_CDP_PORT) || 9333;
+
+export async function connectSW(port = defaultPort()) {
   const ver = await fetch(`http://127.0.0.1:${port}/json/version`).then((r) => r.json());
   const ws = new WebSocket(ver.webSocketDebuggerUrl);
   await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });

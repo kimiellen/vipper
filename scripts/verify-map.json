@@ -1,0 +1,218 @@
+{
+  "all": [
+    "m1",
+    "m2",
+    "m4",
+    "m5",
+    "m8",
+    "m9b",
+    "m9c",
+    "m9d",
+    "m9e",
+    "m10",
+    "m11",
+    "m12",
+    "m13",
+    "m16",
+    "m17",
+    "m19",
+    "m21",
+    "m22",
+    "m23",
+    "m24",
+    "m26",
+    "m27",
+    "m28",
+    "m29",
+    "m30",
+    "m31"
+  ],
+  "maxAffected": 10,
+  "notes": "按改动文件推断受影响里程碑。匹配到 'full' 或影响面超过 maxAffected 时退回全量；匹配不到任何规则也退回全量（保守）。空数组表示无 e2e 影响（只需 typecheck/build）。",
+  "patterns": [
+    {
+      "glob": "**/*.md",
+      "milestones": []
+    },
+    {
+      "glob": "docs/**",
+      "milestones": []
+    },
+    {
+      "glob": "design-system/**",
+      "milestones": []
+    },
+    {
+      "glob": "scripts/m*-verify.mjs",
+      "milestones": "$script"
+    },
+    {
+      "glob": "scripts/verify-all.mjs",
+      "milestones": "full"
+    },
+    {
+      "glob": "scripts/verify-map.json",
+      "milestones": "full"
+    },
+    {
+      "glob": "scripts/lib/**",
+      "milestones": "full"
+    },
+    {
+      "glob": "scripts/**",
+      "milestones": []
+    },
+    {
+      "glob": "utils/tabnav.ts",
+      "milestones": [
+        "m1",
+        "m2"
+      ]
+    },
+    {
+      "glob": "utils/vault.ts",
+      "milestones": [
+        "m4",
+        "m8",
+        "m9d",
+        "m12"
+      ]
+    },
+    {
+      "glob": "utils/crypto.ts",
+      "milestones": [
+        "m4",
+        "m9d"
+      ]
+    },
+    {
+      "glob": "utils/keychain.ts",
+      "milestones": [
+        "m4",
+        "m9d"
+      ]
+    },
+    {
+      "glob": "utils/search.ts",
+      "milestones": [
+        "m12",
+        "m21",
+        "m22",
+        "m23",
+        "m24"
+      ]
+    },
+    {
+      "glob": "utils/generator.ts",
+      "milestones": [
+        "m9e"
+      ]
+    },
+    {
+      "glob": "utils/loginForm.ts",
+      "milestones": [
+        "m13",
+        "m16",
+        "m17",
+        "m19"
+      ]
+    },
+    {
+      "glob": "utils/launcherSize.ts",
+      "milestones": [
+        "m24"
+      ]
+    },
+    {
+      "glob": "utils/matchUrl.ts",
+      "milestones": [
+        "m5",
+        "m17",
+        "m19"
+      ]
+    },
+    {
+      "glob": "utils/groups.ts",
+      "milestones": [
+        "m26",
+        "m27",
+        "m28",
+        "m29",
+        "m30",
+        "m31"
+      ]
+    },
+    {
+      "glob": "utils/groupSync.ts",
+      "milestones": [
+        "m26",
+        "m29",
+        "m30"
+      ]
+    },
+    {
+      "glob": "entrypoints/content.ts",
+      "milestones": [
+        "m5",
+        "m13",
+        "m16",
+        "m17",
+        "m19"
+      ]
+    },
+    {
+      "glob": "assets/**",
+      "milestones": [
+        "m13",
+        "m16"
+      ]
+    },
+    {
+      "glob": "entrypoints/wui/**",
+      "milestones": [
+        "m9b",
+        "m9c",
+        "m9d",
+        "m9e",
+        "m10",
+        "m11",
+        "m12",
+        "m13",
+        "m21",
+        "m22",
+        "m23",
+        "m24",
+        "m26",
+        "m27",
+        "m28",
+        "m29",
+        "m30",
+        "m31"
+      ]
+    },
+    {
+      "glob": "entrypoints/background.ts",
+      "milestones": "full"
+    },
+    {
+      "glob": "wxt.config.ts",
+      "milestones": "full"
+    },
+    {
+      "glob": "package.json",
+      "milestones": "full"
+    },
+    {
+      "glob": "tsconfig.json",
+      "milestones": "full"
+    },
+    {
+      "glob": "types/**",
+      "milestones": "full"
+    },
+    {
+      "glob": "public/**",
+      "milestones": "full"
+    }
+  ]
+}

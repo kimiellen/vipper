@@ -17,9 +17,11 @@ Chrome MV3 扩展：标签管理器 + 书签/密码管理器。面向 Hyprland�
 
 ## 文档纪律
 
-- feature 级决策记录在 `docs/specs/vipper/spec.md`，跨会话进度在 `docs/specs/vipper/tasks.md`
-- 方向性变更：先改 spec，再改代码（spec-change 协议）
+- feature 级决策记录在 `docs/specs/vipper/spec.md`，跨会话进度在 `docs/specs/vipper/tasks.md`；已完成里程碑归档在 `docs/specs/vipper/tasks-archive.md`（不必每会话通读）
+- 验证范围/分级见 `docs/specs/vipper/verify.md`（权威）；不要在本文件或 skills 里另写一套
+- 方向性变更（含任何 `spec.md` 修改）：先经用户确认（spec-change 协议），再改文档，最后改代码
 - 每个里程碑完成后立即 commit，一个 commit 只做一件事
+- 临时探针脚本/截图放 `tmp/` 或复用 `scripts/lib/`，会话结束前删除；不把一次性脚本留在仓库
 
 ## 自动化测试回路（Agent 沙箱环境）
 
@@ -36,6 +38,10 @@ HOME=$PWD/.fake-home chromium --headless=new \
 - MV3 service worker 是事件驱动的，headless 下 target 不可见时用浏览器级 CDP `Target.setDiscoverTargets` 发现
 - `scripts/m16-verify.mjs` 是特例：启动时**去掉** `--load-extension`、追加 `--enable-unsafe-extension-debugging`；脚本先打开登录页，再用 CDP `Extensions.loadUnpacked` 加载扩展，用于验证旧页面补注入
 - 沙箱内 `pnpm add` 需要 `--store-dir=$PWD/.pnpm-store`
-- 全量回归：`node scripts/verify-all.mjs`（或指定里程碑如 `... m26 m27`）——每个脚本独立 Chromium 进程组 + 独立 profile、180s 硬超时；失败时打印完整错误
+- **验证分级（详见 `docs/specs/vipper/verify.md`）**：
+  - L0 每次逻辑改动：`pnpm typecheck && pnpm build` + 1 个最相关里程碑脚本（≤60s）
+  - L1 里程碑收尾：`pnpm verify:affected`（打印"文件 → 脚本"映射，≤3min）
+  - L2 全量：`pnpm verify`（`--jobs 4`），仅 commit 前或跨 3+ 模块；同一轮只跑一次，不重复跑已通过的套件
+- `scripts/verify-all.mjs` 每个脚本独立 Chromium 进程组 + 独立 profile + 60s 硬超时，输出每脚本耗时；`--jobs N` 并行（端口 `9333+N`，脚本读 `VIPPER_CDP_PORT`）
 - 真机按键行为（快捷键冲突等）无法自动化，需用户在 Chrome 中手动验收
 - 手动验收按键时：必须先打开 vipper 卡片的 Service Worker DevTools 再按键——SW 30 秒休眠会断开控制台，断开后按键日志不可见（M0 已踩过此坑）

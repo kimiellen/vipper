@@ -8,7 +8,11 @@
     "build": "wxt build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "postinstall": "wxt prepare",
-    "verify": "node scripts/verify-all.mjs"
+    "verify": "node scripts/verify-all.mjs --jobs 4",
+    "verify:serial": "node scripts/verify-all.mjs",
+    "verify:affected": "node scripts/verify-all.mjs --affected --jobs 2",
+    "verify:quick": "pnpm typecheck && pnpm build && node scripts/verify-all.mjs --affected --jobs 2",
+    "verify:list": "node scripts/verify-all.mjs --affected --list"
   },
   "devDependencies": {
     "@types/chrome": "^0.3.5",
