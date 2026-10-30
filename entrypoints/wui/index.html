@@ -585,6 +585,9 @@
   .page-groups { height: 100%; display: flex; flex-direction: column; position: relative; }
   .gp-chips-row {
     flex: none; display: flex; align-items: center; gap: var(--space-2);
+    /* 行高固定 = 上下留白 + 内容 39px（.btn 高度）：新建组表单展开/收起时内容高度
+       不应改变行高，否则下方管理栏与搜索栏的顶边会跟着下移/上移 */
+    height: calc(var(--space-3) + 39px + var(--space-5));
     /* 底部留白即连接区：chip 下沿 4px（.gp-chips 的内边距）+ 此处 20px = 24px，
        连接折线的水平段落在其中线，上下两段竖线等长（各 12px） */
     padding: var(--space-3) var(--space-4) var(--space-5);

@@ -186,11 +186,15 @@ check('单击选中：selected 移动 + 边框/连线变色（shop2=red）', awa
 })()`));
 
 // ---- 新建组：命名 + 9 色 ----
+const panelTopBefore = await page(`document.querySelector('#gp-panel').getBoundingClientRect().top`);
 await page(`document.querySelector('#gp-add').click()`);
 await sleep(120);
 check('新建组：表单出现且组名输入框聚焦', await page(
   `!document.querySelector('#gp-new').hidden && document.activeElement.id === 'gp-new-name'`,
 ));
+check('新建组：表单展开不顶动下方两栏（管理栏顶边不变）',
+  await page(`document.querySelector('#gp-panel').getBoundingClientRect().top`) === panelTopBefore,
+  { before: panelTopBefore, after: await page(`document.querySelector('#gp-panel').getBoundingClientRect().top`) });
 await page(`(() => {
   document.querySelector('#gp-new-name').value = 'kimi';
   [...document.querySelectorAll('.gp-dot')].find((d) => d.title === 'purple').click();
