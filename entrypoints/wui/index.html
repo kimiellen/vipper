@@ -210,6 +210,8 @@
   .btn-primary:hover { background: var(--accent-hover); }
   .btn-ghost { background: transparent; color: var(--fg-secondary); }
   .btn-ghost:hover { background: var(--bg-subtle); color: var(--fg); }
+  .btn-danger { background: var(--danger); color: var(--danger-fg); }
+  .btn-danger:hover { background: var(--danger-hover); }
   .btn-sm { padding: var(--space-1) var(--space-2); font-size: var(--text-sm); }
 
   /* ===== 组件：表单 ===== */
@@ -455,6 +457,24 @@
   .swatch { display: inline-block; width: var(--space-3); height: var(--space-3); border-radius: var(--radius-full); flex-shrink: 0; }
   .err-text { color: var(--danger); font-size: var(--text-sm); }
 
+  /* ===== 通用确认弹窗（危险操作二次确认；默认焦点在「取消」） ===== */
+  #confirm-overlay {
+    position: fixed; inset: 0; z-index: 90;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0, 0, 0, 0.45);
+  }
+  .confirm-card {
+    width: min(380px, calc(100vw - 32px));
+    display: flex; flex-direction: column; gap: var(--space-3);
+    padding: var(--space-4);
+    background: var(--bg-raised); border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+  }
+  .confirm-title { font-size: var(--text-base); font-weight: var(--weight-medium); }
+  .confirm-body { color: var(--fg-secondary); font-size: var(--text-sm); }
+  .confirm-actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
+  #confirm-overlay .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
   /* ===== 解锁门控覆盖层（spec 安全模型：三态自动路由） ===== */
   #unlock-overlay {
     position: fixed; inset: 0; z-index: 100; background: var(--bg);
@@ -650,9 +670,7 @@
   .gp-entry-btn:hover, .icon-btn:hover { color: var(--fg); background: var(--bg-hover); }
   .gp-entry-lock.on { color: var(--accent); }
   .gp-entry-del:hover { color: var(--danger); }
-  /* 删除标签组：首次点击进入确认态（danger 底色），再次点击执行 */
   .gp-del-group:hover { color: var(--danger); background: var(--danger-soft); }
-  .gp-del-group.confirming { color: var(--danger); background: var(--danger-soft); }
   /* 手动添加条目内联表单 */
   .gp-add-form {
     display: flex; align-items: center; gap: var(--space-2);
@@ -875,6 +893,18 @@
 
 <!-- 多 URL 二级菜单 -->
 <div id="url-menu" hidden><div class="menu-card" id="url-menu-card"></div></div>
+
+<!-- 通用确认弹窗（危险操作二次确认）：标题/正文/按钮文案由 confirmDialog() 填充 -->
+<div id="confirm-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+  <div class="confirm-card">
+    <div class="confirm-title" id="confirm-title"></div>
+    <div class="confirm-body" id="confirm-body"></div>
+    <div class="confirm-actions">
+      <button class="btn btn-ghost" id="confirm-cancel">取消</button>
+      <button class="btn btn-danger" id="confirm-ok">删除</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>

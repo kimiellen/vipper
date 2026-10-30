@@ -343,3 +343,12 @@
 - [x] m26 断言改为折线几何（起点 = chip 底中、终点 = 管理栏顶边中点、两个转折点同高）+ 新增"chips 溢出且选中 chip 在右半区"回归场景
 - [x] 验证：`scripts/m26-verify.mjs` 34/34 通过（含溢出回归）；全量 `node scripts/verify-all.mjs` **26/26 通过**；`pnpm typecheck` / `pnpm build` 通过 + 1280/900 宽截图自检
   - 备注：折线水平段必须走在两栏上方（右栏顶边比左管理栏高 36px），取 chips 行下沿与两栏上沿之间空档的中线；SVG 显隐走属性（SVGElement 没有 HTMLElement 的 `hidden` IDL 属性）
+
+## M33：删除标签组改用页面内确认弹窗 ✅（2026-10-30）
+
+> 起因：用户点管理栏右上角垃圾桶后"没有任何反应"——旧实现是两次点击确认（首次只变色 + 3s 计时），无弹窗，与用户预期的二次确认对话框不符。spec.md 交互节「管理栏头部」已修订。
+
+- [x] 新增通用确认弹窗（`#confirm-overlay` + `confirmDialog()`）：标题带组名，正文说明「删条目快照与打开态映射，不关闭浏览器已有标签」；默认焦点「取消」，Esc / 点遮罩取消，Tab 在弹窗内循环，危险色 `.btn-danger` 确认
+- [x] 删除旧的两次点击确认：`delGroupArmed` / 3s 计时器 / `.confirming` 类与 CSS，以及 `handleGroupsKey` 里的 Esc 分支；弹窗打开时页面键盘流整体让位（`confirmResolve` 守卫）
+- [x] m27 删除组用例重写：弹窗出现且组仍在、标题带组名、默认焦点在取消、取消与 Esc 均不删、确认后删除并回退选中
+- [x] 验证：m27 26/26 通过；`pnpm verify:affected` 因 wui 改动映射 18 个脚本退化为全量，25/26 首轮通过，m19 因固定端口 8390 被上一轮遗留进程占用报 EADDRINUSE，单跑 8/8 通过；`pnpm typecheck` / `pnpm build` 通过 + 弹窗截图自检

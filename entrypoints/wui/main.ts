@@ -85,7 +85,12 @@ const T = {
   grabFail: { zh: '找不到来源标签页', en: 'No source tab found' },
   noGroupSel: { zh: '先在上方选择一个标签组', en: 'Select a tab group first' },
   delGroup: { zh: '删除此标签组', en: 'Delete this tab group' },
-  delGroupConfirm: { zh: '再次点击确认删除', en: 'Click again to confirm' },
+  delGroupTitle: { zh: (name: string) => `删除标签组「${name}」？`, en: (name: string) => `Delete tab group “${name}”?` },
+  delGroupBody: {
+    zh: '将删除该组的条目快照与打开态映射；浏览器里已有的标签不会被关闭。',
+    en: 'The group snapshot and open-state mapping will be deleted. Tabs already open in the browser stay open.',
+  },
+  delOk: { zh: '删除', en: 'Delete' },
 } as const;
 
 /** 纯文案键（值为 {zh,en} 字符串）；函数型文案直接用 T.key[lang](...) */
@@ -1319,7 +1324,6 @@ async function renderGroupPanel(): Promise<void> {
   const sel = groupIdx.find((g) => g.id === selectedGroupId);
   ($('#gp-add-tab') as HTMLButtonElement).disabled = !sel;
   $('#gp-del-group').hidden = !sel;
-  disarmDeleteGroup();
   closeAddMenu();
   const box = $('#gp-entries');
   box.innerHTML = '';
@@ -1750,11 +1754,6 @@ async function confirmNewGroup(): Promise<void> {
  * 反向不用 `/`：搜索框里的 `/` 始终当普通字符输入（即使框是空的），避免想打 `/` 却被切走。
  */
 function handleGroupsKey(e: KeyboardEvent): void {
-  if (delGroupArmed && e.key === 'Escape') {
-    disarmDeleteGroup();
-    e.preventDefault();
-    return;
-  }
   if (newGroupOpen() || addFormOpen() || addMenuOpen()) {
     if (e.key === 'Escape') {
       closeNewGroupForm();
@@ -1874,42 +1873,68 @@ function pickGpSelected(): void {
   if (entry) pickGpEntry(entry);
 }
 
-// ---- 删除标签组（二次确认：首次点击进入确认态，3s 内再次点击才删除） ----
+// ---- 通用确认弹窗（危险操作二次确认）：默认焦点在「取消」，Esc / 点遮罩取消 ----
 
-let delGroupArmed = false;
-let delGroupTimer: ReturnType<typeof setTimeout> | null = null;
+let confirmResolve: ((ok: boolean) => void) | null = null;
 
-function disarmDeleteGroup(): void {
-  delGroupArmed = false;
-  if (delGroupTimer) clearTimeout(delGroupTimer);
-  delGroupTimer = null;
-  const btn = $('#gp-del-group');
-  if (!btn) return;
-  btn.classList.remove('confirming');
-  btn.title = t('delGroup');
+function settleConfirm(ok: boolean): void {
+  const resolve = confirmResolve;
+  confirmResolve = null;
+  $('#confirm-overlay').hidden = true;
+  resolve?.(ok);
 }
 
-function onDeleteGroupClick(): void {
-  if (!selectedGroupId) return;
-  const btn = $('#gp-del-group');
-  if (!delGroupArmed) {
-    delGroupArmed = true;
-    btn.classList.add('confirming');
-    btn.title = t('delGroupConfirm');
-    delGroupTimer = setTimeout(disarmDeleteGroup, 3000);
+/** 打开确认弹窗，返回用户是否确认；同一时刻只允许一个弹窗 */
+function confirmDialog(opts: { title: string; body: string; okLabel: string }): Promise<boolean> {
+  $('#confirm-title').textContent = opts.title;
+  $('#confirm-body').textContent = opts.body;
+  $('#confirm-ok').textContent = opts.okLabel;
+  $('#confirm-cancel').textContent = t('cancel');
+  $('#confirm-overlay').hidden = false;
+  ($('#confirm-cancel') as HTMLButtonElement).focus();
+  return new Promise((resolve) => {
+    confirmResolve = resolve;
+  });
+}
+
+$('#confirm-cancel').addEventListener('click', () => settleConfirm(false));
+$('#confirm-ok').addEventListener('click', () => settleConfirm(true));
+// 点遮罩 = 取消；点卡片内部不关
+$('#confirm-overlay').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) settleConfirm(false);
+});
+// Esc 取消；stopPropagation 防止冒泡到 groups 键盘流（那里的 Esc 会继续退出上层 UI）
+$('#confirm-overlay').addEventListener('keydown', (e) => {
+  if (e.key === 'Tab') {
+    // 只有两个按钮，Tab 在两者间循环，焦点不跑出模态
+    e.preventDefault();
+    const cancel = $('#confirm-cancel');
+    const next = document.activeElement === cancel ? $('#confirm-ok') : cancel;
+    next.focus();
     return;
   }
-  const id = selectedGroupId;
-  disarmDeleteGroup();
-  void (async () => {
-    await groups.deleteGroup(id);
-    selectedGroupId = null; // 选中回退到 lastOpened / 第一个组
-    await renderGroupsView();
-  })();
+  if (e.key !== 'Escape') return;
+  e.preventDefault();
+  e.stopPropagation();
+  settleConfirm(false);
+});
+
+async function deleteSelectedGroup(): Promise<void> {
+  const sel = groupIdx.find((g) => g.id === selectedGroupId);
+  if (!sel) return;
+  const ok = await confirmDialog({
+    title: T.delGroupTitle[lang](sel.title),
+    body: T.delGroupBody[lang],
+    okLabel: T.delOk[lang],
+  });
+  if (!ok || sel.id !== selectedGroupId) return; // 等待期间选中已变化
+  await groups.deleteGroup(sel.id);
+  selectedGroupId = null; // 选中回退到 lastOpened / 第一个组
+  await renderGroupsView();
 }
 
 $('#gp-del-group').append(svgIcon('trash'));
-$('#gp-del-group').addEventListener('click', onDeleteGroupClick);
+$('#gp-del-group').addEventListener('click', () => void deleteSelectedGroup());
 $('#gp-add').addEventListener('click', openNewGroupForm);
 $('#gp-add-tab').addEventListener('click', () => {
   if (addMenuOpen()) closeAddMenu();
@@ -1976,6 +2001,7 @@ function ensureSelectionVisible(): void {
 
 document.addEventListener('keydown', (e) => {
   if (!mainReady) return;
+  if (confirmResolve) return; // 确认弹窗是模态：按键交给弹窗自身（Esc 在弹窗内 stopPropagation）
   // 二级菜单是全局模态（书签打开 / groups 加组共用），先于视图分支
   if (submenu) {
     if (e.key === 'ArrowDown') moveSubmenu(1);

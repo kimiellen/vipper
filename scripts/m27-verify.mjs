@@ -275,7 +275,7 @@ check('抓取当前标签：来源窗口活动标签入组（url + 标题）',
   grabbed?.url.startsWith('data:text/html') && grabbed?.title === 'Grab Page', grabbed);
 await closeWui();
 
-// ---- 删除标签组：二次确认 ----
+// ---- 删除标签组：页面内确认弹窗 ----
 await sw(`chrome.windows.create({ url: chrome.runtime.getURL('wui.html#groups'), type: 'popup', width: 1280, height: 800 }).then(() => true)`);
 page = await attachPage('wui.html#groups');
 for (let i = 0; i < 40; i++) {
@@ -286,18 +286,39 @@ for (let i = 0; i < 40; i++) {
 await sleep(400);
 await page(`document.querySelector('.gp-chip[data-id="${seed.b}"]').click()`);
 await sleep(250);
+const dialogOpen = () => page(`!document.querySelector('#confirm-overlay').hidden`);
+const groupExists = () => sw(`__vipper.groups.getGroup(${JSON.stringify(seed.b)}).then((g) => g !== null)`);
+
 await page(`document.querySelector('#gp-del-group').click()`);
-await sleep(250);
-const stillThere = await sw(`__vipper.groups.getGroup(${JSON.stringify(seed.b)}).then((g) => g !== null)`);
-check('删除组：首次点击仅进入确认态（组仍在）',
-  stillThere === true && await page(`document.querySelector('#gp-del-group').classList.contains('confirming')`),
+await sleep(200);
+const stillThere = await groupExists();
+check('删除组：点击垃圾桶弹出确认弹窗（标题带组名，组仍在）',
+  stillThere === true && await dialogOpen()
+    && (await page(`document.querySelector('#confirm-title').textContent`)).includes('empty'),
   { stillThere });
+check('删除组：弹窗默认焦点在「取消」',
+  await page(`document.activeElement?.id === 'confirm-cancel'`));
+
+await page(`document.querySelector('#confirm-cancel').click()`);
+await sleep(200);
+check('删除组：取消后关闭弹窗、组保留',
+  (await dialogOpen()) === false && (await groupExists()) === true);
+
 await page(`document.querySelector('#gp-del-group').click()`);
+await sleep(200);
+await page(`document.querySelector('#confirm-cancel').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))`);
+await sleep(200);
+check('删除组：Esc 取消（组保留）',
+  (await dialogOpen()) === false && (await groupExists()) === true);
+
+await page(`document.querySelector('#gp-del-group').click()`);
+await sleep(200);
+await page(`document.querySelector('#confirm-ok').click()`);
 await sleep(500);
 const gone = await sw(`__vipper.groups.getGroup(${JSON.stringify(seed.b)}).then((g) => g === null)`);
 const chipCount = await page(`document.querySelectorAll('.gp-chip').length`);
-check('删除组：二次点击后删除（storage + chips + 选中回退）',
-  gone === true && chipCount === 1
+check('删除组：确认后删除（storage + chips + 选中回退）',
+  gone === true && chipCount === 1 && (await dialogOpen()) === false
     && await page(`document.querySelector('.gp-chip.selected')?.dataset.id === ${JSON.stringify(seed.a)}`),
   { gone, chipCount });
 await closeWui();
