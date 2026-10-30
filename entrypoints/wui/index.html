@@ -197,6 +197,10 @@
   .mono { font-family: var(--font-mono); }
   /* hidden 属性必须压过任何组件 display（#url-menu/#unlock-overlay 都是 display:flex） */
   [hidden] { display: none !important; }
+  /* 首帧视图路由：public/wui-route.js 在 head 同步按 hash 打 data-view，
+     让 groups 视图从首帧起就不显示书签页（否则 main.ts 等完 await 才切，先闪书签页） */
+  html[data-view="groups"] #page-bookmarks { display: none !important; }
+  html[data-view="groups"] #page-groups { display: flex !important; }
 
   /* ===== 组件：按钮 ===== */
   .btn {
@@ -710,6 +714,8 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
 </style>
+<!-- 首帧视图路由：必须外链同步脚本（MV3 CSP 禁内联），在正文解析前按 hash 打 data-view -->
+<script src="/wui-route.js"></script>
 </head>
 <body>
 

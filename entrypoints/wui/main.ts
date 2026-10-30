@@ -1221,6 +1221,7 @@ function openSelected(): void {
 // ---------- groups 视图（Feature 3：标签组管理页；hash #groups 进入） ----------
 
 type ViewMode = 'bookmarks' | 'groups';
+/** 首帧视图由 public/wui-route.js 同步打 data-view 决定；这里的判定必须与之保持一致 */
 let viewMode: ViewMode = location.hash === '#groups' ? 'groups' : 'bookmarks';
 let groupIdx: groups.GroupIndexEntry[] = [];
 let selectedGroupId: string | null = null;
