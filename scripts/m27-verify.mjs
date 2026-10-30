@@ -134,24 +134,120 @@ await sleep(120);
 await key(page, 'Escape');
 check('Esc：关闭二选一菜单', await page(`document.querySelector('#gp-add-menu').hidden`));
 
-// ---- 长按拖动排序：e1 拖到末尾 ----
-await page(`(() => {
+// ---- 长按拖动排序：浮起 / 让位 / 跟随 / 落位（e1 拖到末尾） ----
+const dragStart = await page(`(() => {
   const rows = [...document.querySelectorAll('.gp-entry')];
-  const row = rows[0];
-  const last = rows[rows.length - 1].getBoundingClientRect();
-  window.__dragY = last.bottom + 10;
-  row.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
-})()`);
-await sleep(500); // 长按阈值 400ms
-await page(`window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientY: window.__dragY }))`);
-await sleep(120);
+  const a = rows[0].getBoundingClientRect();
+  window.__grab = { x: a.left + 20, y: a.top + 10 };
+  window.__pitch = rows[1].getBoundingClientRect().top - a.top;
+  window.__lastBottom = rows[rows.length - 1].getBoundingClientRect().bottom;
+  rows[0].dispatchEvent(new PointerEvent('pointerdown', {
+    bubbles: true, cancelable: true, button: 0, clientX: window.__grab.x, clientY: window.__grab.y,
+  }));
+  return JSON.stringify({ left: a.left, top: a.top, pitch: window.__pitch });
+})()`).then(JSON.parse);
+await sleep(500); // 超过 400ms 长按阈值
+
+let lift = await page(`(() => {
+  const row = document.querySelector('.gp-entry.dragging');
+  const cs = row && getComputedStyle(row);
+  const r = row?.getBoundingClientRect();
+  return JSON.stringify({
+    box: document.querySelector('#gp-entries').classList.contains('dragging'),
+    position: cs?.position, shadow: cs?.boxShadow, events: cs?.pointerEvents,
+    left: r?.left, top: r?.top,
+    shifts: [...document.querySelectorAll('.gp-entry:not(.dragging)')]
+      .map((x) => { const t = x.style.transform; return t ? parseFloat(t.slice(t.indexOf('(') + 1)) : 0; }),
+  });
+})()`).then(JSON.parse);
+check('拖动效果：长按后条目悬空（fixed + 阴影 + 不吃指针事件）',
+  lift.box && lift.position === 'fixed' && lift.shadow !== 'none' && lift.events === 'none', lift);
+check('拖动效果：浮起后留在原槽位，下方条目让出一个空档',
+  Math.abs(lift.top - dragStart.top) < 2 && Math.abs(lift.left - dragStart.left) < 2
+  && lift.shifts.length === 2 && lift.shifts.every((y) => Math.abs(y - dragStart.pitch) < 1),
+  { lift, dragStart });
+
+// 跟随：把指针往下推 40px，卡片顶边也下移 40px（抓取点偏移 10px 保持）
+await page(`window.dispatchEvent(new PointerEvent('pointermove', {
+  bubbles: true, clientX: window.__grab.x, clientY: window.__grab.y + 40,
+}))`);
+await sleep(80);
+lift = await page(`(() => {
+  const r = document.querySelector('.gp-entry.dragging').getBoundingClientRect();
+  return JSON.stringify({ top: r.top, expect: window.__grab.y + 40 - 10 });
+})()`).then(JSON.parse);
+check('拖动效果：卡片跟随指针（保持抓取点偏移）', Math.abs(lift.top - lift.expect) < 3, lift);
+
+// 拖到末尾：空档移到末尾，上方条目收回让位（有过渡 → 视觉上是滑动）
+await page(`window.dispatchEvent(new PointerEvent('pointermove', {
+  bubbles: true, clientX: window.__grab.x, clientY: window.__lastBottom + 10,
+}))`);
+await sleep(220);
+lift = await page(`(() => JSON.stringify({
+  shifts: [...document.querySelectorAll('.gp-entry:not(.dragging)')]
+    .map((r) => { const t = r.style.transform; return t ? parseFloat(t.slice(t.indexOf('(') + 1)) : 0; }),
+}))()`).then(JSON.parse);
+check('拖动效果：拖到末尾时空档跟着过来（上方条目收回位移）',
+  lift.shifts.length === 2 && lift.shifts.every((y) => y === 0), lift);
+
 await page(`window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }))`);
-await sleep(300);
+await sleep(450); // 落位动画 140ms + 写回 storage
 rows = await domEntries(page);
 es = await stored(seed.a);
 check('拖动排序：e1 移到末尾，DOM 与 storage 顺序一致',
   rows.length === 3 && rows[2].id === 'e1' && es.map((x) => x.id).join() === rows.map((x) => x.id).join(),
   { dom: rows.map((x) => x.id), stored: es.map((x) => x.id) });
+check('拖动落地：拖动态清零（无 fixed / 无残留位移 / 容器类移除）', await page(`(() => {
+  const box = document.querySelector('#gp-entries');
+  return !box.classList.contains('dragging')
+    && [...document.querySelectorAll('.gp-entry')].every((r) =>
+      !r.classList.contains('dragging') && r.style.transform === ''
+      && getComputedStyle(r).position === 'static');
+})()`));
+
+// ---- 中间槽位落位：松手后卡片要滑到空档里，不能差一格（落点读的是文档流槽位，不是实时 rect） ----
+const d2 = await page(`(() => {
+  const rows = [...document.querySelectorAll('.gp-entry')];
+  const lastRow = rows[rows.length - 1];
+  const a = lastRow.getBoundingClientRect();
+  const pitch = a.height + parseFloat(getComputedStyle(lastRow).marginBottom);
+  window.__d2 = { x: a.left + 30, y: a.top + 12, pitch };
+  lastRow.dispatchEvent(new PointerEvent('pointerdown', {
+    bubbles: true, cancelable: true, button: 0, clientX: window.__d2.x, clientY: window.__d2.y,
+  }));
+  return JSON.stringify({ id: lastRow.dataset.id, pitch, top: a.top });
+})()`).then(JSON.parse);
+await sleep(500);
+await page(`window.dispatchEvent(new PointerEvent('pointermove', {
+  bubbles: true, clientX: window.__d2.x, clientY: window.__d2.y - window.__d2.pitch * 1.5,
+}))`);
+await sleep(200);
+await page(`window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }))`);
+await sleep(90);
+const landing = await page(`(() => {
+  const row = document.querySelector('.gp-entry.dragging');
+  return JSON.stringify({ mid: row?.getBoundingClientRect().top ?? null, left: row?.isConnected ?? false });
+})()`).then(JSON.parse);
+await sleep(400);
+const landed = await page(`(() => {
+  const row = document.querySelector('.gp-entry[data-id="${d2.id}"]');
+  const box = document.querySelector('#gp-entries');
+  return JSON.stringify({
+    top: row.getBoundingClientRect().top,
+    index: [...box.querySelectorAll('.gp-entry')].indexOf(row),
+    ids: [...box.querySelectorAll('.gp-entry')].map((r) => r.dataset.id),
+    clean: !box.classList.contains('dragging') && row.style.transform === ''
+      && getComputedStyle(row).position === 'static',
+  });
+})()`).then(JSON.parse);
+check('拖动落位：中间槽位落点准确（松手后不差一格）',
+  landing.mid !== null && Math.abs(landing.mid - landed.top) < d2.pitch * 0.6, { landing, landed, pitch: d2.pitch });
+check('拖动落位：中间槽位写回顺序 + 拖动态清零',
+  landed.index > 0 && landed.index < landed.ids.length - 1 && landed.clean,
+  { landed, dragged: d2.id });
+es = await stored(seed.a);
+check('拖动落位：storage 顺序与 DOM 一致（中间槽位）',
+  es.map((x) => x.id).join() === landed.ids.join(), { stored: es.map((x) => x.id), dom: landed.ids });
 
 // ---- 抓取当前活动标签（launcherSource 路径） ----
 await closeWui();

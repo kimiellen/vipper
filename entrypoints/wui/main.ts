@@ -1374,6 +1374,7 @@ function entryRow(entry: groups.GroupEntry): HTMLDivElement {
   const fav = el('img', 'favicon');
   fav.src = faviconUrl(entry.url);
   fav.alt = '';
+  fav.draggable = false; // 长按拖动排序时不要触发浏览器自带的图片拖拽
   const main = el('div', 'gp-entry-main');
   main.append(el('span', 'gp-entry-title', entry.title), el('span', 'gp-entry-url mono', entry.url));
   const lock = el('button', `gp-entry-btn gp-entry-lock${entry.locked ? ' on' : ''}`);
@@ -1517,33 +1518,174 @@ async function grabCurrentTab(): Promise<void> {
   await appendEntry({ url: tab.url, title: tab.title ?? tab.url });
 }
 
-// ---- 长按拖动排序（400ms 长按进入拖动，指针位置决定插入点） ----
+// ---- 长按拖动排序（400ms 长按浮起，空档随指针滑动，松手吸附落位） ----
+
+const DRAG_HOLD_MS = 400;
+/** 长按未成立时指针移动超过这个距离就放弃拖动，避免误触 */
+const DRAG_CANCEL_PX = 8;
+/** 松手后卡片滑回落点的时长 */
+const DRAG_DROP_MS = 140;
+
+/** 拖动中：浮起的行 + 其余行在文档流里的槽位 */
+interface EntryDrag {
+  row: HTMLDivElement;
+  box: HTMLElement;
+  /** 其余条目离流后的顶边中点（之后不再重读，避免让位位移反过来影响判定） */
+  slots: Array<{ row: HTMLDivElement; center: number }>;
+  /** 卡片的固定定位基准点与尺寸（视口坐标） */
+  baseLeft: number;
+  baseTop: number;
+  height: number;
+  /** 抓取点相对卡片左上角的偏移：卡片跟随指针时保持这个偏移 */
+  grabX: number;
+  grabY: number;
+  /** 一个条目的纵向占位（高度 + 下外边距）= 空档宽度 = 让位位移 */
+  pitch: number;
+  /** 记录槽位时的容器滚动量：拖动中滚轮滚动列表时用差值修正槽位 */
+  scrollTop: number;
+  gap: number;
+}
+
+/** 空档落在第 gap 个槽位：它后面的条目整体下移一个 pitch 让位（有过渡，看起来是滑动） */
+function setEntryDragGap(drag: EntryDrag, gap: number): void {
+  if (gap === drag.gap) return;
+  drag.gap = gap;
+  drag.slots.forEach((slot, k) => {
+    slot.row.style.transform = k >= gap ? `translateY(${drag.pitch}px)` : '';
+  });
+}
+
+function beginEntryDrag(row: HTMLDivElement, x: number, y: number): EntryDrag | null {
+  const box = $('#gp-entries');
+  const rect = row.getBoundingClientRect();
+  if (!rect.height) return null;
+  const margin = parseFloat(getComputedStyle(row).marginBottom) || 0;
+  const rows = [...box.querySelectorAll<HTMLDivElement>('.gp-entry')];
+  const origin = rows.indexOf(row);
+  if (origin < 0) return null;
+  const drag: EntryDrag = {
+    row,
+    box,
+    slots: [],
+    baseLeft: rect.left,
+    baseTop: rect.top,
+    height: rect.height,
+    grabX: Math.min(rect.width, Math.max(0, x - rect.left)),
+    grabY: Math.min(rect.height, Math.max(0, y - rect.top)),
+    pitch: rect.height + margin,
+    scrollTop: box.scrollTop,
+    gap: -1,
+  };
+  // 先钉在当前位置再离流：离流的一瞬间下方条目会挤上来，靠初始让位把它们按回原位
+  row.style.width = `${rect.width}px`;
+  row.style.left = `${rect.left}px`;
+  row.style.top = `${rect.top}px`;
+  row.classList.add('dragging');
+  // 离流后再读槽位：此时是压缩后的文档流位置，后续只写 transform，不再重读
+  drag.slots = rows
+    .filter((r) => r !== row)
+    .map((r) => {
+      const b = r.getBoundingClientRect();
+      return { row: r, center: b.top + b.height / 2 };
+    });
+  // 初始空档 = 原槽位（前面有几个条目），视觉上坑还在原地
+  setEntryDragGap(drag, origin);
+  // 下一帧才开过渡：初始让位若有动画，一长按整列会先滑一下
+  requestAnimationFrame(() => box.classList.add('dragging'));
+  return drag;
+}
+
+function moveEntryDrag(drag: EntryDrag, x: number, y: number): void {
+  const dx = x - drag.grabX - drag.baseLeft;
+  const dy = y - drag.grabY - drag.baseTop;
+  drag.row.style.transform = `translate(${dx}px, ${dy}px) scale(1.02)`;
+  // 用卡片中心的投影位置判定落点：抓在条目底部也不会一浮起就换槽位
+  const center = drag.baseTop + dy + drag.height / 2;
+  // 槽位是记录时的视口坐标；拖动中滚动列表时按滚动量修正
+  const scrolled = drag.box.scrollTop - drag.scrollTop;
+  setEntryDragGap(drag, drag.slots.filter((s) => s.center - scrolled < center).length);
+}
+
+/** 松手：卡片滑到空档处，然后落位写回顺序（其余条目的让位位移同步清零，视觉上不跳） */
+function endEntryDrag(drag: EntryDrag): void {
+  const { row, box, slots, gap, baseTop, height, pitch, scrollTop } = drag;
+  const next = slots[gap]?.row ?? null;
+  // 落点取槽位的文档流位置（槽位记录时的中点 ± 半个条目高），不读当前 rect：
+  // 让位动画可能还在跑，实时 rect 会偏，松手时就会出现一跳
+  const scrolled = box.scrollTop - scrollTop;
+  const lastSlot = slots[slots.length - 1];
+  const targetTop = gap < slots.length
+    ? slots[gap]!.center - height / 2 - scrolled
+    : lastSlot
+      ? lastSlot.center + height / 2 - scrolled + (pitch - height)
+      : baseTop;
+  let finished = false;
+  let timer = 0;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    clearTimeout(timer);
+    row.removeEventListener('transitionend', onEnd);
+    box.classList.remove('dragging');
+    for (const slot of slots) slot.row.style.transform = '';
+    if (!row.isConnected) return; // 拖动期间面板被重渲染，DOM 已重建，无需落位
+    row.classList.remove('dragging');
+    row.style.cssText = '';
+    if (next?.isConnected) box.insertBefore(row, next);
+    else box.append(row);
+    void persistEntryOrder();
+  };
+  const onEnd = (ev: TransitionEvent) => {
+    if (ev.target === row && ev.propertyName === 'transform') finish();
+  };
+  if (!row.isConnected) {
+    finish();
+    return;
+  }
+  row.addEventListener('transitionend', onEnd);
+  row.style.transition = `transform ${DRAG_DROP_MS}ms ease`;
+  row.style.transform = `translate(0px, ${targetTop - baseTop}px) scale(1)`;
+  timer = window.setTimeout(finish, DRAG_DROP_MS + 120); // transitionend 没来（如动画被禁用）时兜底
+}
 
 function attachEntryDrag(row: HTMLDivElement): void {
   row.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
     if ((e.target as HTMLElement).closest('button, input')) return; // 按钮/表单不触发拖动
-    let dragging = false;
-    const timer = setTimeout(() => {
-      dragging = true;
-      row.classList.add('dragging');
-    }, 400);
-    const onMove = (ev: PointerEvent) => {
-      if (!dragging) return;
-      const box = $('#gp-entries');
-      const others = [...box.querySelectorAll<HTMLElement>('.gp-entry:not(.dragging)')];
-      const after = others.find((r) => {
-        const rect = r.getBoundingClientRect();
-        return ev.clientY < rect.top + rect.height / 2;
-      });
-      box.insertBefore(row, after ?? null);
-    };
-    const onUp = () => {
+    const startX = e.clientX;
+    const startY = e.clientY;
+    let x = startX;
+    let y = startY;
+    let drag: EntryDrag | null = null;
+    const timer = window.setTimeout(() => {
+      drag = beginEntryDrag(row, x, y);
+      try {
+        row.setPointerCapture(e.pointerId); // 指针拖出窗口也能收到 up，避免卡片卡在浮起态
+      } catch {
+        /* 合成事件没有真实 pointerId */
+      }
+    }, DRAG_HOLD_MS);
+    const detach = () => {
       clearTimeout(timer);
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
-      row.classList.remove('dragging');
-      if (dragging) void persistEntryOrder();
+    };
+    const onMove = (ev: PointerEvent) => {
+      x = ev.clientX;
+      y = ev.clientY;
+      if (drag) {
+        moveEntryDrag(drag, x, y);
+        return;
+      }
+      // 长按还没成立就把指针拖走：按普通移动处理，不进入拖动
+      if (Math.hypot(x - startX, y - startY) > DRAG_CANCEL_PX) detach();
+    };
+    const onUp = () => {
+      const active = drag;
+      drag = null;
+      detach();
+      if (active) endEntryDrag(active);
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
