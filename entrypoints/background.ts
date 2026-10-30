@@ -527,7 +527,8 @@ async function handleAutofill(): Promise<void> {
 
 /**
  * 回车打开 vipper 标签组（spec: 冷启动重建）：按 entries 顺序批量建标签 → 合成 chrome 组
- * → 落 tabId↔entryId 映射（M29/M30 双向同步用）→ 记为最后打开的组。
+ * → 落 tabId↔entryId 映射（M29/M30 双向同步用）→ 记为最后打开的组 → 激活首条目、
+ * 折叠目标窗口内其余组（spec: 打开即聚焦，M34）。
  * 已打开过（映射仍有效）时不重复开，改为激活该组第一个标签。
  */
 async function openVipperGroup(groupId: string, senderWindowId?: number): Promise<void> {
@@ -594,6 +595,15 @@ async function openVipperGroup(groupId: string, senderWindowId?: number): Promis
   await groups.setOpenGroupMapping(groupId, { chromeGroupId, windowId, tabs: tabsMap });
   await groups.setLastOpenedGroupId(groupId);
   await chrome.tabs.update(tabIds[0]!, { active: true });
+
+  // 打开即聚焦（spec 2026-10-30）：活动标签先移进新组，再折叠同窗口其余组。顺序不可颠倒——
+  // Chrome 拒绝折叠含活动标签的组，活动标签留在组外时新组也无从成为唯一展开组
+  const others = await chrome.tabGroups.query({ windowId });
+  await Promise.all(
+    others
+      .filter((g) => g.id !== chromeGroupId)
+      .map((g) => chrome.tabGroups.update(g.id, { collapsed: true }).catch(() => { /* 组已消失 */ })),
+  );
 }
 
 /** wui 管理页与 content script 的消息入口 */

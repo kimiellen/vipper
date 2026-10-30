@@ -352,3 +352,12 @@
 - [x] 删除旧的两次点击确认：`delGroupArmed` / 3s 计时器 / `.confirming` 类与 CSS，以及 `handleGroupsKey` 里的 Esc 分支；弹窗打开时页面键盘流整体让位（`confirmResolve` 守卫）
 - [x] m27 删除组用例重写：弹窗出现且组仍在、标题带组名、默认焦点在取消、取消与 Esc 均不删、确认后删除并回退选中
 - [x] 验证：m27 26/26 通过；`pnpm verify:affected` 因 wui 改动映射 18 个脚本退化为全量，25/26 首轮通过，m19 因固定端口 8390 被上一轮遗留进程占用报 EADDRINUSE，单跑 8/8 通过；`pnpm typecheck` / `pnpm build` 通过 + 弹窗截图自检
+
+## M34：回车新建组后「打开即聚焦」✅（2026-10-30）
+
+> 起因：用户要求通过 groups 视图打开的组成为唯一展开组。spec.md 交互节新增「打开即聚焦」，同步模型「冷启动重建」补折叠步骤；已打开组的路径明确不改（仍由 Alt+H/L 切组负责折叠）。
+
+- [x] `openVipperGroup` 新建路径：建组 → 激活首条目标签 → `tabGroups.query(windowId)` 折叠同窗口其余组；顺序不可颠倒（Chrome 拒绝折叠含活动标签的组，活动标签留在组外时新组也无从聚焦）
+- [x] 已打开组的路径不动：只激活标签 + 聚焦窗口，不折叠其他组
+- [x] m28 增补断言：预先造两个已展开真实组 + 一个已打开的 vipper 组，打开新组后断言这 3 个组全部 `collapsed=true`、新组 `collapsed=false` 且属性正确、活动标签 = 新组首条目；重复回车（激活已打开组）不折叠
+- [x] 验证：m28 15/15；全量 `pnpm verify` **26/26 通过**（50.7s）；`pnpm typecheck` / `pnpm build` 通过
