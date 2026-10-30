@@ -560,13 +560,14 @@
   /* ===== groups 视图（Feature 3：标签组管理页） =====
      三段式：顶部 chips 行（占满整行，行尾新建按钮 + 视图切换）
      → 下方左右平分（左 = 选中组管理栏，右 = 书签搜索栏）。
-     左管理栏顶部下压，为选中 chip → 管理栏的连接线留空间；
+     两栏顶边平齐；chip → 管理栏的连接折线走在 chips 行与两栏之间的空档里；
      连接线与管理栏边框用选中组颜色（JS 内联 var(--cat-*)，跟随主题）。 */
   .page-groups { height: 100%; display: flex; flex-direction: column; position: relative; }
   .gp-chips-row {
     flex: none; display: flex; align-items: center; gap: var(--space-2);
-    /* 底部留白：chips 行与下方两栏之间拉开距离（右侧搜索栏不再贴着按钮） */
-    padding: var(--space-3) var(--space-4);
+    /* 底部留白即连接区：chip 下沿 4px（.gp-chips 的内边距）+ 此处 20px = 24px，
+       连接折线的水平段落在其中线，上下两段竖线等长（各 12px） */
+    padding: var(--space-3) var(--space-4) var(--space-5);
   }
   .gp-chips {
     flex: 1; min-width: 0; display: flex; gap: var(--space-2);
@@ -599,10 +600,8 @@
     padding: 0 var(--space-4) var(--space-4);
   }
   .gp-left { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
-  /* 连接区：为 chip → 管理栏的折线留出竖直空间（36px；折线本身画在全页覆盖层上） */
-  .gp-connector { flex: none; height: 36px; margin-top: calc(-1 * var(--space-3)); }
   /* 连接折线覆盖层：铺满 groups 页面、不参与布局也不吃事件。
-     路径固定为 chip 底中 → chips 行与两栏间空档的中线 → 管理栏顶边中点，chips 溢出到右半区时也不会被左栏截断。 */
+     路径固定为 chip 底中 → 空档中线 → 管理栏顶边中点，chips 溢出到右半区时也不会被左栏截断。 */
   .gp-link { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
   .gp-link[hidden] { display: none; }
   .gp-panel {
@@ -770,10 +769,9 @@
     <button class="btn btn-primary" id="gp-add" data-zh="＋ 标签组" data-en="＋ Tab Group">＋ 标签组</button>
   </div>
 
-  <!-- 下方左右平分：左 = 选中组管理栏（顶部下压留连接线空间），右 = 书签搜索栏（与 chips 行平齐） -->
+  <!-- 下方左右平分：左 = 选中组管理栏，右 = 书签搜索栏；两栏顶边平齐 -->
   <div class="gp-main">
     <div class="gp-left">
-      <div class="gp-connector"></div>
       <div class="gp-panel" id="gp-panel">
         <div class="gp-panel-head">
           <div class="gp-head-row">

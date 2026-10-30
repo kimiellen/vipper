@@ -6,9 +6,9 @@
  * - storage 层：addGroup/saveGroup/listGroups/getGroup 读写与索引同步；空组名/非法颜色拒绝；lastOpened 持久化
  * - 视图路由：#groups 显示 groups 视图、隐藏书签视图；无 hash 时书签视图不受影响
  * - chips：渲染（组色）、单击选中、新建组（命名 + 9 色）、Esc 取消、溢出渐隐
- * - 布局：三段式（chips 行占满整行；右栏顶部高于左管理栏，连接区 36px）
+ * - 布局：三段式（chips 行占满整行；左右两栏顶边平齐，chip 到管理栏之间留连接空档）
  * - 组色 accents：连接折线 + 管理栏边框跟随选中组颜色
- * - 连接折线几何：chip 底中 → 空档中线 → 管理栏顶边中点；chips 溢出、选中 chip 在右半区时落点不变
+ * - 连接折线几何：chip 底中 → 空档中线 → 管理栏顶边中点，两段竖线等长；chips 溢出、选中 chip 在右半区时落点不变
  * - 键盘：`/` 在 chips 与搜索框间切换光标（搜索非空时输入普通字符）；←/→ 移动且不越界
  * - 初始选中 = 最后一次回车打开过的组（storage.local）
  */
@@ -150,21 +150,25 @@ check('组色 accents：管理栏边框 + 连接折线 = 选中组颜色（work=
 
 let link = await linkGeom(page);
 const [start, bend1, bend2, end] = link.points;
-check('连接折线几何：chip 底中 → 空档中线 → 管理栏顶边中点', !link.hidden
+check('连接折线几何：chip 底中 → 空档中线 → 管理栏顶边中点（两段竖线等长）', !link.hidden
   && link.points.length === 4
   && Math.abs(start[0] - (link.chip.cx - link.page.left)) < 1
   && Math.abs(start[1] - (link.chip.bottom - link.page.top)) < 1
   && Math.abs(end[0] - (link.panel.cx - link.page.left)) < 1
   && Math.abs(end[1] - (link.panel.top - link.page.top)) < 1
   && Math.abs(bend1[1] - bend2[1]) < 0.5 && bend1[1] > start[1] && bend1[1] < end[1]
+  && Math.abs((bend1[1] - start[1]) - (end[1] - bend2[1])) < 0.5
   && Math.abs(bend1[0] - start[0]) < 0.5 && Math.abs(bend2[0] - end[0]) < 0.5, link);
 
-check('布局：chips 行占满整行；左管理栏顶部下压（连接区 36px）', await page(`(() => {
+check('布局：chips 行占满整行；左右两栏顶边平齐，chip 到管理栏留连接空档', await page(`(() => {
   const row = document.querySelector('.gp-chips-row').getBoundingClientRect();
   const right = document.querySelector('.gp-right').getBoundingClientRect();
   const panel = document.querySelector('#gp-panel').getBoundingClientRect();
+  const chip = document.querySelector('.gp-chip.selected').getBoundingClientRect();
+  const gap = panel.top - chip.bottom;
   return Math.abs(row.width - document.documentElement.clientWidth) < 2
-    && panel.top - right.top >= 10;
+    && Math.abs(panel.top - right.top) <= 1
+    && gap >= 16 && gap <= 40;
 })()`));
 
 // ---- 单击选中：accents 跟随 ----
