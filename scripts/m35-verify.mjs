@@ -149,14 +149,30 @@ check('重激活 A：beta-long 仍折叠，alpha 仍展开',
 let page = await openWui();
 await page(`document.querySelector('.gp-chip[data-id="${A}"]')?.click()`);
 await sleep(250);
+const closedState = JSON.parse(await page(`JSON.stringify((() => {
+  const r = (s) => document.querySelector(s).getBoundingClientRect();
+  const ic = document.querySelector('#gp-edit-group');
+  const del = document.querySelector('#gp-del-group');
+  return {
+    rowH: +r('#gp-head-row').height.toFixed(1),
+    entriesTop: +r('#gp-entries').top.toFixed(1),
+    icVisible: getComputedStyle(ic).display !== 'none',
+    delVisible: getComputedStyle(del).display !== 'none',
+    editRight: Math.round(r('#gp-edit-group').right),
+    delLeft: Math.round(r('#gp-del-group').left),
+  };
+})())`));
+check('默认态：✎ 与删除可见且紧挨（间隙 ≤12px）',
+  closedState.icVisible && closedState.delVisible
+  && closedState.delLeft - closedState.editRight <= 12, closedState);
 await page(`document.querySelector('#gp-edit-group').click()`);
 await sleep(250);
 let editState = JSON.parse(await page(`JSON.stringify((() => {
   const form = document.querySelector('#gp-edit');
-  const editBtn = document.querySelector('#gp-edit-group');
   const name = document.querySelector('#gp-edit-name');
   const formRect = form.getBoundingClientRect();
-  const editRect = editBtn.getBoundingClientRect();
+  const row = document.querySelector('#gp-head-row');
+  const rowRect = row.getBoundingClientRect();
   const add = document.querySelector('#gp-add-tab');
   const addRect = add.getBoundingClientRect();
   const dotEls = [...document.querySelectorAll('#gp-edit-colors .gp-dot')];
@@ -167,15 +183,16 @@ let editState = JSON.parse(await page(`JSON.stringify((() => {
     dots: dotEls.length,
     onColor: onDot?.title ?? null,
     focused: document.activeElement.id,
-    inRow: document.querySelector('#gp-head-row').contains(form),
-    beforeEdit: (form.compareDocumentPosition(editBtn) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
+    inRow: row.contains(form),
     addVisible: getComputedStyle(add).display !== 'none',
     addRight: Math.round(addRect.right),
+    rowRight: Math.round(rowRect.right),
     formLeft: Math.round(formRect.left),
     formRight: Math.round(formRect.right),
-    editLeft: Math.round(editRect.left),
-    editRight: Math.round(editRect.right),
-    delLeft: Math.round(document.querySelector('#gp-del-group').getBoundingClientRect().left),
+    rowH: +rowRect.height.toFixed(1),
+    entriesTop: +document.querySelector('#gp-entries').getBoundingClientRect().top.toFixed(1),
+    iconsHidden: getComputedStyle(document.querySelector('#gp-edit-group')).display === 'none'
+      && getComputedStyle(document.querySelector('#gp-del-group')).display === 'none',
     nameWidth: Math.round(name.getBoundingClientRect().width),
     dotRows: new Set(dotEls.map((d) => Math.round(d.getBoundingClientRect().top))).size,
     checkGlyph: onDot ? getComputedStyle(onDot, '::after').content : null,
@@ -187,10 +204,13 @@ check('✎ 展开内联表单：回填组名/蓝点/焦点在输入框',
 check('组名输入框 140px、9 色单行、选中色有 ✓ 标识',
   Math.abs(editState.nameWidth - 140) <= 1 && editState.dotRows === 1
   && editState.checkGlyph?.includes('✓'), editState);
-check('表单在 ✎ 左侧且不覆盖 + 添加页面；✎ 与删除紧挨（间隙 ≤12px）',
-  editState.inRow && editState.beforeEdit && editState.formLeft >= editState.addRight
-  && editState.addVisible && editState.formRight <= editState.editLeft
-  && editState.delLeft - editState.editRight <= 12, editState);
+check('表单靠右展开、盖住 ✎/删除，且不覆盖 + 添加页面',
+  editState.inRow && editState.iconsHidden
+  && Math.abs(editState.formRight - editState.rowRight) <= 1
+  && editState.formLeft >= editState.addRight && editState.addVisible, editState);
+check('展开编辑不改变行高、下方内容位置',
+  closedState.rowH === editState.rowH && closedState.entriesTop === editState.entriesTop,
+  { closedState, open: editState });
 
 await page(`(() => {
   document.querySelector('#gp-edit-name').value = '';
@@ -226,9 +246,11 @@ await page(`document.querySelector('#gp-edit-group').click()`);
 await sleep(150);
 await page(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))`);
 await sleep(150);
-check('Esc：收起编辑表单并恢复 + 添加页面',
+check('Esc：收起编辑表单，恢复 + 添加页面与 ✎/删除',
   await page(`document.querySelector('#gp-edit').hidden
     && getComputedStyle(document.querySelector('#gp-add-tab')).display !== 'none'
+    && getComputedStyle(document.querySelector('#gp-edit-group')).display !== 'none'
+    && getComputedStyle(document.querySelector('#gp-del-group')).display !== 'none'
     && !document.querySelector('#gp-head-row').classList.contains('editing')`));
 
 // ---- chips 拖动排序：选中 gamma，把 alpha chip 拖到行尾 ----

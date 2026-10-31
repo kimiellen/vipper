@@ -630,7 +630,7 @@
   #gp-new .input { height: 100%; padding-block: 7px; }
   #gp-new-colors { display: flex; align-items: center; gap: var(--space-1); }
   /* 编辑选中组：与 #gp-new 同构（组名 140px + 单行 9 色 + ✓/✕），在 ✎ 左侧展开 */
-  #gp-edit { display: flex; align-items: center; gap: var(--space-1); flex: 1; min-width: 0; }
+  #gp-edit { display: flex; align-items: center; gap: var(--space-1); flex: none; }
   #gp-edit-name { width: 140px; flex: none; }
   #gp-edit .input { height: 31px; padding-block: 4px; }
   #gp-edit .gp-dot { width: 14px; height: 14px; }
@@ -682,12 +682,17 @@
     flex: none; display: flex; flex-direction: column; gap: var(--space-2);
     padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border);
   }
-  .gp-head-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
-  /* ✎ 与删除作为一组紧挨着；编辑表单在这组内部、按钮左侧占满剩余行宽 */
+  .gp-head-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--space-2); min-height: 31px; /* 与编辑表单同高，展开时下方内容不下移 */
+  }
+  /* ✎ 与删除作为一组紧挨着；编辑表单固定宽度、靠右展开并盖住这两个按钮 */
   .gp-head-actions {
     display: flex; align-items: center; justify-content: flex-end;
     gap: var(--space-1); flex: 1; min-width: 0; order: 2;
   }
+  .gp-head-row.editing #gp-edit-group,
+  .gp-head-row.editing #gp-del-group { display: none; }
   #gp-add-menu { display: flex; gap: var(--space-2); margin-top: var(--space-2); }
   #gp-edit-group { font-size: 16px; line-height: 1; }
   #gp-edit-group:hover { color: var(--accent); background: var(--accent-soft); }
