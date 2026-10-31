@@ -91,6 +91,24 @@ vipper does not take over Chrome's native systems — configure these to your li
 
 ## Installation
 
+### Build requirements
+
+| Requirement | Version | Notes |
+|---|---|---|
+| Node.js | **≥ 22** | Required by WXT 0.21; check with `node -v` |
+| pnpm | **≥ 9** | The repo uses a pnpm v9 lockfile; don't mix npm / yarn, or the lockfile will be ignored |
+| Chrome / Chromium | Manifest V3 capable | Only needed to load the extension; the build itself doesn't require a browser |
+
+All dependencies are pure JavaScript — no Python or C++ toolchain is required.
+
+If pnpm is not installed yet:
+
+```bash
+npm install -g pnpm
+```
+
+### Build and load
+
 ```bash
 pnpm install
 pnpm build

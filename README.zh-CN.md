@@ -91,6 +91,24 @@ vipper 不接管 Chrome 的原生系统，以下几项按需自行配置：
 
 ## 安装
 
+### 构建依赖
+
+| 依赖 | 版本要求 | 说明 |
+|---|---|---|
+| Node.js | **≥ 22** | WXT 0.21 的硬性要求；用 `node -v` 检查 |
+| pnpm | **≥ 9** | 仓库使用 pnpm v9 lockfile；请勿混用 npm / yarn，否则不会按锁文件安装 |
+| Chrome / Chromium | 支持 Manifest V3 的版本 | 仅在加载扩展时需要，构建本身不依赖浏览器 |
+
+项目依赖均为纯 JavaScript，不需要 Python 或 C++ 编译工具链。
+
+尚未安装 pnpm 时：
+
+```bash
+npm install -g pnpm
+```
+
+### 构建与加载
+
 ```bash
 pnpm install
 pnpm build
