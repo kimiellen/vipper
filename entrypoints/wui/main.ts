@@ -1806,8 +1806,12 @@ function renderGroupColorDots(
     const dot = el('button', `gp-dot${c === selected ? ' on' : ''}`);
     dot.style.background = `var(${groups.GROUP_COLOR_VARS[c]})`;
     dot.title = c;
+    dot.setAttribute('aria-pressed', String(c === selected));
     dot.addEventListener('click', () => {
-      box.querySelectorAll('.gp-dot').forEach((d) => d.classList.toggle('on', d === dot));
+      box.querySelectorAll('.gp-dot').forEach((d) => {
+        d.classList.toggle('on', d === dot);
+        d.setAttribute('aria-pressed', String(d === dot));
+      });
       onPick(c);
     });
     box.append(dot);

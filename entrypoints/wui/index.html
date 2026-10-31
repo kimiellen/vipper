@@ -629,25 +629,38 @@
   /* 输入框跟随表单高度；padding 收到 7px 才放得下 14px 文字的行高，不裁字 */
   #gp-new .input { height: 100%; padding-block: 7px; }
   #gp-new-colors { display: flex; align-items: center; gap: var(--space-1); }
-  /* 编辑选中组：与 #gp-new 同构，占据 ✎ 左侧的本行空间向左展开；编辑时暂隐左侧按钮/提示 */
+  /* 编辑选中组：与 #gp-new 同构（组名 140px + 单行 9 色 + ✓/✕），在 ✎ 左侧展开 */
   #gp-edit { display: flex; align-items: center; gap: var(--space-1); flex: 1; min-width: 0; }
-  #gp-edit-name { flex: 1; min-width: 0; }
+  #gp-edit-name { width: 140px; flex: none; }
   #gp-edit .input { height: 31px; padding-block: 4px; }
-  /* 本行宽度有限（900 宽弹窗时左栏约 400px）：9 色点排成 5+4 两行（恰好 31px 高），
-     给组名输入框留出可读宽度；✓/✕ 同步收窄 */
   #gp-edit .gp-dot { width: 14px; height: 14px; }
   #gp-edit .btn-sm { padding-inline: var(--space-1); min-width: 24px; }
-  #gp-edit-colors {
-    display: grid; grid-template-columns: repeat(5, 14px); grid-auto-rows: 14px;
-    gap: 3px; flex: none;
+  #gp-edit-colors { display: flex; align-items: center; gap: 3px; flex: none; }
+  /* 窄窗口：Add Tab 收成 ＋ 图标，9 色点再收一档，保证 ✎/删除仍在行内 */
+  @media (max-width: 1160px) {
+    #gp-edit { gap: 2px; }
+    #gp-edit .gp-dot { width: 12px; height: 12px; }
+    #gp-edit-colors { gap: 2px; }
+    #gp-edit .btn-sm { min-width: 22px; padding-inline: 3px; }
+    .gp-head-row.editing #gp-add-tab { font-size: 0; padding-inline: var(--space-2); }
+    .gp-head-row.editing #gp-add-tab::before { content: '＋'; font-size: var(--text-sm); }
   }
-  .gp-head-row.editing #gp-add-tab,
-  .gp-head-row.editing .gp-head-hint { display: none; }
   .gp-dot {
+    position: relative;
     width: 18px; height: 18px; border-radius: var(--radius-full);
     border: 2px solid transparent; padding: 0; cursor: pointer; flex: none;
   }
+  /* 选中：白描边 + 高对比 ✓（不同底色上都清楚），不再依赖难辨的边框色差 */
   .gp-dot.on { border-color: var(--fg); }
+  .gp-dot.on::after {
+    content: '✓'; position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: var(--weight-bold); line-height: 1;
+    color: #fff;
+    text-shadow: 0 0 2px rgb(0 0 0 / 85%), 0 1px 2px rgb(0 0 0 / 70%);
+    pointer-events: none;
+  }
+  #gp-edit .gp-dot.on::after { font-size: 10px; }
   .gp-main {
     flex: 1; min-height: 0; display: grid;
     /* 两栏恒等切分：minmax(0,1fr) 让内容再长也撑不宽那一栏 */
