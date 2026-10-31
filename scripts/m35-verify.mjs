@@ -146,16 +146,32 @@ await page(`document.querySelector('.gp-chip[data-id="${A}"]')?.click()`);
 await sleep(250);
 await page(`document.querySelector('#gp-edit-group').click()`);
 await sleep(250);
-let editState = JSON.parse(await page(`JSON.stringify({
-  open: !document.querySelector('#gp-edit').hidden,
-  value: document.querySelector('#gp-edit-name').value,
-  dots: document.querySelectorAll('#gp-edit-colors .gp-dot').length,
-  onColor: document.querySelector('#gp-edit-colors .gp-dot.on')?.title ?? null,
-  focused: document.activeElement.id,
-})`));
+let editState = JSON.parse(await page(`JSON.stringify((() => {
+  const form = document.querySelector('#gp-edit');
+  const editBtn = document.querySelector('#gp-edit-group');
+  const name = document.querySelector('#gp-edit-name');
+  const formRect = form.getBoundingClientRect();
+  const editRect = editBtn.getBoundingClientRect();
+  return {
+    open: !form.hidden,
+    value: name.value,
+    dots: document.querySelectorAll('#gp-edit-colors .gp-dot').length,
+    onColor: document.querySelector('#gp-edit-colors .gp-dot.on')?.title ?? null,
+    focused: document.activeElement.id,
+    inRow: document.querySelector('#gp-head-row').contains(form),
+    beforeEdit: (form.compareDocumentPosition(editBtn) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
+    formRight: Math.round(formRect.right),
+    editLeft: Math.round(editRect.left),
+    addHidden: getComputedStyle(document.querySelector('#gp-add-tab')).display === 'none',
+    nameWidth: Math.round(name.getBoundingClientRect().width),
+  };
+})())`));
 check('✎ 展开内联表单：回填组名/蓝点/焦点在输入框',
   editState.open && editState.value === 'alpha' && editState.dots === 9
   && editState.onColor === 'blue' && editState.focused === 'gp-edit-name', editState);
+check('表单在 ✎ 同一行、位于 ✎ 左侧并占满左侧空间（+ 添加页面 暂隐）',
+  editState.inRow && editState.beforeEdit && editState.formRight <= editState.editLeft
+  && editState.addHidden && editState.nameWidth > 40, editState);
 
 await page(`(() => {
   document.querySelector('#gp-edit-name').value = '';
@@ -191,7 +207,10 @@ await page(`document.querySelector('#gp-edit-group').click()`);
 await sleep(150);
 await page(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))`);
 await sleep(150);
-check('Esc：收起编辑表单', await page(`document.querySelector('#gp-edit').hidden`));
+check('Esc：收起编辑表单并恢复 + 添加页面',
+  await page(`document.querySelector('#gp-edit').hidden
+    && getComputedStyle(document.querySelector('#gp-add-tab')).display !== 'none'
+    && !document.querySelector('#gp-head-row').classList.contains('editing')`));
 
 // ---- chips 拖动排序：选中 gamma，把 alpha chip 拖到行尾 ----
 await page(`document.querySelector('.gp-chip[data-id="${C}"]')?.click()`);

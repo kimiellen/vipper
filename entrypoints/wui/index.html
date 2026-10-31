@@ -629,11 +629,20 @@
   /* 输入框跟随表单高度；padding 收到 7px 才放得下 14px 文字的行高，不裁字 */
   #gp-new .input { height: 100%; padding-block: 7px; }
   #gp-new-colors { display: flex; align-items: center; gap: var(--space-1); }
-  /* 编辑选中组：与 #gp-new 同构，高度对齐头部 btn-sm（31px） */
-  #gp-edit { display: flex; align-items: center; gap: var(--space-2); }
+  /* 编辑选中组：与 #gp-new 同构，占据 ✎ 左侧的本行空间向左展开；编辑时暂隐左侧按钮/提示 */
+  #gp-edit { display: flex; align-items: center; gap: var(--space-1); flex: 1; min-width: 0; }
   #gp-edit-name { flex: 1; min-width: 0; }
   #gp-edit .input { height: 31px; padding-block: 4px; }
-  #gp-edit-colors { display: flex; align-items: center; gap: var(--space-1); }
+  /* 本行宽度有限（900 宽弹窗时左栏约 400px）：9 色点排成 5+4 两行（恰好 31px 高），
+     给组名输入框留出可读宽度；✓/✕ 同步收窄 */
+  #gp-edit .gp-dot { width: 14px; height: 14px; }
+  #gp-edit .btn-sm { padding-inline: var(--space-1); min-width: 24px; }
+  #gp-edit-colors {
+    display: grid; grid-template-columns: repeat(5, 14px); grid-auto-rows: 14px;
+    gap: 3px; flex: none;
+  }
+  .gp-head-row.editing #gp-add-tab,
+  .gp-head-row.editing .gp-head-hint { display: none; }
   .gp-dot {
     width: 18px; height: 18px; border-radius: var(--radius-full);
     border: 2px solid transparent; padding: 0; cursor: pointer; flex: none;
@@ -833,21 +842,21 @@
     <div class="gp-left">
       <div class="gp-panel" id="gp-panel">
         <div class="gp-panel-head">
-          <div class="gp-head-row">
+          <div class="gp-head-row" id="gp-head-row">
             <button class="btn btn-ghost btn-sm" id="gp-add-tab" data-zh="＋ 添加页面" data-en="＋ Add Tab">＋ 添加页面</button>
             <span class="gp-head-hint" id="gp-head-hint" hidden></span>
+            <div id="gp-edit" hidden>
+              <input class="input" id="gp-edit-name" type="text" />
+              <div id="gp-edit-colors"></div>
+              <button class="btn btn-primary btn-sm" id="gp-edit-ok">✓</button>
+              <button class="btn btn-ghost btn-sm" id="gp-edit-cancel">✕</button>
+            </div>
             <button class="icon-btn gp-edit-group" id="gp-edit-group" hidden>✎</button>
             <button class="icon-btn gp-del-group" id="gp-del-group" hidden></button>
           </div>
           <div id="gp-add-menu" hidden>
             <button class="btn btn-ghost btn-sm" id="gp-add-manual" data-zh="✎ 手动输入 URL" data-en="✎ Enter URL">✎ 手动输入 URL</button>
             <button class="btn btn-ghost btn-sm" id="gp-add-grab" data-zh="⇩ 抓取当前标签页" data-en="⇩ Grab current tab">⇩ 抓取当前标签页</button>
-          </div>
-          <div id="gp-edit" hidden>
-            <input class="input" id="gp-edit-name" type="text" />
-            <div id="gp-edit-colors"></div>
-            <button class="btn btn-primary btn-sm" id="gp-edit-ok">✓</button>
-            <button class="btn btn-ghost btn-sm" id="gp-edit-cancel">✕</button>
           </div>
         </div>
         <div class="gp-entries" id="gp-entries"></div>

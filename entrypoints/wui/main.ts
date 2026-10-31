@@ -1841,6 +1841,7 @@ function openEditGroupForm(): void {
   if (!sel) return;
   closeNewGroupForm();
   closeAddMenu();
+  $('#gp-head-row').classList.add('editing'); // 隐去左侧按钮/提示，让表单从 ✎ 向左占满本行
   $('#gp-edit').hidden = false;
   $('#gp-edit-group').title = t('editGroup');
   editGroupColor = sel.color;
@@ -1855,6 +1856,7 @@ function openEditGroupForm(): void {
 
 function closeEditGroupForm(): void {
   $('#gp-edit').hidden = true;
+  $('#gp-head-row').classList.remove('editing');
 }
 
 async function confirmEditGroup(): Promise<void> {
