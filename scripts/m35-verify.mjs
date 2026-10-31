@@ -290,5 +290,37 @@ await sleep(250);
 check('拖动后单击正常选中 beta-long',
   await page(`document.querySelector('.gp-chip.selected')?.dataset.id === ${JSON.stringify(B)}`));
 
+// ---- 映射丢失（扩展重载会清空 storage.session）：排序按标题+颜色兜底，且回车不重复建组 ----
+// 上一个用例把 wui 留在打开状态，先关掉：open-groups 是 toggle，否则会关窗而不是开窗
+await page(`window.close()`);
+for (let i = 0; i < 40 && hasPage('wui.html'); i++) await sleep(100);
+await sleep(200);
+
+const groupCount = () => sw(`chrome.tabGroups.query({ windowId: ${srcWin} }).then((gs) => gs.length)`);
+const tabTotal = () => sw(`chrome.tabs.query({ windowId: ${srcWin} }).then((ts) => ts.length)`);
+
+await sw(`chrome.storage.session.remove('opengrp:${B}')`);
+await sleep(200);
+check('模拟重载：beta-long 的打开态映射已清空',
+  !(await sw(`chrome.storage.session.get('opengrp:${B}').then((s) => !!s['opengrp:${B}'])`)));
+
+// 当前 chips 顺序 B,C,A；浏览器顺序仍是 A,B,C（拖动 chips 不重排浏览器组）
+await openGroup(A);
+blocks = await browserGroups();
+check('映射丢失后：排序仍按 chips 顺序（标题+颜色兜底）',
+  titles(blocks) === 'beta-long,gamma,alpha-renamed', blocks);
+
+const beforeAdopt = { groups: await groupCount(), tabs: await tabTotal() };
+await openGroup(B);
+blocks = await browserGroups();
+check('映射丢失后回车：不重复建 beta-long（组数/标签数不变）',
+  blocks.length === 3 && await groupCount() === beforeAdopt.groups
+  && await tabTotal() === beforeAdopt.tabs, { beforeAdopt, blocks });
+const betaFirstUrl = blocks.find((b) => b.title === 'beta-long')?.urls[0];
+check('映射丢失后回车：激活 beta-long 组内首个标签',
+  betaFirstUrl !== undefined
+  && (await sw(`chrome.tabs.query({ active: true, windowId: ${srcWin} }).then(([t]) => t.url)`)) === betaFirstUrl,
+  { blocks, betaFirstUrl });
+
 summary();
 close();

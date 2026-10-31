@@ -209,6 +209,7 @@ chrome.storage.local 是 LevelDB 键值库（声明 `unlimitedStorage` 去配额
 - **管理页 → 浏览器**（组当前打开时实时生效）：删条目 → `tabs.remove`；拖动排序 → `tabs.move`；添加条目 → `tabs.create` + `tabs.group` 入组
 - **冷启动重建**：回车打开 = 批量 `tabs.create`（按 entries 顺序）+ `tabs.group` + `tabGroups.update(color/title)` → 建立映射、激活首条目 → 折叠同窗口其余组（折叠只走新建路径，见交互节「打开即聚焦」）
 - **打开时按 chips 排序浏览器组**（2026-10-31 追加）：回车打开（含重激活已打开组）后，按 chips 顺序重排目标窗口内的 vipper 组。用 `chrome.tabGroups.move(groupId, { index })` 整组移动（组内标签顺序、标题、颜色、折叠态均保留）；实测 `chrome.tabs.move` 移动多标签块会把组拆散，不可用于整组重排
+- **映射丢失后的身份兜底**（2026-10-31 补充）：映射存 `storage.session`，**扩展重载/更新会清空它**（Chrome 行为，不是 bug），而窗口里的 chrome 组还在。此时用「chrome 组标题 + 颜色」认回同一个 vipper 组（标题/颜色都是 vipper 写入的，重载不会改变）：回车命中同标题+同色且无映射的组 → 视为已打开（激活、不重复建）；排序名次同样按标题+颜色兜底。兜底**只做识别、不重建 tab↔entry 映射**——重载后浏览器侧成员可能已经变过，按位置硬配会把条目串错
 
 ### 技术路径
 

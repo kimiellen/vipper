@@ -372,3 +372,13 @@
   - 备注：实测 `chrome.tabs.move` 移动多标签块会把组拆散，改为 `tabGroups.move`（chrome 156 实测可用）；spec 措辞已同步修正
 - [x] 新增 `scripts/m35-verify.mjs`（20 条断言）：拖动浮起/让位/连接线隐藏/落位落盘与选中不变、编辑表单回填/空名拒绝/同步已开组/ Esc、两种打开路径的浏览器组排序与折叠态保持
 - [x] 验证：m35 20/20；全量 `pnpm verify` **27/27 里程碑脚本通过**（50.3s，含 m26 38/38、m27 26/26、m28 15/15、m29 12/12、m30 9/9、m31 12/12 回归）；`pnpm typecheck` / `pnpm build` 通过
+
+## M36：映射丢失后排序/去重仍成立 ✅（2026-10-31）
+
+> 起因：真机反馈——扩展重载后，groups 视图里 luna 排在 code 前，浏览器里 luna 仍落在 code 后面。根因：`chrome.storage.session` 在扩展重载/更新时被清空（Chrome 明确行为），而 M35 排序只认 `opengrp` 映射；重载前已打开的组成了「无映射孤儿」，排序时只剩一个块直接返回。
+
+- [x] `sortVipperGroupsInWindow` 名次改为「映射优先，无映射时按 chrome 组标题+颜色兜底」（标题/颜色都是 vipper 写入的，重载不会变）；认不出名次的非 vipper 组不参与重排、保持相对顺序
+- [x] 新增 `activateUnmappedGroup`：回车时目标窗口里存在同标题+同色且无映射的 chrome 组 → 视为已打开（激活组内首个标签 + 记 lastOpened + 排序），不再重复建一份标签
+- [x] 兜底只做识别、不重建 tab↔entry 映射：重载后浏览器侧成员可能已变，按位置硬配会把条目串错
+- [x] m35 增补 6 条断言（共 26）：清掉映射后重激活仍按 chips 排序、回车不重复建组（组数/标签数不变）、激活该组组内首个标签
+- [x] 验证：m35 26/26；全量 `pnpm verify` **27/27 通过**（50.2s）；`pnpm typecheck` / `pnpm build` 通过

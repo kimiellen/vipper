@@ -525,10 +525,15 @@ async function handleAutofill(): Promise<void> {
   await sendCandidates(tab.id, tab.url);
 }
 
+/** chrome 组「标题+颜色」→ 身份键：映射丢失时靠它认出同一个 vipper 组 */
+const groupLabel = (title: string, color: string): string => `${title}\u0000${color}`;
+
 /**
  * 打开组后按 chips 顺序重排目标窗口内的 vipper 组（spec 2026-10-31）。
  * 用 tabGroups.move 整组移动：组内标签顺序、标题、颜色、折叠态都保留。
  * 只动 vipper 管理的组，非 vipper 标签/组保持相对顺序。
+ * 名次优先取打开态映射；映射会随扩展重载被清空（storage.session 特性），此时按
+ * chrome 组的「标题+颜色」兜底认出同一个组——标题/颜色都是 vipper 写的，重载不会变。
  */
 async function sortVipperGroupsInWindow(windowId: number): Promise<void> {
   const [idx, mappings, tabs, tabGroups] = await Promise.all([
@@ -538,7 +543,16 @@ async function sortVipperGroupsInWindow(windowId: number): Promise<void> {
     chrome.tabGroups.query({ windowId }),
   ]);
   const rank = new Map(idx.map((g, i) => [g.id, i]));
-  const live = new Set(tabGroups.map((g) => g.id));
+  const rankByLabel = new Map<string, number>();
+  idx.forEach((g, i) => {
+    const key = groupLabel(g.title, g.color);
+    if (!rankByLabel.has(key)) rankByLabel.set(key, i); // 同名同色取最靠前的那组
+  });
+  const rankByGroupId = new Map<number, number>();
+  for (const [groupId, mapping] of Object.entries(mappings)) {
+    const r = rank.get(groupId);
+    if (r !== undefined) rankByGroupId.set(mapping.chromeGroupId, r);
+  }
   const tabsByGroup = new Map<number, chrome.tabs.Tab[]>();
   for (const t of tabs) {
     if (t.groupId === -1) continue;
@@ -546,15 +560,15 @@ async function sortVipperGroupsInWindow(windowId: number): Promise<void> {
     list.push(t);
     tabsByGroup.set(t.groupId, list);
   }
-  // 只取目标窗口内、映射仍有效且 chrome 组还在的 vipper 组（不依赖 mapping.windowId，窗口可能被用户拖走）
-  const blocks = Object.entries(mappings)
-    .filter(([, m]) => live.has(m.chromeGroupId))
-    .map(([groupId, m]) => ({
-      chromeGroupId: m.chromeGroupId,
-      rank: rank.get(groupId) ?? Number.MAX_SAFE_INTEGER,
-      tabs: (tabsByGroup.get(m.chromeGroupId) ?? []).sort((a, b) => a.index - b.index),
+  // 认不出名次的 chrome 组（用户自建组等）不参与重排，保持相对顺序
+  const blocks = tabGroups
+    .map((g) => ({
+      chromeGroupId: g.id,
+      rank: rankByGroupId.get(g.id) ?? rankByLabel.get(groupLabel(g.title ?? '', g.color ?? '')),
+      tabs: (tabsByGroup.get(g.id) ?? []).sort((a, b) => a.index - b.index),
     }))
-    .filter((b) => b.tabs.length > 0);
+    .filter((b): b is { chromeGroupId: number; rank: number; tabs: chrome.tabs.Tab[] } =>
+      b.rank !== undefined && b.tabs.length > 0);
   if (blocks.length < 2) return;
 
   const byPosition = [...blocks].sort((a, b) => a.tabs[0]!.index - b.tabs[0]!.index);
@@ -570,10 +584,31 @@ async function sortVipperGroupsInWindow(windowId: number): Promise<void> {
 }
 
 /**
+ * 映射已丢（扩展重载会清空 storage.session）但 chrome 组还在：按「标题+颜色」认回，激活其首个标签。
+ * 只做激活、不重建 tab↔entry 映射——重载后浏览器侧成员可能已经变过，按位置硬配会把条目串错。
+ */
+async function activateUnmappedGroup(def: groups.TabGroupDef, windowId: number): Promise<boolean> {
+  const [tabGroups, mappings] = await Promise.all([
+    chrome.tabGroups.query({ windowId }),
+    groups.listOpenGroupMappings(),
+  ]);
+  const mapped = new Set(Object.values(mappings).map((m) => m.chromeGroupId));
+  const hit = tabGroups.find(
+    (g) => !mapped.has(g.id) && g.title === def.title && g.color === def.color,
+  );
+  if (!hit) return false;
+  const [first] = (await chrome.tabs.query({ windowId, groupId: hit.id }))
+    .sort((a, b) => a.index - b.index);
+  if (first?.id !== undefined) await chrome.tabs.update(first.id, { active: true });
+  return true;
+}
+
+/**
  * 回车打开 vipper 标签组（spec: 冷启动重建）：按 entries 顺序批量建标签 → 合成 chrome 组
  * → 落 tabId↔entryId 映射（M29/M30 双向同步用）→ 记为最后打开的组 → 激活首条目、
  * 折叠目标窗口内其余组（spec: 打开即聚焦，M34）。
- * 已打开过（映射仍有效）时不重复开，改为激活该组第一个标签。
+ * 已打开过（映射仍有效，或映射被扩展重载清空但 chrome 组按标题+颜色仍能认回）时
+ * 不重复开，改为激活该组第一个标签。
  */
 async function openVipperGroup(groupId: string, senderWindowId?: number): Promise<void> {
   const def = await groups.getGroup(groupId);
@@ -612,6 +647,13 @@ async function openVipperGroup(groupId: string, senderWindowId?: number): Promis
 
   // 先关 wui 弹窗再操作：headless Chromium 有 popup 在场时分组会失败的 quirk（M3 同款）
   if (senderWindowId !== undefined) await chrome.windows.remove(senderWindowId);
+
+  // 映射丢了但 chrome 组还在（扩展重载清空 storage.session）：激活既有组，不重复建一份
+  if (windowId !== undefined && await activateUnmappedGroup(def, windowId)) {
+    await groups.setLastOpenedGroupId(groupId);
+    await sortVipperGroupsInWindow(windowId).catch(() => { /* 排序失败不影响打开 */ });
+    return;
+  }
 
   const tabsMap: Record<number, string> = {};
   const tabIds: number[] = [];
