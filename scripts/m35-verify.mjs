@@ -162,6 +162,8 @@ let editState = JSON.parse(await page(`JSON.stringify((() => {
     beforeEdit: (form.compareDocumentPosition(editBtn) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
     formRight: Math.round(formRect.right),
     editLeft: Math.round(editRect.left),
+    editRight: Math.round(editRect.right),
+    delLeft: Math.round(document.querySelector('#gp-del-group').getBoundingClientRect().left),
     addHidden: getComputedStyle(document.querySelector('#gp-add-tab')).display === 'none',
     nameWidth: Math.round(name.getBoundingClientRect().width),
   };
@@ -169,8 +171,9 @@ let editState = JSON.parse(await page(`JSON.stringify((() => {
 check('✎ 展开内联表单：回填组名/蓝点/焦点在输入框',
   editState.open && editState.value === 'alpha' && editState.dots === 9
   && editState.onColor === 'blue' && editState.focused === 'gp-edit-name', editState);
-check('表单在 ✎ 同一行、位于 ✎ 左侧并占满左侧空间（+ 添加页面 暂隐）',
+check('表单在 ✎ 左侧，✎ 与删除紧挨（间隙 ≤12px），+ 添加页面 暂隐',
   editState.inRow && editState.beforeEdit && editState.formRight <= editState.editLeft
+  && editState.delLeft - editState.editRight <= 12
   && editState.addHidden && editState.nameWidth > 40, editState);
 
 await page(`(() => {
