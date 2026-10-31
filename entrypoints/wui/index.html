@@ -612,6 +612,15 @@
     font-size: var(--text-sm); white-space: nowrap;
   }
   .gp-chip.selected { border-color: currentColor; font-weight: var(--weight-semibold); }
+  /* chips 长按拖动：与左栏条目同一套动画语言（浮起 + 让位 + 吸附） */
+  .gp-chips.dragging { cursor: grabbing; }
+  .gp-chips.dragging .gp-chip { transition: transform 150ms ease; }
+  .gp-chip.dragging {
+    position: fixed; z-index: 40; margin: 0; pointer-events: none;
+    border-color: var(--accent); box-shadow: var(--shadow-lg);
+    cursor: grabbing; user-select: none; will-change: transform;
+  }
+  .gp-chips.dragging .gp-chip.dragging { transition: none; }
   /* 新建组内联表单：名称输入 + 9 色圆点 + ✓/✕
      高度锁定为 .btn 的高度（8px*2 padding + 1.5 行高*14px 字号 + 2px 边框 = 39px）：
      表单比说明按钮高的话，展开/收起会把下方管理栏和搜索栏顶下去 1.4px */
@@ -620,6 +629,11 @@
   /* 输入框跟随表单高度；padding 收到 7px 才放得下 14px 文字的行高，不裁字 */
   #gp-new .input { height: 100%; padding-block: 7px; }
   #gp-new-colors { display: flex; align-items: center; gap: var(--space-1); }
+  /* 编辑选中组：与 #gp-new 同构，高度对齐头部 btn-sm（31px） */
+  #gp-edit { display: flex; align-items: center; gap: var(--space-2); }
+  #gp-edit-name { flex: 1; min-width: 0; }
+  #gp-edit .input { height: 31px; padding-block: 4px; }
+  #gp-edit-colors { display: flex; align-items: center; gap: var(--space-1); }
   .gp-dot {
     width: 18px; height: 18px; border-radius: var(--radius-full);
     border: 2px solid transparent; padding: 0; cursor: pointer; flex: none;
@@ -648,6 +662,8 @@
   }
   .gp-head-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
   #gp-add-menu { display: flex; gap: var(--space-2); margin-top: var(--space-2); }
+  #gp-edit-group { font-size: 16px; line-height: 1; }
+  #gp-edit-group:hover { color: var(--accent); background: var(--accent-soft); }
   .gp-head-hint { margin-right: auto; font-size: var(--text-xs); color: var(--warning); }
   .gp-entries { flex: 1; min-height: 0; overflow-y: auto; padding: var(--space-2); }
   /* 条目行：favicon + 标题/url 两行 + 锁定/删除按钮；长按进入拖动 */
@@ -820,11 +836,18 @@
           <div class="gp-head-row">
             <button class="btn btn-ghost btn-sm" id="gp-add-tab" data-zh="＋ 添加页面" data-en="＋ Add Tab">＋ 添加页面</button>
             <span class="gp-head-hint" id="gp-head-hint" hidden></span>
+            <button class="icon-btn gp-edit-group" id="gp-edit-group" hidden>✎</button>
             <button class="icon-btn gp-del-group" id="gp-del-group" hidden></button>
           </div>
           <div id="gp-add-menu" hidden>
             <button class="btn btn-ghost btn-sm" id="gp-add-manual" data-zh="✎ 手动输入 URL" data-en="✎ Enter URL">✎ 手动输入 URL</button>
             <button class="btn btn-ghost btn-sm" id="gp-add-grab" data-zh="⇩ 抓取当前标签页" data-en="⇩ Grab current tab">⇩ 抓取当前标签页</button>
+          </div>
+          <div id="gp-edit" hidden>
+            <input class="input" id="gp-edit-name" type="text" />
+            <div id="gp-edit-colors"></div>
+            <button class="btn btn-primary btn-sm" id="gp-edit-ok">✓</button>
+            <button class="btn btn-ghost btn-sm" id="gp-edit-cancel">✕</button>
           </div>
         </div>
         <div class="gp-entries" id="gp-entries"></div>

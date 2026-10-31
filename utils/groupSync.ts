@@ -190,12 +190,24 @@ function tabIdOf(mapping: groups.OpenGroupMapping, entryId: string): number | un
  * wui 改完快照后推送的浏览器侧操作。组未打开（无映射）时 no-op——快照是唯一事实来源，
  * 下次回车打开时自然按快照重建。与回流路径幂等对接：
  * remove → SW 的 onRemoved 发现 entry 已删只清映射；reorder → resync 见顺序已对齐不写盘；
- * add → 映射先于去抖 resync 落盘，不会产生重复条目。
+ * add → 映射先于去抖 resync 落盘，不会产生重复条目；update → 只改 chrome 组标题/颜色。
  */
-export function handleGroupPush(groupId: string, op: 'add' | 'remove' | 'reorder', entryId?: string): void {
+export function handleGroupPush(
+  groupId: string,
+  op: 'add' | 'remove' | 'reorder' | 'update',
+  entryId?: string,
+): void {
   enqueue(groupId, async () => {
     const mapping = await groups.getOpenGroupMapping(groupId);
     if (!mapping) return;
+    if (op === 'update') {
+      const def = await groups.getGroup(groupId);
+      if (!def) return;
+      await chrome.tabGroups
+        .update(mapping.chromeGroupId, { title: def.title, color: def.color })
+        .catch(() => {}); // 组已消失则忽略，等回流清理映射
+      return;
+    }
     if (op === 'remove' && entryId) {
       const tabId = tabIdOf(mapping, entryId);
       if (tabId !== undefined) await chrome.tabs.remove(tabId).catch(() => {});

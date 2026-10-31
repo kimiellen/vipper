@@ -526,6 +526,50 @@ async function handleAutofill(): Promise<void> {
 }
 
 /**
+ * 打开组后按 chips 顺序重排目标窗口内的 vipper 组（spec 2026-10-31）。
+ * 用 tabGroups.move 整组移动：组内标签顺序、标题、颜色、折叠态都保留。
+ * 只动 vipper 管理的组，非 vipper 标签/组保持相对顺序。
+ */
+async function sortVipperGroupsInWindow(windowId: number): Promise<void> {
+  const [idx, mappings, tabs, tabGroups] = await Promise.all([
+    groups.listGroups(),
+    groups.listOpenGroupMappings(),
+    chrome.tabs.query({ windowId }),
+    chrome.tabGroups.query({ windowId }),
+  ]);
+  const rank = new Map(idx.map((g, i) => [g.id, i]));
+  const live = new Set(tabGroups.map((g) => g.id));
+  const tabsByGroup = new Map<number, chrome.tabs.Tab[]>();
+  for (const t of tabs) {
+    if (t.groupId === -1) continue;
+    const list = tabsByGroup.get(t.groupId) ?? [];
+    list.push(t);
+    tabsByGroup.set(t.groupId, list);
+  }
+  // 只取目标窗口内、映射仍有效且 chrome 组还在的 vipper 组（不依赖 mapping.windowId，窗口可能被用户拖走）
+  const blocks = Object.entries(mappings)
+    .filter(([, m]) => live.has(m.chromeGroupId))
+    .map(([groupId, m]) => ({
+      chromeGroupId: m.chromeGroupId,
+      rank: rank.get(groupId) ?? Number.MAX_SAFE_INTEGER,
+      tabs: (tabsByGroup.get(m.chromeGroupId) ?? []).sort((a, b) => a.index - b.index),
+    }))
+    .filter((b) => b.tabs.length > 0);
+  if (blocks.length < 2) return;
+
+  const byPosition = [...blocks].sort((a, b) => a.tabs[0]!.index - b.tabs[0]!.index);
+  const byRank = [...blocks].sort((a, b) => a.rank - b.rank);
+  if (byPosition.every((b, i) => b.chromeGroupId === byRank[i]!.chromeGroupId)) return;
+
+  // 以最左边 vipper 组的起点为锚，按 chips 顺序把整组依次移进去
+  let insertAt = byPosition[0]!.tabs[0]!.index;
+  for (const block of byRank) {
+    await chrome.tabGroups.move(block.chromeGroupId, { index: insertAt });
+    insertAt += block.tabs.length;
+  }
+}
+
+/**
  * 回车打开 vipper 标签组（spec: 冷启动重建）：按 entries 顺序批量建标签 → 合成 chrome 组
  * → 落 tabId↔entryId 映射（M29/M30 双向同步用）→ 记为最后打开的组 → 激活首条目、
  * 折叠目标窗口内其余组（spec: 打开即聚焦，M34）。
@@ -543,6 +587,8 @@ async function openVipperGroup(groupId: string, senderWindowId?: number): Promis
       const firstTabId = Number(Object.keys(existing.tabs)[0]);
       if (!Number.isNaN(firstTabId)) await chrome.tabs.update(firstTabId, { active: true });
       await chrome.windows.update(chromeGroup.windowId, { focused: true }).catch(() => {});
+      // 重激活也按 chips 顺序整理一次；排序失败不影响打开
+      await sortVipperGroupsInWindow(chromeGroup.windowId).catch(() => {});
       if (senderWindowId !== undefined) await chrome.windows.remove(senderWindowId);
       return;
     } catch {
@@ -594,6 +640,8 @@ async function openVipperGroup(groupId: string, senderWindowId?: number): Promis
   await chrome.tabGroups.update(chromeGroupId, { title: def.title, color: def.color });
   await groups.setOpenGroupMapping(groupId, { chromeGroupId, windowId, tabs: tabsMap });
   await groups.setLastOpenedGroupId(groupId);
+  // 按 chips 顺序整理目标窗口内已打开的 vipper 组；排序失败不阻断打开
+  await sortVipperGroupsInWindow(windowId).catch(() => {});
   await chrome.tabs.update(tabIds[0]!, { active: true });
 
   // 打开即聚焦（spec 2026-10-30）：活动标签先移进新组，再折叠同窗口其余组。顺序不可颠倒——

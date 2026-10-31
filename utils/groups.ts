@@ -106,6 +106,25 @@ export async function saveGroup(group: TabGroupDef): Promise<void> {
 }
 
 /**
+ * chips 拖动排序：按给定 id 顺序重写索引（chips 渲染顺序 = 索引数组顺序）。
+ * 未知 id 忽略；传入顺序未覆盖的条目保持原相对顺序附后（防御性，正常路径不会发生）。
+ */
+export async function reorderGroups(ids: string[]): Promise<void> {
+  const idx = await listGroups();
+  const byId = new Map(idx.map((e) => [e.id, e]));
+  const next: GroupIndexEntry[] = [];
+  for (const id of ids) {
+    const entry = byId.get(id);
+    if (entry) {
+      next.push(entry);
+      byId.delete(id);
+    }
+  }
+  next.push(...byId.values());
+  await writeIndex(next);
+}
+
+/**
  * 删除组：移除详情与索引，并作废打开态映射。
  * 不关闭浏览器里已存在的标签（快照删除不等于替用户关页面）。
  */

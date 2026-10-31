@@ -5,8 +5,8 @@
 
 ## 当前状态
 
-- 已完成：M0–M34、Feature 3 视觉修订与连接线修订（详见归档）；groups 光标切换改键（见 spec.md 交互节，实现见 `handleGroupsKey`）
-- 最近提交：M34 回车新建组后「打开即聚焦」（2026-10-30，`openVipperGroup` + m28 断言）
+- 已完成：M0–M35、Feature 3 视觉修订与连接线修订（详见归档）；groups 光标切换改键（见 spec.md 交互节，实现见 `handleGroupsKey`）
+- 最近提交：M35 groups 视图 chips 排序 / 组编辑 / 打开时浏览器组排序（2026-10-31，m35 新增 20 条断言）
 - 下一个里程碑：**待用户指定**。新功能先走 intent-discovery；方向性决策先在 spec.md 落定（spec-change 需用户确认），再在本文件登记未完成项。
 
 ## 使用约定
