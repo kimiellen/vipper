@@ -670,9 +670,11 @@
     padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border);
   }
   .gp-head-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
-  /* ✎ 与删除作为一组紧挨着；编辑表单在这组左侧占满剩余行宽（order 兜底视觉顺序） */
-  .gp-head-actions { display: flex; align-items: center; gap: var(--space-1); flex: none; order: 2; }
-  #gp-edit { order: 1; }
+  /* ✎ 与删除作为一组紧挨着；编辑表单在这组内部、按钮左侧占满剩余行宽 */
+  .gp-head-actions {
+    display: flex; align-items: center; justify-content: flex-end;
+    gap: var(--space-1); flex: 1; min-width: 0; order: 2;
+  }
   #gp-add-menu { display: flex; gap: var(--space-2); margin-top: var(--space-2); }
   #gp-edit-group { font-size: 16px; line-height: 1; }
   #gp-edit-group:hover { color: var(--accent); background: var(--accent-soft); }
@@ -848,13 +850,13 @@
           <div class="gp-head-row" id="gp-head-row">
             <button class="btn btn-ghost btn-sm" id="gp-add-tab" data-zh="＋ 添加页面" data-en="＋ Add Tab">＋ 添加页面</button>
             <span class="gp-head-hint" id="gp-head-hint" hidden></span>
-            <div id="gp-edit" hidden>
-              <input class="input" id="gp-edit-name" type="text" />
-              <div id="gp-edit-colors"></div>
-              <button class="btn btn-primary btn-sm" id="gp-edit-ok">✓</button>
-              <button class="btn btn-ghost btn-sm" id="gp-edit-cancel">✕</button>
-            </div>
             <div class="gp-head-actions">
+              <div id="gp-edit" hidden>
+                <input class="input" id="gp-edit-name" type="text" />
+                <div id="gp-edit-colors"></div>
+                <button class="btn btn-primary btn-sm" id="gp-edit-ok">✓</button>
+                <button class="btn btn-ghost btn-sm" id="gp-edit-cancel">✕</button>
+              </div>
               <button class="icon-btn gp-edit-group" id="gp-edit-group" hidden>✎</button>
               <button class="icon-btn gp-del-group" id="gp-del-group" hidden></button>
             </div>
