@@ -1,7 +1,7 @@
 <div align="center">
   <img src="assets/vipper.svg" alt="vipper logo" width="96" height="96">
   <h1>vipper</h1>
-  <p><strong>标签快捷切换器 · 书签管理器 · 密码及书签信息管理器</strong></p>
+  <p><strong>标签管理器 · 书签管理器 · 密码及书签信息管理器</strong></p>
   <p>
     <a href="README.md">English</a> | <a href="README.zh-CN.md">简体中文</a>
   </p>
