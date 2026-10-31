@@ -366,6 +366,101 @@ for (const lang of ['zh', 'en']) {
   await closeTabsOf(PORT_DEMO);
 }
 
+// ---------- Phase 3.5：groups 视图（Feature 3） ----------
+// 播种 5 个组：chips 跨行、含锁定条目；右栏沿用 Phase 1 的书签库
+// Phase 3 为自动填充截图追加了本地演示站条目，groups 截图里剔除，避免出现 127.0.0.1
+await sw(`(async () => {
+  const v = __vipper.vault;
+  for (const b of await v.listIndex()) if (b.title === 'Acme Cloud') await v.deleteBookmark(b.id);
+})()`);
+await sw(`(async () => {
+  const g = __vipper.groups;
+  const mk = async (title, color, rows) => {
+    const group = await g.addGroup({ title, color });
+    group.entries = rows.map(([t, u, locked]) => ({
+      id: crypto.randomUUID(), url: u, title: t, locked: !!locked,
+    }));
+    await g.saveGroup(group);
+  };
+  await mk('工作台', 'blue', [
+    ['GitHub', 'https://github.com'],
+    ['Gmail', 'https://mail.google.com', true],
+    ['Cloudflare', 'https://dash.cloudflare.com'],
+    ['阿里云控制台', 'https://home.console.aliyun.com'],
+    ['Figma', 'https://www.figma.com'],
+    ['Notion', 'https://www.notion.so'],
+    ['Vercel', 'https://vercel.com/dashboard'],
+  ]);
+  await mk('购物', 'orange', [
+    ['淘宝网', 'https://www.taobao.com'],
+    ['京东', 'https://www.jd.com'],
+    ['什么值得买', 'https://www.smzdm.com'],
+  ]);
+  await mk('运维', 'green', [
+    ['阿里云控制台', 'https://home.console.aliyun.com'],
+    ['Cloudflare', 'https://dash.cloudflare.com'],
+    ['腾讯云', 'https://console.cloud.tencent.com'],
+  ]);
+  await mk('灵感', 'pink', [
+    ['少数派', 'https://sspai.com'],
+    ['哔哩哔哩', 'https://www.bilibili.com'],
+    ['即刻', 'https://okjike.com'],
+  ]);
+  await mk('学习', 'purple', [
+    ['MDN', 'https://developer.mozilla.org'],
+    ['TypeScript', 'https://www.typescriptlang.org'],
+    ['阮一峰的网络日志', 'https://www.ruanyifeng.com/blog/'],
+  ]);
+})()`);
+
+const openGroupsView = async () => {
+  await sw(`(async () => {
+    const wins = await chrome.windows.getAll({ populate: true });
+    for (const w of wins) {
+      if (w.tabs?.some((t) => t.url?.includes('wui.html'))) await chrome.windows.remove(w.id).catch(() => {});
+    }
+  })()`);
+  await sleep(400);
+  await sw(`chrome.windows.create({ url: chrome.runtime.getURL('wui.html') + '#groups', type: 'popup', width: 1600, height: 900 })`);
+  const page = await attachPage('wui.html#groups');
+  await waitFor(page, `document.querySelectorAll('#gp-chips .gp-chip').length >= 5
+    && document.querySelectorAll('#gp-entries .gp-entry').length >= 5`, 'groups view');
+  await sleep(500);
+  return page;
+};
+
+for (const lang of ['zh', 'en']) {
+  await sw(`__vipper.keychain.setSettings({ lang: '${lang}' })`);
+  const gp = await openGroupsView();
+  const gpClick = async (sel) => {
+    await gp(`document.querySelector(${JSON.stringify(sel)}).click()`);
+    await sleep(350);
+  };
+
+  await shot(gp, `groups.${lang}`);
+  await gpClick('#gp-add');
+  await shot(gp, `groups-new.${lang}`);
+  await gpClick('#gp-new-cancel');
+  await gpClick('#gp-edit-group');
+  await shot(gp, `groups-edit.${lang}`);
+  await gpClick('#gp-edit-cancel');
+  await gpClick('#gp-add-tab');
+  await shot(gp, `groups-add.${lang}`);
+  await gpClick('#gp-add-tab');
+  await gpClick('#gp-del-group');
+  await waitFor(gp, `!document.querySelector('#confirm-overlay').hidden`, 'delete confirm');
+  await sleep(250);
+  await shot(gp, `groups-delete.${lang}`);
+  await gpClick('#confirm-cancel');
+}
+await sw(`(async () => {
+  const wins = await chrome.windows.getAll({ populate: true });
+  for (const w of wins) {
+    if (w.tabs?.some((t) => t.url?.includes('wui.html'))) await chrome.windows.remove(w.id).catch(() => {});
+  }
+})()`);
+await sleep(400);
+
 // ---------- Phase 4：标签导航示意图（产品 UI 为 Chrome 标签栏，headless 截不到 → HTML 示意图） ----------
 // 用法：node scripts/docs-shot.mjs        全量
 //       node scripts/docs-shot.mjs tabnav 只重生示意图（快捷键/文案改版时）

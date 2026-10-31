@@ -39,8 +39,15 @@ Everything is driven by keyboard-first thinking: open, search, fill, and organiz
 - **Live two-way sync** while a group is open: pages added / closed / navigated / dragged in or out of the Chrome group flow back into the snapshot, and edits here (remove, reorder, add) act on the browser tabs immediately
 - **Lock a page** to freeze it: closing or navigating it in the browser never overwrites the snapshot, so next open still has it
 - Closing a single tab removes its page; closing the window or the whole group only clears the live mapping — the snapshot survives, which is the whole point after a browser restart
-- `←/→` walks the chips, `Enter` opens the group, `/` jumps to the search box and `Ctrl+/` back to the chips; pinyin search (same index as the bookmark vault), `↑/↓` to pick a result, `Enter` appends it to the group
+- **Create, edit, and delete groups** right here: inline forms (name + Chrome's 9 colors) update the chips immediately and sync an open Chrome group's title and color; deletion asks for confirmation and removes only the snapshot and mapping — tabs already open in the browser stay open
+- **Opening focuses the group**: tabs are rebuilt in snapshot order as a real Chrome group, the first entry is activated, and other groups in the window collapse; an already-open group is activated, not duplicated, and open vipper groups are ordered to match the chips
+- **Long-press 400 ms to reorder chips**; `←/→` walks the chips, `Enter` opens the group, `/` jumps to the search box and `Ctrl+/` back to the chips; pinyin search (same index as the bookmark vault) plus TAGS/LINS filters, `↑/↓` to pick a result, `Enter` appends it to the group
 - `+add tab` takes a URL by hand or grabs the current tab; long-press to drag pages into order
+- Snapshots are local and survive browser restarts; an extension reload clears only the live mapping, and the group is recognized again by title + color
+
+![Tab group manager](docs/guide/assets/groups.en.png)
+
+Full walkthrough with screenshots: **[Tab group manager](docs/guide/groups.md)**.
 
 **Bookmark + password manager**
 
@@ -99,6 +106,7 @@ Everyday operations, one page each, with screenshots:
 
 - [Installation & shortcuts](docs/guide/installation.md) — load the extension, bind keys, Hyprland rules
 - [Tab navigation](docs/guide/tab-navigation.md) — the two-dimensional model and its exact semantics
+- [Tab group manager](docs/guide/groups.md) — chips, snapshot rebuild, locking, live sync
 - [Bookmark manager](docs/guide/bookmarks.md) — search, pinyin, filters, opening, in-place editing
 - [Autofill (Alt+P)](docs/guide/autofill.md) — match rules, multi-account picker, iframe logins
 - [Save on login](docs/guide/auto-save.md) — the save/append prompt after you log in

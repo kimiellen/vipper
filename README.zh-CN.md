@@ -39,8 +39,15 @@ vipper 是一个 Chrome Manifest V3 扩展，把三件日常工具装进同一�
 - **打开期间双向实时同步**：浏览器里新增 / 关闭 / 跳转 / 拖入拖出的页面都会回流到快照；在管理页删除、排序、添加也会立即作用到浏览器标签
 - **锁定页面**即冻结该条目：浏览器里被关闭或跳转都不会改写快照，下次打开它仍在
 - 单个标签关闭 = 删除页面；整窗或整个组关闭只让实时映射失效——**快照完整保留**，这正是浏览器重启后的重开依赖
-- `←/→` 移动 chips、`Enter` 打开组、`/` 跳到搜索框、`Ctrl+/` 回 chips；搜索沿用书签库的拼音索引，`↑/↓` 选择结果、`Enter` 追加到当前组
+- **新建 / 编辑 / 删除组**都在这一页完成：内联表单（组名 + Chrome 9 色）保存后即时更新 chips，已打开时同步 Chrome 组的标题与颜色；删除先弹页面内确认，只删快照与映射，不关闭浏览器里已有的标签
+- **回车打开即聚焦**：按快照顺序重建标签并合成 Chrome 组，激活首条目、折叠同窗口其他组；已打开的组只激活、不重复建；窗口内各 vipper 组按 chips 顺序排列
+- **chips 长按 400ms 拖动排序**；`←/→` 移动 chips、`Enter` 打开组、`/` 跳到搜索框、`Ctrl+/` 回 chips；搜索沿用书签库的拼音索引与 TAGS/LINS 过滤，`↑/↓` 选择结果、`Enter` 追加到当前组
 - `+add tab` 支持手动输入 URL 或抓取当前标签页；长按拖动调整页面顺序
+- 快照存在本地，浏览器重启后仍在；扩展重载只清空实时映射，按「组名 + 颜色」认回已打开组
+
+![标签组管理页](docs/guide/assets/groups.zh.png)
+
+完整操作与截图见 **[标签组管理](docs/guide/zh-CN/groups.md)**。
 
 **书签 + 密码管理器**
 
@@ -99,6 +106,7 @@ pnpm build
 
 - [安装与快捷键](docs/guide/zh-CN/installation.md)——加载扩展、绑键、Hyprland 规则
 - [标签导航](docs/guide/zh-CN/tab-navigation.md)——二维模型与精确语义
+- [标签组管理](docs/guide/zh-CN/groups.md)——chips、快照重建、锁定与双向同步
 - [书签管理](docs/guide/zh-CN/bookmarks.md)——搜索、拼音、过滤、打开、原地编辑
 - [主动填充（Alt+P）](docs/guide/zh-CN/autofill.md)——匹配规则、多账号菜单、iframe 登录
 - [登录自动保存](docs/guide/zh-CN/auto-save.md)——登录后的新建 / 追加弹窗
