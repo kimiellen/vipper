@@ -238,3 +238,13 @@ chrome.storage.local 是 LevelDB 键值库（声明 `unlimitedStorage` 去配额
 - Chrome Extension **Manifest V3**
 - **WXT + TypeScript**（MV3 脚手架、content script 打包、开发期 HMR）
 - 加解密：WebCrypto API（浏览器原生，无依赖）
+
+## 发布与版本管理（2026-11-01 定稿）
+
+- **语义化版本，起始 0.1.0**：0.x 阶段破坏性变更递增 minor（0.1.0 → 0.2.0），1.0.0 之后才递增 major。理由：Chrome Web Store 靠 manifest `version` 单调递增推更新，"0.x 里一次破坏性变更就跳到 1.0.0" 会让用户侧版本曲线失真；release-please 的默认行为恰恰是 pre-major 破坏性变更 bump major，故显式开启 `bump-minor-pre-major`
+- **单一版本事实源是 `package.json` 的 `version`**：WXT 构建时写进 manifest，不手改两处；tag、Release 名、zip 文件名都由它派生
+- **发版由 release-please 从 Conventional Commits 推导**：push main → 机器人开 release PR（版本号 + CHANGELOG.md）→ 人审查并合并 → 自动打 `vX.Y.Z` tag 并建 GitHub Release。理由：发版决策收敛成"合并 release PR"一个动作，不必手写版本号或 changelog；机器人只在有可发布 commit 时才开 PR
+- **变更事实源是 `CHANGELOG.md`**，由 release-please 维护（人只润色措辞，不手写版本段落）；破坏性变更在 commit 里用 `!` 或 `BREAKING CHANGE:` footer 标记，迁移说明写进 release notes
+- **tag 之后只跑 L0**：typecheck + build + 打包 zip + sha256，上传到该 Release；Chromium 里程碑脚本（L1/L2）仍在本地按 [verify.md](./verify.md) 跑，GitHub runner 不装浏览器
+- **打包与上传与 release-please 同在一个 workflow**：GitHub 规定用默认 `GITHUB_TOKEN` 创建的 tag/release 不再触发其它 workflow，所以第二个 job 靠 `release_created` 输出判断是否打包；将来若需要级联事件再换 fine-grained PAT
+- **首个 0.1.0 为手动引导**（本仓库此前无任何 tag，release-please 需要 manifest 里已有基线版本）：手动打 tag + 上传资产，0.2.0 起全自动

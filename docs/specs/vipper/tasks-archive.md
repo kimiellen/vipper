@@ -392,3 +392,15 @@
 - [x] wui 备份手风琴新增「⇪ 导入浏览器书签」：复用主密码框验证，成功提示新增/跳过数，失败提示主密码错误；中英文案与说明同步
 - [x] 新增 `scripts/m37-verify.mjs`（15 条断言）：错误密码拒绝且零写入、追加 4 条跳过 1 条、文件夹路径入 remarks、空标题回落 URL、已有书签与账号密码原样、tag 自动创建、二次导入幂等
 - [x] 验证：m37 15/15；全量 `pnpm verify` **28/28 里程碑脚本通过**（53.0s）；`pnpm typecheck` / `pnpm build` 通过
+
+## M38：发布与版本管理 ✅（2026-11-01）
+
+> 起因：仓库此前只有 `main` 分支 + 线性 commit，零 tag / 零 Release / 零 CHANGELOG，`version` 恒为 `0.0.0`；一旦上架 Web Store 既无法复现"用户装的是哪份代码"，也没有可用的升级曲线。决策见 spec.md「发布与版本管理」。
+
+- [x] `package.json` 版本 `0.1.0`（WXT 写入 manifest）；新增 `CHANGELOG.md` 首版（0.1.0 人工基线）
+- [x] release-please 配置：`release-please-config.json`（`release-type: node`、`bump-minor-pre-major: true`、`changelog-path: CHANGELOG.md`）+ `.release-please-manifest.json`（` { ".": "0.1.0" } `）
+- [x] `.github/workflows/release.yml` 两 job：`release-please` 开 release PR / 合并后打 tag 建 Release；`package` 在 `release_created == 'true'` 时 checkout 该 tag，typecheck + build + 校验 tag 与 package.json 一致 + 打包 `vipper-<version>.zip` + `.sha256` + `gh release upload --clobber`
+- [x] 文档：spec.md 增「发布与版本管理」；AGENTS.md 增「版本与发版」；tasks.md 进度推进到 M38
+- [x] 验证：`pnpm typecheck` / `pnpm build` 通过，产物 manifest `version: 0.1.0`；两个 JSON 配置可解析且键名对得上 release-please schema；workflow YAML 结构校验通过；zip 以扩展根为根目录（`manifest.json` 在顶层）验证通过
+- 备注：仓库**不用** `packageManager` 字段——本地 pnpm 12 会据此自装 pnpm 并重写 lockfile（沙箱里还会写出重复 `importers:` 的坏文件），包管理器版本改由 workflow 的 `pnpm/action-setup@v6 version: 12.16.1` 钉住
+- 备注：CI 首次真实运行要等推 `v0.1.0` tag（本地无 `zip`，用 python zipfile 等价校验）；release-please 的 tag/release 用默认 `GITHUB_TOKEN` 创建，不会级联触发其它 workflow，故打包放在同一 workflow 第二个 job

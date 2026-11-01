@@ -23,6 +23,16 @@ Chrome MV3 扩展：标签管理器 + 书签/密码管理器。面向 Hyprland�
 - 每个里程碑完成后立即 commit，一个 commit 只做一件事
 - 临时探针脚本/截图放 `tmp/` 或复用 `scripts/lib/`，会话结束前删除；不把一次性脚本留在仓库
 
+## 版本与发版
+
+- 版本只改 `package.json` 的 `version`（WXT 写进 manifest）；`CHANGELOG.md` 由 release-please 生成，**不手写版本段落**（例外：0.1.0 首版为人工基线）
+- 日常照常提交，用 Conventional Commits；破坏性变更必须带 `!` 或 `BREAKING CHANGE:` footer，并在 release notes 里补迁移说明
+- 发版 = 合并机器人开的 release PR（release-please）→ 自动打 `vX.Y.Z` tag、建 Release，同 workflow 第二个 job 构建并上传 `vipper-<version>.zip` + `.sha256`
+- 首次引导（一次性，仅 0.1.0）：`git tag -a v0.1.0 -m "vipper 0.1.0"` 与 main 一起 push → `pnpm build` 后把 `.output/chrome-mv3` 打成**以扩展根为根**的 zip（沙箱无 `zip`，用 `python3` zipfile 按 relpath 逐条写入）+ `sha256sum` → `gh release create v0.1.0 vipper-0.1.0.zip vipper-0.1.0.zip.sha256 --title v0.1.0 --notes-file <(从 CHANGELOG 摘 0.1.0 段)`；0.2.0 起全自动
+- 仓库设置需允许 Actions 创建 PR（Settings → Actions → Allow GitHub Actions to create and approve pull requests），否则 release-please 开不了 PR
+- CI 只跑 L0（typecheck + build + 打包）；Chromium 验证仍按 `docs/specs/vipper/verify.md` 在本地执行
+- **不要**给 `package.json` 加 `packageManager` 字段：pnpm 12 会据此自装 pnpm 并重写 `pnpm-lock.yaml`（沙箱里会写出重复 `importers:` 的坏文件）；pnpm 版本钉在 workflow 的 `pnpm/action-setup` 里
+
 ## 自动化测试回路（Agent 沙箱环境）
 
 品牌版 Chrome ≥137 已移除 `--load-extension`，自动化验证用 **Chromium**：

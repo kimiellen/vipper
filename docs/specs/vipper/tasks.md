@@ -5,8 +5,8 @@
 
 ## 当前状态
 
-- 已完成：M0–M37、Feature 3 视觉修订与连接线修订（详见归档）；groups 光标切换改键（见 spec.md 交互节，实现见 `handleGroupsKey`）
-- 最近提交：M37 浏览器原生书签追加导入（2026-11-01，m37 15 条断言）
+- 已完成：M0–M38、Feature 3 视觉修订与连接线修订（详见归档）；groups 光标切换改键（见 spec.md 交互节，实现见 `handleGroupsKey`）
+- 最近提交：M38 发布与版本管理（2026-11-01，0.1.0 起版 + release-please + tag 打包 workflow）
 - 下一个里程碑：**待用户指定**。新功能先走 intent-discovery；方向性决策先在 spec.md 落定（spec-change 需用户确认），再在本文件登记未完成项。
 
 ## 使用约定
