@@ -404,4 +404,5 @@
 - [x] 验证：`pnpm typecheck` / `pnpm build` 通过，产物 manifest `version: 0.1.0`；两个 JSON 配置可解析且键名对得上 release-please schema；workflow YAML 结构校验通过；zip 以扩展根为根目录（`manifest.json` 在顶层）验证通过
 - 备注：仓库**不用** `packageManager` 字段——本地 pnpm 12 会据此自装 pnpm 并重写 lockfile（沙箱里还会写出重复 `importers:` 的坏文件），包管理器版本改由 workflow 的 `pnpm/action-setup@v6 version: 12.16.1` 钉住
 - 备注：release-please 在 manifest 模式默认按 `<component>-v<version>` 找上一个 release（即 `vipper-v0.1.0`），与 `v0.1.0` 不匹配 → 首次运行把 M0–M37 全史当成新内容、开出错误的 `0.2.0` PR；已在 `release-please-config.json` 加 `include-component-in-tag: false` 修正
+- [x] 真实链路验证（推 main 后）：`release` workflow 两次成功；release-please 先误开全史 PR，修正 tag 格式后开 0.1.1 PR，squash 合并 → 自动打 `v0.1.1`、建 Release、`package` job 构建并上传 `vipper-0.1.1.zip`（sha256 校验 OK、manifest `0.1.1`、顶层结构正确）
 - 备注：CI 首次真实运行要等推 `v0.1.0` tag（本地无 `zip`，用 python zipfile 等价校验）；release-please 的 tag/release 用默认 `GITHUB_TOKEN` 创建，不会级联触发其它 workflow，故打包放在同一 workflow 第二个 job

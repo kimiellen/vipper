@@ -3,8 +3,8 @@
 本项目所有值得注意的变更都记在这里。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-从 `0.2.0` 起，本文件由 [release-please](https://github.com/googleapis/release-please) 依据
-Conventional Commits 自动维护，**不要手写版本段落**；`0.1.0` 及以下为人工基线。
+从 `0.1.1` 起，本文件由 [release-please](https://github.com/googleapis/release-please) 依据
+Conventional Commits 自动维护，**不要手写版本段落**；`0.1.0` 为人工基线。
 
 ## [0.1.1](https://github.com/kimiellen/vipper/compare/v0.1.0...v0.1.1) (2026-11-01)
 
