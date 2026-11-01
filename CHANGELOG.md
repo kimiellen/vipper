@@ -6,6 +6,13 @@
 从 `0.2.0` 起，本文件由 [release-please](https://github.com/googleapis/release-please) 依据
 Conventional Commits 自动维护，**不要手写版本段落**；`0.1.0` 及以下为人工基线。
 
+## [0.1.1](https://github.com/kimiellen/vipper/compare/v0.1.0...v0.1.1) (2026-11-01)
+
+
+### Bug Fixes
+
+* **release:** tag 格式统一为 vX.Y.Z，修复 release-please 认不到 v0.1.0 ([73d84f4](https://github.com/kimiellen/vipper/commit/73d84f4ae1dc892daaebcd80d8d92148128f43ac))
+
 ## [0.1.0] - 2026-11-01
 
 首个可用版本：Chrome MV3 扩展 vipper —— 标签管理器 + 书签/密码管理器，面向 Hyprland（Wayland）桌面。
