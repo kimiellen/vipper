@@ -59,6 +59,7 @@ Full walkthrough with screenshots: **[Tab group manager](docs/guide/groups.md)**
 - Free-form records per bookmark: plain `note` and encrypted `secret` (recovery codes, API keys, …)
 - Tags with Catppuccin colors and linked infos (phone / email / WeChat) are reference-safe: entries in use can't be deleted
 - Archive old entries (manual or auto after N days), import/export as JSON for git-friendly backups
+- **Import native Chrome bookmarks** in one click: pages are appended, folder paths go into remarks, duplicates are skipped, existing entries stay untouched, and everything is tagged 浏览器书签导入
 - Catppuccin Mocha/Latte themes and 中文/English UI
 
 ## Security model
@@ -129,7 +130,7 @@ Everyday operations, one page each, with screenshots:
 - [Autofill (Alt+P)](docs/guide/autofill.md) — match rules, multi-account picker, iframe logins
 - [Save on login](docs/guide/auto-save.md) — the save/append prompt after you log in
 - [Tags, linked infos & archive](docs/guide/organization.md) — keeping the vault tidy
-- [Backup: import & export](docs/guide/backup.md) — plaintext JSON, full-restore semantics
+- [Backup: import & export](docs/guide/backup.md) — plaintext JSON, full-restore semantics, additive native-bookmark import
 - [Settings](docs/guide/settings.md) — theme, language, generators, lock & archive policies
 - [Security model](docs/guide/security.md) — encryption details and password reset
 

@@ -59,6 +59,7 @@ vipper 是一个 Chrome Manifest V3 扩展，把三件日常工具装进同一�
 - 记录区分明文 `note` 与加密 `secret`（恢复码、API Key 等），不限量
 - tag（Catppuccin 配色）与关联信息（手机/邮箱/微信）先建后选，被引用的条目拒绝删除
 - 条目归档（手动或超期自动）、JSON 导入导出，适合用 git 做本地备份
+- **导入浏览器原生书签**：一键追加进仓库——文件夹路径写入备注，重复 URL 跳过，已有条目原样保留，导入条目自动打 tag「浏览器书签导入」
 - Catppuccin Mocha/Latte 双主题、中英双语界面
 
 ## 安全模型
@@ -129,7 +130,7 @@ pnpm build
 - [主动填充（Alt+P）](docs/guide/zh-CN/autofill.md)——匹配规则、多账号菜单、iframe 登录
 - [登录自动保存](docs/guide/zh-CN/auto-save.md)——登录后的新建 / 追加弹窗
 - [标签、关联信息与归档](docs/guide/zh-CN/organization.md)——让仓库保持整洁
-- [备份：导入与导出](docs/guide/zh-CN/backup.md)——明文 JSON、全量恢复语义
+- [备份：导入与导出](docs/guide/zh-CN/backup.md)——明文 JSON、全量恢复语义，以及浏览器原生书签的追加导入
 - [设置](docs/guide/zh-CN/settings.md)——主题、语言、生成器、锁定与归档策略
 - [安全模型](docs/guide/zh-CN/security.md)——加密细节与密码重置
 
