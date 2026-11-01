@@ -382,3 +382,13 @@
 - [x] 兜底只做识别、不重建 tab↔entry 映射：重载后浏览器侧成员可能已变，按位置硬配会把条目串错
 - [x] m35 增补 6 条断言（共 26）：清掉映射后重激活仍按 chips 排序、回车不重复建组（组数/标签数不变）、激活该组组内首个标签
 - [x] 验证：m35 26/26；全量 `pnpm verify` **27/27 通过**（50.2s）；`pnpm typecheck` / `pnpm build` 通过
+
+## M37：浏览器原生书签追加导入 ✅（2026-11-01）
+
+> 起因：用户要求 backup 手风琴支持导入浏览器原生书签，需主密码验证、追加导入不覆盖元数据、自动打 tag「浏览器书签导入」。spec.md「导入导出」已补决策。
+
+- [x] manifest 增加 `bookmarks` 权限；新增 `utils/browserBookmarks.ts`：`chrome.bookmarks.getTree()` 展平，保留文件夹路径（如 `书签栏 / 开发`）与 `dateAdded`
+- [x] `vault.importBrowserBookmarks`：按 `URL.href` 规范化去重、自动复用/创建 tag「浏览器书签导入」（sapphire）、一次 `bm:*` + 一次 `idx` 批量落盘；已有书签与管理表不动
+- [x] wui 备份手风琴新增「⇪ 导入浏览器书签」：复用主密码框验证，成功提示新增/跳过数，失败提示主密码错误；中英文案与说明同步
+- [x] 新增 `scripts/m37-verify.mjs`（15 条断言）：错误密码拒绝且零写入、追加 4 条跳过 1 条、文件夹路径入 remarks、空标题回落 URL、已有书签与账号密码原样、tag 自动创建、二次导入幂等
+- [x] 验证：m37 15/15；全量 `pnpm verify` **28/28 里程碑脚本通过**（53.0s）；`pnpm typecheck` / `pnpm build` 通过

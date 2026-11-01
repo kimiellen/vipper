@@ -136,6 +136,7 @@ chrome.storage.local 是 LevelDB 键值库（声明 `unlimitedStorage` 去配额
 - 导入**兼容 version 1**：旧文件里的 `remark` 字段自动读取为 `remarks`（旧备份不失效）
 - 导入 = **数据恢复**：校验文件结构后**全量替换**（清空现有书签与管理表再写入），不做增量合并；同样**需输入主密码确认**（防恶意覆盖）。原"增量合并"语义作废
 - 备份主路径 = 导出 JSON 提交本地 git；软链 LevelDB 目录可行但不推荐（二进制噪音、恢复脆弱）
+- **浏览器书签导入**（2026-11-01 新增）：Settings→备份 提供「导入浏览器书签」，经 `chrome.bookmarks` API 读取实时书签树（manifest 新增 `bookmarks` 权限），与导出/导入一样**需输入主密码确认**。与全量恢复不同，本功能为**追加语义**：只新建条目，不触碰已有书签与 tags/linkedInfos 管理表（需求：不覆盖元数据）。文件夹树展平，文件夹路径写入 `remarks` 供搜索与追溯；自动关联 tag「浏览器书签导入」（同名复用，不存在则以 sapphire 色创建）；URL 按 `URL.href` 规范化后精确比较，已存在的跳过并在结果中报告新增/跳过数；标题为空回落 URL；`createdAt` 保留浏览器 `dateAdded`，`lastUsedAt` 取导入时间，导入条目均为 active。
 
 ### 安全模型（2026-10-14 修订）
 

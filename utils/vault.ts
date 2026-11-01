@@ -13,6 +13,7 @@
 
 import { decryptString, encryptString, isEncrypted } from './crypto';
 import { getKey, getSettings } from './keychain';
+import type { BrowserBookmarkItem } from './browserBookmarks';
 
 export type UrlMatch = 'host' | 'exact' | 'prefix';
 export interface BookmarkUrl { url: string; match: UrlMatch }
@@ -363,4 +364,70 @@ export async function importAll(data: VaultExport): Promise<{ added: number }> {
   // v1 导出文件用 remark，v2 用 remarks——saveBookmark 内统一规范化
   for (const b of data.bookmarks) await saveBookmark(b);
   return { added: data.bookmarks.length };
+}
+
+// ---------- 浏览器原生书签导入（spec 2026-11-01：追加语义，不覆盖元数据） ----------
+
+/** 导入条目自动关联的 tag 名；同名 tag 复用 */
+const BROWSER_IMPORT_TAG = '浏览器书签导入';
+
+/** URL 规范化（去重比较用）：协议/主机大小写与末尾斜杠归一；非法 URL 原样返回 */
+function normalizedUrl(url: string): string {
+  try {
+    return new URL(url).href;
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * 浏览器书签追加导入：
+ * - 只新建条目，不触碰已有书签与 tags/linkedInfos 管理表（需求：不覆盖元数据）
+ * - URL 规范化后已存在的跳过，结果报告新增/跳过数
+ * - 自动关联 tag「浏览器书签导入」（同名复用，不存在则创建）
+ * - 批量落盘（一次 bm:* + 一次 idx），不逐条 addBookmark，避免 O(n²) 重写索引
+ * 需已解锁。
+ */
+export async function importBrowserBookmarks(
+  items: BrowserBookmarkItem[],
+): Promise<{ added: number; skipped: number }> {
+  if (!(await getKey())) throw new Error('vault locked');
+  const idx = await listIndex();
+  const seen = new Set(idx.flatMap((e) => e.urls.map((u) => normalizedUrl(u.url))));
+  const now = Date.now();
+  const fresh: Bookmark[] = [];
+  let skipped = 0;
+  for (const item of items) {
+    const urlKey = normalizedUrl(item.url);
+    if (seen.has(urlKey)) {
+      skipped++;
+      continue;
+    }
+    seen.add(urlKey);
+    fresh.push({
+      id: crypto.randomUUID(),
+      title: item.title.trim() || item.url,
+      remarks: item.folderPath,
+      tags: [],
+      linkedInfos: [],
+      urls: [{ url: item.url, match: 'host' }],
+      accounts: [],
+      records: [],
+      status: 'active',
+      createdAt: item.dateAdded ?? now,
+      updatedAt: now,
+      lastUsedAt: now,
+    });
+  }
+  if (fresh.length === 0) return { added: 0, skipped };
+
+  const tag = (await listTags()).find((t) => t.name === BROWSER_IMPORT_TAG)
+    ?? (await addTag(BROWSER_IMPORT_TAG, 'sapphire'));
+  for (const b of fresh) b.tags = [tag.id];
+
+  const patch: Record<string, unknown> = {};
+  for (const b of fresh) patch[bmKey(b.id)] = b;
+  patch[IDX] = [...idx, ...fresh.map(toIndex)];
+  await chrome.storage.local.set(patch);
+  return { added: fresh.length, skipped };
 }

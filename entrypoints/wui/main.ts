@@ -14,6 +14,7 @@
 import * as keychain from '../../utils/keychain';
 import * as vault from '../../utils/vault';
 import * as groups from '../../utils/groups';
+import { collectBrowserBookmarks } from '../../utils/browserBookmarks';
 import { filterIndex } from '../../utils/search';
 import { genPassword, genUsername } from '../../utils/generator';
 import type { Bookmark, IndexEntry, LinkedInfo, Tag, TagColor, VaultRecord } from '../../utils/vault';
@@ -62,17 +63,27 @@ const T = {
   add: { zh: '添加', en: 'Add' },
   list: { zh: '列表', en: 'List' },
   importBtn: { zh: '⇪ 导入数据', en: '⇪ Import' },
+  importBrowserBtn: { zh: '⇪ 导入浏览器书签', en: '⇪ Import browser bookmarks' },
   exportBtn: { zh: '⇓ 导出数据', en: '⇓ Export' },
-  exportPwPh: { zh: '输入主密码确认导出/导入', en: 'Master password to confirm export/import' },
+  exportPwPh: { zh: '输入主密码确认操作', en: 'Master password to confirm' },
   exportDone: { zh: (n: number) => `已导出 ${n} 条书签`, en: (n: number) => `Exported ${n} bookmarks` },
   importDone: {
     zh: (r: { added: number }) => `恢复完成：${r.added} 条书签（已全量替换本地数据）`,
     en: (r: { added: number }) => `Restore complete: ${r.added} bookmarks (local data fully replaced)`,
   },
+  importing: { zh: '导入中…', en: 'Importing…' },
+  browserImportDone: {
+    zh: (r: { added: number; skipped: number }) => `导入完成：新增 ${r.added} 条，跳过 ${r.skipped} 条重复`,
+    en: (r: { added: number; skipped: number }) => `Import complete: ${r.added} added, ${r.skipped} duplicates skipped`,
+  },
   wrongPw: { zh: '主密码错误', en: 'Wrong master password' },
   backupDesc: {
     zh: '数据导出为明文 JSON 文件（用于本地 git 备份）。导入 = 全量恢复：清空本地数据后写入备份内容，需谨慎操作。',
     en: 'Export all data (bookmarks, tags, linkedInfos) as plain JSON for local git backup. Import = full restore: local data is replaced entirely.',
+  },
+  browserImportDesc: {
+    zh: '从浏览器原生书签追加导入：文件夹路径写入备注，自动打 tag「浏览器书签导入」，已存在的 URL 跳过；需输入主密码确认。',
+    en: 'Append from native browser bookmarks: folder paths go into remarks, entries are tagged “浏览器书签导入”, existing URLs are skipped; master password required.',
   },
   noGroups: { zh: '＋ 新建一个标签组开始', en: '＋ Create a tab group to start' },
   noEntries: { zh: '该组还没有页面', en: 'No pages in this group yet' },
@@ -1008,7 +1019,7 @@ function renderSettingsLinks(): void {
 function renderSettingsBackup(): void {
   const box = $('#settings-backup');
   box.innerHTML = '';
-  box.append(el('p', 'none', t('backupDesc')));
+  box.append(el('p', 'none', t('backupDesc')), el('p', 'none', t('browserImportDesc')));
 
   const pw = el('input', 'input') as HTMLInputElement;
   pw.type = 'password';
@@ -1051,6 +1062,32 @@ function renderSettingsBackup(): void {
     }
   })());
 
+  const browserBtn = el('button', 'btn btn-ghost btn-sm', t('importBrowserBtn')) as HTMLButtonElement;
+  browserBtn.id = 'import-browser-btn';
+  browserBtn.addEventListener('click', () => void (async () => {
+    const status = $('#backup-status');
+    // 与 JSON 导入一致：先验证主密码再操作（spec 2026-11-01）
+    if (!(await keychain.unlock(pw.value))) {
+      status.textContent = t('wrongPw');
+      status.hidden = false;
+      return;
+    }
+    pw.value = '';
+    status.textContent = t('importing');
+    status.hidden = false;
+    try {
+      const items = await collectBrowserBookmarks();
+      const result = await vault.importBrowserBookmarks(items);
+      status.textContent = T.browserImportDone[lang](result);
+      await reloadData();
+      renderFilterPops();
+      renderResults();
+      void renderDetail();
+    } catch (e) {
+      status.textContent = String(e);
+    }
+  })());
+
   const exportBtn = el('button', 'btn btn-primary btn-sm', t('exportBtn')) as HTMLButtonElement;
   exportBtn.id = 'export-btn';
   exportBtn.addEventListener('click', () => void (async () => {
@@ -1072,7 +1109,7 @@ function renderSettingsBackup(): void {
     status.hidden = false;
   })());
 
-  btns.append(importBtn, exportBtn);
+  btns.append(importBtn, browserBtn, exportBtn);
   const status = el('div', 'err-text');
   status.id = 'backup-status';
   status.hidden = true;

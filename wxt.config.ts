@@ -10,7 +10,7 @@ export default defineConfig({
       48: 'icons/icon-48.png',
       128: 'icons/icon-128.png',
     },
-    permissions: ['tabs', 'tabGroups', 'storage', 'unlimitedStorage', 'favicon', 'alarms', 'scripting', 'system.display'],
+    permissions: ['tabs', 'tabGroups', 'storage', 'unlimitedStorage', 'favicon', 'alarms', 'scripting', 'system.display', 'bookmarks'],
     host_permissions: ['<all_urls>'],
     commands: {
       'group-prev': {
