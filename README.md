@@ -6,6 +6,9 @@
     <a href="README.md">English</a> | <a href="README.zh-CN.md">简体中文</a>
   </p>
   <p>
+    <a href="https://github.com/kimiellen/vipper/releases/latest">
+      <img src="https://img.shields.io/github/v/release/kimiellen/vipper?label=download&color=b4befe" alt="Latest release">
+    </a>
     <img src="https://img.shields.io/badge/license-MIT-a6e3a1" alt="MIT License">
     <img src="https://img.shields.io/badge/chrome-MV3-89b4fa" alt="Chrome MV3">
     <img src="https://img.shields.io/badge/WXT-TypeScript-cba6f7" alt="WXT + TypeScript">
