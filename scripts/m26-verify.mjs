@@ -10,7 +10,7 @@
  * - 组色 accents：连接折线 + 管理栏边框跟随选中组颜色
  * - 连接折线几何：chip 底中 → 空档中线 → 管理栏顶边中点，两段竖线等长；chips 溢出、选中 chip 在右半区时落点不变
  * - 键盘：`/` 把光标送进搜索框、`Ctrl+/` 送回 chips（搜索框内 `/` 始终是普通字符）；←/→ 移动且不越界
- * - 初始选中 = 最后一次回车打开过的组（storage.local）
+ * - 初始选中 = 最后一次选中（展开）的组（storage.local；单击/←→ 移动即记录，无需回车打开）
  */
 
 import { connectSW, createChecker, sleep } from './lib/sw-driver.mjs';
@@ -184,6 +184,8 @@ check('单击选中：selected 移动 + 边框/连线变色（shop2=red）', awa
     && document.querySelector('#gp-panel').style.borderColor === 'var(--cat-red)'
     && document.querySelector('#gp-link-path').style.stroke === 'var(--cat-red)';
 })()`));
+check('单击选中：即记录 lastOpened（不回车也持久化）',
+  (await sw(`__vipper.groups.getLastOpenedGroupId()`)) === seed.shop);
 
 // ---- 新建组：命名 + 9 色 ----
 const panelTopBefore = await page(`document.querySelector('#gp-panel').getBoundingClientRect().top`);
@@ -268,11 +270,13 @@ await key(page, 'ArrowLeft');
 cs = await chips(page);
 check('←：回到 shop2 且不越界', cs[0].selected, cs.map((c) => c.selected));
 
-// ---- 初始选中 = 最后打开的组（重开验证）----
+// ---- 初始选中 = 最后选中（展开）的组（重开验证；选中即记录，无需回车打开）----
+check('重开前：lastOpened = 最后选中的组（shop2）',
+  (await sw(`__vipper.groups.getLastOpenedGroupId()`)) === seed.shop);
 await closeWui();
 page = await openGroups();
 cs = await chips(page);
-check('重开：初始选中 = lastOpened（work）', cs[1].selected, cs.map((c) => [c.title, c.selected]));
+check('重开：初始选中 = lastOpened（shop2）', cs[0].selected, cs.map((c) => [c.title, c.selected]));
 await closeWui();
 
 // ---- chips 溢出：横向滚动 + 渐隐 ----

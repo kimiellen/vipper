@@ -1275,7 +1275,7 @@ function applyViewMode(): void {
 
 async function renderGroupsView(): Promise<void> {
   groupIdx = await groups.listGroups();
-  // 初始选中 = 最后一次回车打开过的组（失效则回退到第一个）
+  // 初始选中 = 最后一次选中（展开）的组（失效则回退到第一个）
   if (!groupIdx.some((g) => g.id === selectedGroupId)) {
     const last = await groups.getLastOpenedGroupId();
     selectedGroupId = (groupIdx.some((g) => g.id === last) ? last : groupIdx[0]?.id) ?? null;
@@ -1320,6 +1320,7 @@ function renderGroupChips(): void {
 function selectGroup(id: string): void {
   closeEditGroupForm();
   selectedGroupId = id;
+  void groups.setLastOpenedGroupId(id); // 选中即记录：下次 Alt+, 初始落在此组
   renderGroupChips();
   void renderGroupPanel();
   document
@@ -2362,7 +2363,7 @@ async function initMain(): Promise<void> {
   void renderDetail();
   renderSettings();
   mainReady = true;
-  applyViewMode(); // bookmarks：聚焦搜索框；groups：渲染 chips 并选中上次打开的组
+  applyViewMode(); // bookmarks：聚焦搜索框；groups：渲染 chips 并选中上次展开的组
 }
 
 settings = await keychain.getSettings();

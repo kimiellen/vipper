@@ -4,7 +4,7 @@
  * 布局（spec: Feature 3 数据模型）：
  *   idx:groups          → 组索引（chips 渲染顺序 = 数组顺序）
  *   grp:<id>            → 组详情（含 entries）
- *   meta:lastOpenedGroup → 最后一次回车打开过的组 id（chips 光标初始位置）
+ *   meta:lastOpenedGroup → 最后一次选中（展开）的组 id（chips 光标初始位置；单击/←→ 移动即记录）
  *
  * Chrome 无 API 枚举 saved tab groups，本模块是唯一事实来源。
  * 无敏感信息，不加密。
@@ -134,7 +134,7 @@ export async function deleteGroup(id: string): Promise<void> {
   await chrome.storage.session.remove(openKey(id));
 }
 
-/** 最后一次回车打开过的组（chips 光标初始位置，跨重启保留） */
+/** 最后一次选中（展开）的组（chips 光标初始位置，跨重启保留） */
 export async function getLastOpenedGroupId(): Promise<string | null> {
   return ((await chrome.storage.local.get(LAST_OPENED))[LAST_OPENED] as string | undefined) ?? null;
 }
