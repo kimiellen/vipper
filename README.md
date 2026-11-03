@@ -37,7 +37,7 @@ Everything is driven by keyboard-first thinking: open, search, fill, and organiz
 
 **Tab group manager**
 
-- `Alt+,` opens the group manager: a row of colored group chips plus the selected group's pages and a bookmark search panel
+- `Alt+,` opens the group manager: a row of colored group chips plus the selected group's pages and a bookmark search panel — the view reopens with the **last-expanded group** selected (expanding a chip is enough; no need to open it)
 - Each group is a **vipper-owned snapshot** (name + one of Chrome's 9 group colors + ordered pages) — reopening rebuilds a real Chrome tab group; Chrome's own saved tab groups have no extension API, so the two are independent stores
 - **Live two-way sync** while a group is open: pages added / closed / navigated / dragged in or out of the Chrome group flow back into the snapshot, and edits here (remove, reorder, add) act on the browser tabs immediately
 - **Lock a page** to freeze it: closing or navigating it in the browser never overwrites the snapshot, so next open still has it
