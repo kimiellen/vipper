@@ -6,6 +6,13 @@
 从 `0.1.1` 起，本文件由 [release-please](https://github.com/googleapis/release-please) 依据
 Conventional Commits 自动维护，**不要手写版本段落**；`0.1.0` 为人工基线。
 
+## [0.1.2](https://github.com/kimiellen/vipper/compare/v0.1.1...v0.1.2) (2026-11-03)
+
+
+### Bug Fixes
+
+* **groups:** 选中（展开）即记录 lastOpened，重开视图落在最后展开的组 ([ff32085](https://github.com/kimiellen/vipper/commit/ff320858b97300d627bac85b4e9b085a239efc55))
+
 ## [0.1.1](https://github.com/kimiellen/vipper/compare/v0.1.0...v0.1.1) (2026-11-01)
 
 
