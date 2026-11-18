@@ -114,6 +114,37 @@ const toIndex = (b: Bookmark): IndexEntry => ({
   status: b.status,
 });
 
+// ---------- M39 唯一性约束（spec: 数据模型 2026-11-18，socket 寻址的前置） ----------
+
+/**
+ * title 全局唯一（active + archived，排除自身）；同书签内 secret 记录 name 唯一。
+ * 写路径统一在 saveBookmark 强制；自动路径（登录自动保存/浏览器书签导入）用
+ * dedupeTitle 追加序号后缀，不阻断流程。
+ */
+function assertUnique(idx: IndexEntry[], b: Bookmark): void {
+  if (idx.some((e) => e.id !== b.id && e.title === b.title)) {
+    throw new Error(`书签名已存在: ${b.title}`);
+  }
+  assertUniqueSecretNames(b.records);
+}
+
+function assertUniqueSecretNames(records: VaultRecord[]): void {
+  const seen = new Set<string>();
+  for (const r of records) {
+    if (r.template !== 'secret') continue;
+    if (seen.has(r.name)) throw new Error(`同一条目内 secret 记录名重复: ${r.name}`);
+    seen.add(r.name);
+  }
+}
+
+/** 撞名时追加序号后缀（`淘宝` → `淘宝 (2)`）；taken 由调用方持有，跨批量条目累积 */
+export function dedupeTitle(base: string, taken: Set<string>): string {
+  let title = base;
+  for (let n = 2; taken.has(title); n++) title = `${base} (${n})`;
+  taken.add(title);
+  return title;
+}
+
 export async function listIndex(): Promise<IndexEntry[]> {
   await migrateRemarks();
   const raw = ((await chrome.storage.local.get(IDX))[IDX] as LegacyIndexEntry[] | undefined) ?? [];
@@ -155,6 +186,8 @@ export async function addBookmark(input: NewBookmark): Promise<Bookmark> {
  */
 export async function saveBookmark(bookmark: Bookmark): Promise<void> {
   bookmark = normalizeBookmark(bookmark); // 写入统一规范化：兼容 v1 导入对象的旧 remark 字段
+  const idx = await listIndex(); // M39：唯一性校验与索引更新共用一次读取
+  assertUnique(idx, bookmark);
   const hasPlainSensitive =
     bookmark.accounts.some((a) => !isEncrypted(a.password)) ||
     bookmark.records.some((r) => r.template === 'secret' && !isEncrypted(r.content));
@@ -170,7 +203,6 @@ export async function saveBookmark(bookmark: Bookmark): Promise<void> {
   await chrome.storage.local.remove(bookmark.status === 'archived' ? bmKey(bookmark.id) : arcKey(bookmark.id));
   await chrome.storage.local.set({ [keyOf(toStore)]: toStore });
 
-  const idx = await listIndex();
   const i = idx.findIndex((e) => e.id === bookmark.id);
   const entry = toIndex(toStore);
   if (i === -1) idx.push(entry);
@@ -352,6 +384,14 @@ export async function importAll(data: VaultExport): Promise<{ added: number }> {
   if (data?.app !== 'vipper' || !Array.isArray(data.bookmarks)) throw new Error('不是有效的 vipper 导出文件');
   if (!(await getKey())) throw new Error('vault locked');
 
+  // M39：清空前先整体校验唯一性约束（文件含重名 = 带病数据，拒绝恢复，一个字节不写）
+  const titles = new Set<string>();
+  for (const b of data.bookmarks) {
+    if (titles.has(b.title)) throw new Error(`导入文件含重名书签: ${b.title}`);
+    titles.add(b.title);
+    assertUniqueSecretNames(b.records ?? []);
+  }
+
   // 清空现有书签（idx + bm:/arc:）与管理表
   const old = await listIndex();
   await chrome.storage.local.remove([
@@ -390,13 +430,15 @@ function normalizedUrl(url: string): string {
  */
 export async function importBrowserBookmarks(
   items: BrowserBookmarkItem[],
-): Promise<{ added: number; skipped: number }> {
+): Promise<{ added: number; skipped: number; renamed: number }> {
   if (!(await getKey())) throw new Error('vault locked');
   const idx = await listIndex();
   const seen = new Set(idx.flatMap((e) => e.urls.map((u) => normalizedUrl(u.url))));
+  const takenTitles = new Set(idx.map((e) => e.title)); // M39：撞名追加序号后缀
   const now = Date.now();
   const fresh: Bookmark[] = [];
   let skipped = 0;
+  let renamed = 0;
   for (const item of items) {
     const urlKey = normalizedUrl(item.url);
     if (seen.has(urlKey)) {
@@ -404,9 +446,12 @@ export async function importBrowserBookmarks(
       continue;
     }
     seen.add(urlKey);
+    const rawTitle = item.title.trim() || item.url;
+    const title = dedupeTitle(rawTitle, takenTitles);
+    if (title !== rawTitle) renamed++;
     fresh.push({
       id: crypto.randomUUID(),
-      title: item.title.trim() || item.url,
+      title,
       remarks: item.folderPath,
       tags: [],
       linkedInfos: [],
@@ -419,7 +464,7 @@ export async function importBrowserBookmarks(
       lastUsedAt: now,
     });
   }
-  if (fresh.length === 0) return { added: 0, skipped };
+  if (fresh.length === 0) return { added: 0, skipped, renamed };
 
   const tag = (await listTags()).find((t) => t.name === BROWSER_IMPORT_TAG)
     ?? (await addTag(BROWSER_IMPORT_TAG, 'sapphire'));
@@ -429,5 +474,5 @@ export async function importBrowserBookmarks(
   for (const b of fresh) patch[bmKey(b.id)] = b;
   patch[IDX] = [...idx, ...fresh.map(toIndex)];
   await chrome.storage.local.set(patch);
-  return { added: fresh.length, skipped };
+  return { added: fresh.length, skipped, renamed };
 }

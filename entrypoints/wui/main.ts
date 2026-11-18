@@ -73,8 +73,10 @@ const T = {
   },
   importing: { zh: '导入中…', en: 'Importing…' },
   browserImportDone: {
-    zh: (r: { added: number; skipped: number }) => `导入完成：新增 ${r.added} 条，跳过 ${r.skipped} 条重复`,
-    en: (r: { added: number; skipped: number }) => `Import complete: ${r.added} added, ${r.skipped} duplicates skipped`,
+    zh: (r: { added: number; skipped: number; renamed: number }) =>
+      `导入完成：新增 ${r.added} 条，跳过 ${r.skipped} 条重复${r.renamed ? `，${r.renamed} 条撞名已加序号后缀` : ''}`,
+    en: (r: { added: number; skipped: number; renamed: number }) =>
+      `Import complete: ${r.added} added, ${r.skipped} duplicates skipped${r.renamed ? `, ${r.renamed} renamed with numeric suffix` : ''}`,
   },
   wrongPw: { zh: '主密码错误', en: 'Wrong master password' },
   backupDesc: {
@@ -622,6 +624,7 @@ function renderEditForm(): void {
   saveBtn.addEventListener('click', () => void saveEdit());
   actions.append(cancelBtn, saveBtn);
   box.append(actions);
+  box.append(errLine('edit-err')); // M39：唯一性约束等保存错误的内联展示
 }
 
 async function saveEdit(): Promise<void> {
@@ -664,19 +667,28 @@ async function saveEdit(): Promise<void> {
   const status = (box.querySelector('#edit-status-seg .seg-btn.active') as HTMLElement).dataset.status as 'active' | 'archived';
   const remarks = ($('#edit-remarks') as HTMLTextAreaElement).value;
 
-  if (d.id) {
-    await vault.saveBookmark({
-      ...d, title, urls, accounts, records, remarks, status,
-      tags: d.tags, linkedInfos: d.linkedInfos,
-    });
-    selectedId = d.id;
-  } else {
-    const created = await vault.addBookmark({
-      title, urls, accounts, records, remarks, status,
-      tags: d.tags, linkedInfos: d.linkedInfos,
-    });
-    selectedId = created.id;
+  const err = $('#edit-err');
+  try {
+    if (d.id) {
+      await vault.saveBookmark({
+        ...d, title, urls, accounts, records, remarks, status,
+        tags: d.tags, linkedInfos: d.linkedInfos,
+      });
+      selectedId = d.id;
+    } else {
+      const created = await vault.addBookmark({
+        title, urls, accounts, records, remarks, status,
+        tags: d.tags, linkedInfos: d.linkedInfos,
+      });
+      selectedId = created.id;
+    }
+  } catch (e) {
+    // M39：重名等校验失败时内联报错，表单保持编辑态不丢输入
+    err.textContent = String(e);
+    err.hidden = false;
+    return;
   }
+  err.hidden = true;
   // status 变更后顶行 seg 联动（归档的条目在 archived 视图才可见）
   statusFilter = status;
   document.querySelectorAll('#status-seg .seg-btn').forEach((x) =>

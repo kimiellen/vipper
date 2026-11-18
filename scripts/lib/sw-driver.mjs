@@ -54,19 +54,22 @@ export async function connectSW(port = defaultPort()) {
     return fn;
   }
 
-  // MV3 SW 事件驱动，启动后 30s 休眠；休眠则等 targetCreated 重新出现
-  const swTarget = await waitTarget(
-    (t) => t.type === 'service_worker' && t.url.includes('background'),
-    'service worker（扩展未加载？）',
-  );
-  const sw = await attachEval(swTarget.targetId);
-
-  // SW target 出现时脚本可能还在求值：等调试钩子挂载好，避免首个 __vipper.* 调用报 ReferenceError
-  for (let i = 0; i < 40; i++) {
-    const ready = await sw(`typeof globalThis.__vipper === 'object'`).catch(() => false);
-    if (ready) break;
-    await sleep(150);
+  // MV3 SW 事件驱动，启动后 30s 休眠；休眠则等 targetCreated 重新出现。
+  // 注意：Chromium 组件扩展（PDF viewer 等）也有名为 background.js 的 SW，
+  // 不能按 URL 取第一个——逐个探测 __vipper 调试钩子，认准 vipper 自己的 SW。
+  let sw = null;
+  for (let i = 0; i < 40 && !sw; i++) {
+    const candidates = [...targets.values()].filter(
+      (t) => t.type === 'service_worker' && t.url.includes('background'),
+    );
+    for (const t of candidates) {
+      const fn = await attachEval(t.targetId);
+      const ready = await fn(`typeof globalThis.__vipper === 'object'`).catch(() => false);
+      if (ready) { sw = fn; break; }
+    }
+    if (!sw) await sleep(250);
   }
+  if (!sw) throw new Error('service worker（扩展未加载？）');
 
   /** 等待并附加到 URL 包含 urlPart 的页面（如扩展弹窗），返回页面内 eval 函数 */
   async function attachPage(urlPart) {

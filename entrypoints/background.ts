@@ -387,8 +387,10 @@ async function handleLoginSave(tabId: number, msg: Record<string, unknown>): Pro
 }
 
 async function saveNewBookmark(tabId: number, p: LoginPending, msg: Record<string, unknown>): Promise<void> {
-  const title = (typeof msg.title === 'string' ? msg.title.trim() : '') || loginTitle(p);
-  const [tagTable, linkTable] = await Promise.all([vault.listTags(), vault.listLinkedInfos()]);
+  const rawTitle = (typeof msg.title === 'string' ? msg.title.trim() : '') || loginTitle(p);
+  const [tagTable, linkTable, idx] = await Promise.all([vault.listTags(), vault.listLinkedInfos(), vault.listIndex()]);
+  // M39：自动保存撞名自动追加序号后缀（spec 2026-11-18），不阻断保存流程
+  const title = vault.dedupeTitle(rawTitle, new Set(idx.map((e) => e.title)));
   try {
     await vault.addBookmark({
       title,

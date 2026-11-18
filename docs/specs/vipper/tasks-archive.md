@@ -406,3 +406,16 @@
 - 备注：release-please 在 manifest 模式默认按 `<component>-v<version>` 找上一个 release（即 `vipper-v0.1.0`），与 `v0.1.0` 不匹配 → 首次运行把 M0–M37 全史当成新内容、开出错误的 `0.2.0` PR；已在 `release-please-config.json` 加 `include-component-in-tag: false` 修正
 - [x] 真实链路验证（推 main 后）：`release` workflow 两次成功；release-please 先误开全史 PR，修正 tag 格式后开 0.1.1 PR，squash 合并 → 自动打 `v0.1.1`、建 Release、`package` job 构建并上传 `vipper-0.1.1.zip`（sha256 校验 OK、manifest `0.1.1`、顶层结构正确）
 - 备注：CI 首次真实运行要等推 `v0.1.0` tag（本地无 `zip`，用 python zipfile 等价校验）；release-please 的 tag/release 用默认 `GITHUB_TOKEN` 创建，不会级联触发其它 workflow，故打包放在同一 workflow 第二个 job
+
+## M39：唯一性约束 ✅（2026-11-18）
+
+> 起因：Feature 4（socket 外部访问接口）的寻址格式定为条目路径 `<书签title>/<secret记录name>`（Q11），但数据模型原本没有任何唯一性约束。质询结论（Q15/Q16/Q17）：title 全局唯一（active+archived）、secret name 书签内唯一；写路径强制、自动路径加后缀、带病导入拒绝。设计定稿见 [socket-access.md](./socket-access.md)。存量数据已检测无重名（199 条，2026-11-18 当日备份），不做迁移。
+
+- [x] `utils/vault.ts`：`assertUnique`（title 全局唯一排除自身 + secret name 书签内唯一）挂进 `saveBookmark`  choke point（覆盖 wui 编辑、登录自动保存、归档/恢复、JSON 导入）；`dedupeTitle` 纯函数（撞名追加 ` (n)` 序号）
+- [x] `importAll`：清空前整体校验，文件含重名 title / 重名 secret name 直接拒绝，一个字节不写
+- [x] `importBrowserBookmarks`：撞既有 title 或批次内互撞自动加后缀，结果新增 `renamed` 计数；wui 结果文案体现改名数
+- [x] `entrypoints/background.ts`：登录自动保存新建撞名经 `dedupeTitle` 加后缀，不阻断保存流程
+- [x] `entrypoints/wui/main.ts`：编辑表单保存被拒（重名等）内联报错，表单保持编辑态不丢输入
+- [x] `scripts/m39-verify.mjs` 新增（12 断言）；verify-map.json 登记（vault.ts / browserBookmarks.ts / wui → m39）
+- [x] 顺带修复 `scripts/lib/sw-driver.mjs`：Chromium 组件扩展也有名为 background.js 的 SW，按 URL 取第一个会认错的 SW（__vipper 未定义），改为逐个探测 `__vipper` 调试钩子认准 vipper 自己的 SW
+- [x] 验证：m39 12/12；全量 `pnpm verify` **29/29 里程碑脚本通过**（53.1s）；`pnpm typecheck` / `pnpm build` 通过
