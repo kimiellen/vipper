@@ -47,14 +47,22 @@ const SPECIAL = {
  */
 const PRELAUNCH = {
   m40(profile) {
-    const r = spawnSync('bash', ['scripts/install-host.sh'], {
-      cwd: ROOT,
-      env: { ...process.env, HOME: FAKE_HOME, VIPPER_NMH_EXTRA_DIR: resolve(profile, 'NativeMessagingHosts') },
-      encoding: 'utf8',
-    });
-    if (r.status !== 0) throw new Error(`m40 preLaunch（install-host.sh）失败：${r.stderr || r.stdout}`);
+    installHost(profile);
+  },
+  m41(profile) {
+    installHost(profile);
   },
 };
+
+/** m40/m41 共用：把 native manifest 与最新 host/cli 装进测试 profile 与 FAKE_HOME */
+function installHost(profile) {
+  const r = spawnSync('bash', ['scripts/install-host.sh'], {
+    cwd: ROOT,
+    env: { ...process.env, HOME: FAKE_HOME, VIPPER_NMH_EXTRA_DIR: resolve(profile, 'NativeMessagingHosts') },
+    encoding: 'utf8',
+  });
+  if (r.status !== 0) throw new Error(`preLaunch（install-host.sh）失败：${r.stderr || r.stdout}`);
+}
 
 const MAP = JSON.parse(readFileSync(resolve(import.meta.dirname, 'verify-map.json'), 'utf8'));
 const ALL = MAP.all;
@@ -195,9 +203,17 @@ function killGroup(proc, signal = 'SIGTERM') {
   }
 }
 
+/**
+ * 每个里程碑独立 XDG_RUNTIME_DIR：socket 类里程碑（m40+）的 host 监听
+ * $XDG_RUNTIME_DIR/vipper/host.sock，并行 jobs 共用会互抢 socket 文件（串话）。
+ */
+function xdgFor(milestone) {
+  return resolve(FAKE_XDG, milestone);
+}
+
 function launch(milestone, port) {
   mkdirSync(FAKE_HOME, { recursive: true });
-  mkdirSync(FAKE_XDG, { recursive: true, mode: 0o700 });
+  mkdirSync(xdgFor(milestone), { recursive: true, mode: 0o700 });
   const special = SPECIAL[milestone];
   const args = [
     '--headless=new',
@@ -211,7 +227,7 @@ function launch(milestone, port) {
   ];
   const proc = spawn('chromium', args, {
     cwd: ROOT,
-    env: { ...process.env, HOME: FAKE_HOME, XDG_RUNTIME_DIR: FAKE_XDG },
+    env: { ...process.env, HOME: FAKE_HOME, XDG_RUNTIME_DIR: xdgFor(milestone) },
     stdio: 'ignore',
     detached: true,
   });
@@ -253,7 +269,7 @@ function runScript(milestone, port, timeoutS) {
   return new Promise((r) => {
     const proc = spawn('node', [`scripts/${milestone}-verify.mjs`], {
       cwd: ROOT,
-      env: { ...process.env, VIPPER_CDP_PORT: String(port), XDG_RUNTIME_DIR: FAKE_XDG },
+      env: { ...process.env, VIPPER_CDP_PORT: String(port), XDG_RUNTIME_DIR: xdgFor(milestone) },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     scripts.add(proc);

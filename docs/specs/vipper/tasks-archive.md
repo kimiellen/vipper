@@ -436,3 +436,17 @@
 - 备注（验收回路踩坑）：Chromium 的 native manifest 用户级目录是 `<user-data-dir>/NativeMessagingHosts` 且**仅启动时扫描**——verify-all 增加 PRELAUNCH 钩子，m40 启动前把 manifest 装进独立 profile；另给 Chromium 与脚本注同一 `XDG_RUNTIME_DIR`（.fake-home/xdg-run）保证 socket 路径一致
 - 备注：沙箱 pnpm 12 的 store 操作锁放 `$XDG_RUNTIME_DIR`（/run/user/1000 只读报 `ERR_PNPM_STORE_DIR_OPEN_OPERATION_LOCK`），pnpm 命令需 `XDG_RUNTIME_DIR=$PWD/.fake-home/xdg-run`——已写入 AGENTS.md
 - [x] 验证：m40 20/20；全量 `pnpm verify` **30/30 里程碑脚本通过**；`pnpm typecheck` / `pnpm build` 通过
+
+## M41：配对层 ✅（2026-11-18）
+
+> socket 功能第二块（[socket-access.md](./socket-access.md) §5/§7/§13）。X25519 配对握手 + 确认窗 + 配对存储 + 加密通道，未配对客户端什么都拿不到。
+
+- [x] 共享加密模块 `packages/vipper-protocol/crypto.js`（纯 WebCrypto 双端：Chrome ≥133 / Node ≥22）：X25519 身份/会话密钥对、指纹（SHA-256 公钥 raw）、HKDF-SHA256 派生 AES-GCM 256 会话密钥（salt 绑定双方会话公钥，同身份每连接密钥不同）、信封 `{$enc:'v1',iv,data}`（AAD 绑帧头 `{id, session}` 防跨请求重放）；附 `crypto.d.ts` 供扩展侧 TS import
+- [x] cli 身份（`packages/vipper-cli/src/identity.js`）：首连生成 X25519 密钥对，私钥 JWK 落 `~/.config/vipper/client-key`（0600，目录 0700，XDG_CONFIG_HOME 感知），此后复用同一身份；文件损坏/删除即新身份
+- [x] 配对握手：cli 每连接 `$peer.hello` → `pair`（自报名称/版本/pid + 身份公钥 + 临时会话公钥）；已配对身份直接签发会话（无弹窗），未配对 → 待确认请求落 `chrome.storage.session`（SW 回收不丢）+ `chrome.windows.create` 确认窗（新 entrypoint `entrypoints/confirm/`，展示名称/exe 路径/PID/指纹 + 60s 倒计时）
+- [x] 确认窗决定收口在 SW：允许 → 配对记录写 `chrome.storage.local`（指纹 → 名称/公钥/配对时间）并签发会话；拒绝 / 直接关窗（`windows.onRemoved` = 拒绝）/ 60s 超时 → 统一回绝，不留记录
+- [x] 加密通道：配对后业务消息走 AES-GCM 信封，会话密钥只在 SW 内存、随连接生灭（LRU 64 上限，native 断开即清空）；M42 前通道内仅 ping 回显供验收
+- [x] 未配对全拒（§11）：明文业务请求、伪造 session 信封、篡改密文统一 `unpaired`，不区分失败原因、不泄露 vault 状态；M40 明文 ping 保留为纯诊断通道
+- [x] `scripts/m41-verify.mjs` 新增（20 断言：未配对全拒 / 确认窗允许·拒绝 / 配对存储 / 私钥 0600 / 身份复用免弹窗 / 删私钥重新配对且指纹变更）；verify-map.json 登记（packages/**、socketEndpoint.ts、entrypoints/confirm/** → m41）
+- 备注（验收回路踩坑）：① 复用旧 `.chrome-test-profile` 会吃到 Service Worker 脚本缓存里的旧 background.js——socket 类脚本必须走 verify-all 的独立新 profile；② 并行 jobs 下 socket 类里程碑互抢同一个 `$XDG_RUNTIME_DIR/vipper/host.sock` 串话——verify-all 改为每里程碑独立 XDG_RUNTIME_DIR；③ 分开 bash 调用跑验证时 PID namespace 隔离会让 host 的 /proc 读回解析到错误进程（exe 显示成 chromium）——进程属性本就只是展示辅助（§5.3），verify-all 统一 namespace 下无此问题
+- [x] 验证：m41 20/20；全量 `pnpm verify` **31/31 里程碑脚本通过**（m40/m41 并行无串话）；`pnpm typecheck` / `pnpm build` 通过

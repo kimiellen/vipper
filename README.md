@@ -122,9 +122,9 @@ Then load `.output/chrome-mv3` via `chrome://extensions` → Developer mode → 
 
 Full walkthrough — including the Hyprland window rules that make the popup float and center on Wayland: **[Installation guide](docs/guide/installation.md)**
 
-## External access (experimental, M40 skeleton)
+## External access (experimental, M41 pairing)
 
-Local applications (git, msmtp, scripts, …) can read secrets from the vault via `vipper-cli → vipper-host → extension`, with no plaintext ever touching disk. This is currently the transport skeleton (ping only); pairing confirmation and per-entry authorization land in later milestones. Design: [socket-access.md](docs/specs/vipper/socket-access.md).
+Local applications (git, msmtp, scripts, …) can read secrets from the vault via `vipper-cli → vipper-host → extension`, with no plaintext ever touching disk. The pairing layer is in place: a first-time client triggers a confirmation window in the browser, and once approved all traffic runs over an X25519+HKDF+AES-GCM encrypted channel (`vipper-cli pair` / `vipper-cli sping` to try it). Per-entry authorization lands in the next milestone. Design: [socket-access.md](docs/specs/vipper/socket-access.md).
 
 ```bash
 bash scripts/install-host.sh   # one-time install (requires Node.js ≥ 22), registers for both Chrome and Chromium

@@ -122,9 +122,9 @@ pnpm build
 
 完整步骤——包括让弹窗在 Wayland 下浮动居中的 Hyprland 窗口规则：**[安装指南](docs/guide/zh-CN/installation.md)**
 
-## 外部访问（实验性，M40 骨架）
+## 外部访问（实验性，M41 配对层）
 
-vipper 支持本机应用（git、msmtp、脚本等）经 `vipper-cli → vipper-host → 扩展` 读取保管库中的私密记录，全程不明文落盘。当前为传输层骨架（ping 连通），配对确认与按条目授权在后续里程碑落地；设计见 [socket-access.md](docs/specs/vipper/socket-access.md)。
+vipper 支持本机应用（git、msmtp、脚本等）经 `vipper-cli → vipper-host → 扩展` 读取保管库中的私密记录，全程不明文落盘。配对层已就位：新客户端首次连接会在浏览器弹确认窗，亲手允许后全部流量走 X25519+HKDF+AES-GCM 加密通道（可用 `vipper-cli pair` / `vipper-cli sping` 体验）；按条目授权在下一里程碑落地。设计见 [socket-access.md](docs/specs/vipper/socket-access.md)。
 
 ```bash
 bash scripts/install-host.sh   # 一次性安装（要求 Node.js ≥ 22），Chrome 与 Chromium 都注册

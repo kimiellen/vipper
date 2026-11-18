@@ -6,17 +6,10 @@
 
 ## 当前状态
 
-- 已完成：M0–M38（详见归档）、**M39 唯一性约束**、**M40 传输层 + host 骨架**（2026-11-18）；socket 功能设计定稿（[socket-access.md](./socket-access.md)，Q1–Q17 质询确认）
-- 下一批里程碑：**M41 → M43**（socket 功能，一个里程碑一个会话，按序推进）
+- 已完成：M0–M38（详见归档）、**M39 唯一性约束**、**M40 传输层 + host 骨架**、**M41 配对层**（2026-11-18）；socket 功能设计定稿（[socket-access.md](./socket-access.md)，Q1–Q17 质询确认）
+- 下一批里程碑：**M42 → M43**（socket 功能，一个里程碑一个会话，按序推进）
 
 ## 未完成
-
-### M41 配对层
-
-- [ ] X25519 配对握手、确认窗（`chrome.windows.create` 小窗）、配对存储（`chrome.storage.local`）
-- [ ] X25519+HKDF+AES-GCM 加密通道（WebCrypto 纯实现）
-- [ ] 待确认请求落 `chrome.storage.session`（SW 回收不丢）
-- [ ] 验证：未配对请求全拒；弹窗确认后通道加密可用；删私钥文件需重新配对；新增 m41 验证脚本
 
 ### M42 授权层
 

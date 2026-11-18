@@ -29,7 +29,8 @@
     "m35",
     "m37",
     "m39",
-    "m40"
+    "m40",
+    "m41"
   ],
   "maxAffected": 10,
   "notes": "按改动文件推断受影响里程碑。匹配到 'full' 或影响面超过 maxAffected 时退回全量；匹配不到任何规则也退回全量（保守）。空数组表示无 e2e 影响（只需 typecheck/build）。",
@@ -75,7 +76,8 @@
     {
       "glob": "packages/**",
       "milestones": [
-        "m40"
+        "m40",
+        "m41"
       ]
     },
     {
@@ -175,7 +177,14 @@
     {
       "glob": "utils/socketEndpoint.ts",
       "milestones": [
-        "m40"
+        "m40",
+        "m41"
+      ]
+    },
+    {
+      "glob": "entrypoints/confirm/**",
+      "milestones": [
+        "m41"
       ]
     },
     {
