@@ -6,20 +6,10 @@
 
 ## 当前状态
 
-- 已完成：M0–M38（详见归档）、**M39 唯一性约束**（2026-11-18）；socket 功能设计定稿（[socket-access.md](./socket-access.md)，Q1–Q17 质询确认）
-- 下一批里程碑：**M40 → M43**（socket 功能，一个里程碑一个会话，按序推进）
+- 已完成：M0–M38（详见归档）、**M39 唯一性约束**、**M40 传输层 + host 骨架**（2026-11-18）；socket 功能设计定稿（[socket-access.md](./socket-access.md)，Q1–Q17 质询确认）
+- 下一批里程碑：**M41 → M43**（socket 功能，一个里程碑一个会话，按序推进）
 
 ## 未完成
-
-### M40 传输层 + host 骨架（socket-access.md §13）
-
-- [ ] pnpm workspace 改造（`packages/vipper-host`、`packages/vipper-cli`）
-- [ ] Transport 接口 + unix-socket 实现（Linux）、SO_PEERCRED 对端校验、帧格式（§4.3）
-- [ ] **首验 X25519 两端可用性**（Chrome WebCrypto / Node webcrypto；不可用降级 P-256，§5.2）
-- [ ] wxt.config.ts 给 manifest 钉固定 `key`（扩展 ID 固定，§10.1）
-- [ ] `scripts/install-host.sh`（Native Messaging manifest 注册 Chrome + Chromium、Node ≥22 检查，§10.2）
-- [ ] Native Messaging 接通扩展
-- [ ] 验证：Linux 上 cli→host→扩展字节互通；异 UID 连接被拒；新增 m40 验证脚本并登记 verify-map.json
 
 ### M41 配对层
 

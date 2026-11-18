@@ -28,7 +28,8 @@
     "m31",
     "m35",
     "m37",
-    "m39"
+    "m39",
+    "m40"
   ],
   "maxAffected": 10,
   "notes": "按改动文件推断受影响里程碑。匹配到 'full' 或影响面超过 maxAffected 时退回全量；匹配不到任何规则也退回全量（保守）。空数组表示无 e2e 影响（只需 typecheck/build）。",
@@ -62,7 +63,23 @@
       "milestones": "full"
     },
     {
+      "glob": "scripts/install-host.sh",
+      "milestones": [
+        "m40"
+      ]
+    },
+    {
       "glob": "scripts/**",
+      "milestones": []
+    },
+    {
+      "glob": "packages/**",
+      "milestones": [
+        "m40"
+      ]
+    },
+    {
+      "glob": "pnpm-workspace.yaml",
       "milestones": []
     },
     {
@@ -153,6 +170,12 @@
         "m30",
         "m31",
         "m35"
+      ]
+    },
+    {
+      "glob": "utils/socketEndpoint.ts",
+      "milestones": [
+        "m40"
       ]
     },
     {

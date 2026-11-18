@@ -6,6 +6,7 @@ import * as vault from '../utils/vault';
 import * as groups from '../utils/groups';
 import { setupGroupSync, handleGroupPush } from '../utils/groupSync';
 import { computeLauncherSize, type DisplayLike, type WindowLike } from '../utils/launcherSize';
+import { socketEndpoint } from '../utils/socketEndpoint';
 
 /** 每组上次活跃标签的 storage.session key */
 function lastActiveKey(windowId: number, groupId: number | null): string {
@@ -779,6 +780,7 @@ export default defineBackground(() => {
   handleMessages();
   setupGroupSync(); // M29：浏览器 → 管理页回流
   scheduleAutoArchive();
+  socketEndpoint.connect(); // M40：拉起 native host（socket 外部访问）
   chrome.commands.onCommand.addListener((command) => void handleCommand(command));
 
   // chrome.commands 无编程触发 API，暴露给 CDP 自动化验收脚本驱动
@@ -788,6 +790,7 @@ export default defineBackground(() => {
     keychain,   // M4+ 验收：解锁/锁定/设置
     groups,     // M26+ 验收：标签组快照库 CRUD
     launcherSize, // M24 验收：弹窗尺寸计算的真实接线（system.display + 焦点窗口）
+    socket: socketEndpoint, // M40 验收：native host 连接状态与客户端元数据
     login: {    // M22+ 验收：登录 pending 摘要（不含密码）
       pending: () =>
         [...loginPending.entries()].map(([tabId, p]) => ({

@@ -419,3 +419,20 @@
 - [x] `scripts/m39-verify.mjs` 新增（12 断言）；verify-map.json 登记（vault.ts / browserBookmarks.ts / wui → m39）
 - [x] 顺带修复 `scripts/lib/sw-driver.mjs`：Chromium 组件扩展也有名为 background.js 的 SW，按 URL 取第一个会认错的 SW（__vipper 未定义），改为逐个探测 `__vipper` 调试钩子认准 vipper 自己的 SW
 - [x] 验证：m39 12/12；全量 `pnpm verify` **29/29 里程碑脚本通过**（53.1s）；`pnpm typecheck` / `pnpm build` 通过
+
+## M40：传输层 + host 骨架 ✅（2026-11-18）
+
+> socket 功能第一块（[socket-access.md](./socket-access.md) §13）。pnpm workspace 改造出 `packages/`（vipper-protocol 共享帧格式与路径、vipper-host 愚蠢管道、vipper-cli 骨架），Native Messaging 全链路字节互通。
+
+- [x] pnpm workspace 改造（`pnpm-workspace.yaml` + `packages/vipper-protocol|vipper-host|vipper-cli`，零依赖纯 JS，lockfile 不变、`--frozen-lockfile` 实测通过）
+- [x] 帧格式（§4.3）：uint32 LE 长度前缀 + UTF-8 JSON，socket 与 Native Messaging 同构，host 逐帧**原样**转发（含前缀），浅读 `id` 做路由（多连接复用同一 native 端口）
+- [x] **X25519 两端可用性首验通过**（§5.2）：Node 26.13 webcrypto 与 Chromium 157 SW WebCrypto 各生成密钥对，交换公钥后 AES-GCM 双向加解密互通——无需降级 P-256
+- [x] 对端凭据（2026-11-18 质询确认调整）：Node 纯 JS 拿不到 `SO_PEERCRED`，改为客户端首帧自报 pid（`$peer.hello`），host 从 `/proc` 读回真实 uid/exe；异 UID 拒连由 socket 文件 0600 + 目录 0700 兜底（§5.3 进程属性本就不作安全锚点），文档 §4 已同步
+- [x] `wxt.config.ts` 钉固定 `key`（扩展 ID 固定为 `dmgfibpimmkihmkcdjhjnpnjbfobfbhn`，私钥不留存）+ `minimum_chrome_version: '133'` + `nativeMessaging` 权限
+  - 修正 §10.1 注记：`chrome.storage.local` 按扩展 ID 隔离，老实例重新加载后看到空库——迁移 = 旧实例导出 JSON → 新 ID 重设主密码 → 导入（README 已写）
+- [x] `scripts/install-host.sh`：Node ≥22 检查、复制 packages 到 `~/.local/lib/vipper/`、manifest 写 Chrome + Chromium 双路径（`allowed_origins` 仅钉死 ID）；`VIPPER_NMH_EXTRA_DIR` 供验收回路装进测试 profile
+- [x] 扩展侧 `utils/socketEndpoint.ts`：SW 启动 connectNative、指数退避重连、ping/pong、连接元数据环形登记（`__vipper.socket` 验收钩子）；M41/M42 前的业务请求统一 `unsupported` 回绝不泄露 vault 状态
+- [x] `scripts/m40-verify.mjs` 新增（20 断言）；verify-map.json 登记（packages/**、install-host.sh、socketEndpoint.ts → m40）
+- 备注（验收回路踩坑）：Chromium 的 native manifest 用户级目录是 `<user-data-dir>/NativeMessagingHosts` 且**仅启动时扫描**——verify-all 增加 PRELAUNCH 钩子，m40 启动前把 manifest 装进独立 profile；另给 Chromium 与脚本注同一 `XDG_RUNTIME_DIR`（.fake-home/xdg-run）保证 socket 路径一致
+- 备注：沙箱 pnpm 12 的 store 操作锁放 `$XDG_RUNTIME_DIR`（/run/user/1000 只读报 `ERR_PNPM_STORE_DIR_OPEN_OPERATION_LOCK`），pnpm 命令需 `XDG_RUNTIME_DIR=$PWD/.fake-home/xdg-run`——已写入 AGENTS.md
+- [x] 验证：m40 20/20；全量 `pnpm verify` **30/30 里程碑脚本通过**；`pnpm typecheck` / `pnpm build` 通过

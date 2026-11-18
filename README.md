@@ -122,6 +122,16 @@ Then load `.output/chrome-mv3` via `chrome://extensions` → Developer mode → 
 
 Full walkthrough — including the Hyprland window rules that make the popup float and center on Wayland: **[Installation guide](docs/guide/installation.md)**
 
+## External access (experimental, M40 skeleton)
+
+Local applications (git, msmtp, scripts, …) can read secrets from the vault via `vipper-cli → vipper-host → extension`, with no plaintext ever touching disk. This is currently the transport skeleton (ping only); pairing confirmation and per-entry authorization land in later milestones. Design: [socket-access.md](docs/specs/vipper/socket-access.md).
+
+```bash
+bash scripts/install-host.sh   # one-time install (requires Node.js ≥ 22), registers for both Chrome and Chromium
+```
+
+> ⚠️ **Extension ID is pinned as of M40**: the manifest now carries a fixed key so Native Messaging `allowed_origins` can be pinned too. **Reloading an older build afterwards changes the extension ID, and `chrome.storage.local` is isolated per ID — the new ID sees an empty vault.** Migrate by exporting the full JSON backup from the manager page before reloading, then set the master password again and import it.
+
 ## User guide
 
 Everyday operations, one page each, with screenshots:

@@ -1,0 +1,10 @@
+{
+  "name": "vipper-cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "vipper 命令行客户端：外部应用与 socket 之间的唯一适配器（socket-access.md §9）。",
+  "bin": {
+    "vipper-cli": "bin/vipper-cli.js"
+  }
+}

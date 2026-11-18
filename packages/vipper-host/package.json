@@ -1,0 +1,10 @@
+{
+  "name": "vipper-host",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "vipper Native Messaging host：愚蠢管道——校验对端 UID、逐帧转发、记录连接元数据（socket-access.md §3）。",
+  "bin": {
+    "vipper-host": "bin/vipper-host.js"
+  }
+}

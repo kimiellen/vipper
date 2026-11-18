@@ -122,6 +122,16 @@ pnpm build
 
 完整步骤——包括让弹窗在 Wayland 下浮动居中的 Hyprland 窗口规则：**[安装指南](docs/guide/zh-CN/installation.md)**
 
+## 外部访问（实验性，M40 骨架）
+
+vipper 支持本机应用（git、msmtp、脚本等）经 `vipper-cli → vipper-host → 扩展` 读取保管库中的私密记录，全程不明文落盘。当前为传输层骨架（ping 连通），配对确认与按条目授权在后续里程碑落地；设计见 [socket-access.md](docs/specs/vipper/socket-access.md)。
+
+```bash
+bash scripts/install-host.sh   # 一次性安装（要求 Node.js ≥ 22），Chrome 与 Chromium 都注册
+```
+
+> ⚠️ **扩展 ID 已固定（M40 起）**：为让 Native Messaging 的 `allowed_origins` 可固定，manifest 钉了公钥。**从旧构建升级的实例重新加载后扩展 ID 会变，而 `chrome.storage.local` 按 ID 隔离——新 ID 看到的是空库。** 迁移：重新加载前先在管理页导出全量 JSON 备份，加载后重设主密码再导入。
+
 ## 使用手册
 
 按操作分类，每篇独立成页、图文配合：

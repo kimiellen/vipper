@@ -51,7 +51,7 @@ HOME=$PWD/.fake-home chromium --headless=new \
 
 - MV3 service worker 是事件驱动的，headless 下 target 不可见时用浏览器级 CDP `Target.setDiscoverTargets` 发现
 - `scripts/m16-verify.mjs` 是特例：启动时**去掉** `--load-extension`、追加 `--enable-unsafe-extension-debugging`；脚本先打开登录页，再用 CDP `Extensions.loadUnpacked` 加载扩展，用于验证旧页面补注入
-- 沙箱内 `pnpm add` 需要 `--store-dir=$PWD/.pnpm-store`
+- 沙箱内 pnpm 需要 `--store-dir=$PWD/.pnpm-store` 且 `XDG_RUNTIME_DIR=$PWD/.fake-home/xdg-run`（pnpm 12 的 store 操作锁放 `$XDG_RUNTIME_DIR`，/run/user/1000 只读会报 `ERR_PNPM_STORE_DIR_OPEN_OPERATION_LOCK`）
 - **验证分级（详见 `docs/specs/vipper/verify.md`）**：
   - L0 每次逻辑改动：`pnpm typecheck && pnpm build` + 1 个最相关里程碑脚本（≤60s）
   - L1 里程碑收尾：`pnpm verify:affected`（打印"文件 → 脚本"映射，≤3min）

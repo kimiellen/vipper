@@ -1,0 +1,7 @@
+{
+  "name": "vipper-protocol",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "vipper socket 协议共享层：帧格式（§4.3）与 socket 路径解析（§4）。host 与 cli 共用，零依赖纯 JS。"
+}

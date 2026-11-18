@@ -96,7 +96,7 @@ interface Connection {
 | | unix-socket 实现（Linux / macOS） | named-pipe 实现（Windows） |
 |---|---|---|
 | 监听地址 | `$XDG_RUNTIME_DIR/vipper/host.sock`（Linux，0700 tmpfs）；macOS 用 `$TMPDIR/vipper/host.sock` | `\\.\pipe\vipper` |
-| 对端凭据 | Linux `SO_PEERCRED` → 真实 PID/UID/GID，再读 `/proc/<pid>/exe` 得 exe 路径；macOS `getpeereid()` / `LOCAL_PEERCRED` | `GetNamedPipeClientProcessId()` |
+| 对端凭据 | Linux（M40 落地，2026-11-18 质询调整）：Node 纯 JS 拿不到 `SO_PEERCRED`，改为**客户端首帧自报 pid（`$peer.hello`），host 从 `/proc/<pid>/status` 读回真实 UID、读 `/proc/<pid>/exe` 得 exe 路径**；跨 UID 的真实拦截由 socket 文件 0600 + 目录 0700 兜底（与 §5.3「进程属性不作安全锚点」一致）。macOS `getpeereid()` / `LOCAL_PEERCRED` | `GetNamedPipeClientProcessId()` |
 | 文件权限 | socket 文件 chmod 0600 | pipe ACL 限定当前用户 |
 | 实现要点 | Node `net` 模块原生支持 | Node `net` 模块同名 API（传 pipe 路径自动区分）；对端 PID 需原生 addon 或兜底调用系统命令 |
 
@@ -277,7 +277,7 @@ socket 对同用户进程天生不设防，因此**未配对的客户端必须�
 ### 10.1 扩展 ID 固定（Q5）
 
 - `wxt.config.ts` 给 manifest 钉固定 `key`：未钉 key 的 unpacked 扩展，加载路径/机器不同 ID 都会变，`allowed_origins` 无从固定。钉 key 后 dev 与正式加载同 ID。
-- **注意**：钉 key 会改变现有安装实例的扩展 ID，需重新加载一次扩展（数据在 `chrome.storage.local`，不受影响）。
+- **注意**（M40 落地时修正）：钉 key 会改变现有安装实例的扩展 ID，而 **`chrome.storage.local` 按扩展 ID 隔离**——重新加载后新 ID 看到的是空库。迁移路径：重新加载前在旧实例导出全量 JSON（管理页备份），加载新 ID 后重设主密码再导入。
 
 ### 10.2 host 安装（一次性）
 
@@ -338,7 +338,7 @@ release workflow 增加一个打包 job：产出 **`vipper-host-cli-<version>.ta
 | 里程碑 | 内容 | 验收标准 |
 |---|---|---|
 | **M39 唯一性约束**（前置，Q15/Q16/Q17） | 书签 title 全局唯一（active+archived）、secret name 书签内唯一；写路径强制校验（wui 表单、登录自动保存、浏览器书签导入、JSON 导入）；自动路径撞名加 ` (2)` 后缀；全量 JSON 导入含重名拒绝；wui 编辑表单保存重名时内联报错（不丢输入） | 各写入口重名拒绝有明确错误；自动路径撞名自动改名且有报告；存量 199 条无重名不受影响 |
-| **M40 传输层 + host 骨架** | pnpm workspace 改造；Transport 接口 + unix-socket 实现（Linux）、SO_PEERCRED、帧格式（§4.3）、Native Messaging 接通扩展；**首验 X25519 两端可用性**（不可用降级 P-256）；manifest 钉 key；install-host.sh | Linux 上 cli→host→扩展字节互通；异 UID 连接被拒；node 版本检查生效 |
+| **M40 传输层 + host 骨架** | pnpm workspace 改造；Transport 接口 + unix-socket 实现（Linux）、对端凭据（`/proc` 读回，见 §4）、帧格式（§4.3）、Native Messaging 接通扩展；**首验 X25519 两端可用性**（不可用降级 P-256）；manifest 钉 key；install-host.sh | Linux 上 cli→host→扩展字节互通；异 UID 连接被拒；node 版本检查生效 |
 | **M41 配对层** | X25519 配对握手、确认窗、配对存储、X25519+HKDF+AES-GCM 加密通道 | 未配对请求全拒；弹窗确认后通道加密可用；删私钥文件需重新配对 |
 | **M42 授权层** | `socketExposure` 三态字段、白名单、寻址规则（§6.2）、令牌 TTL（storage.session）、60s 超时默认拒绝、🔔 弹窗 | 三态行为全部符合 §6；令牌过期续期身份不变；SW 回收后令牌不丢 |
 | **M43 cli 四模式 + 审计** | `vipper-cli get` / `vipper-cli run` / fd 模式、审计日志与管理页两小节、release tarball job | git/msmtp 实战通过；审计可回放；release 产出双产物 |

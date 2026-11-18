@@ -21,12 +21,15 @@
  * - 改动 → 里程碑的映射见 `scripts/verify-map.json`；匹配不到或影响面过大时保守退回全量。
  */
 
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const FAKE_HOME = resolve(ROOT, '.fake-home');
+// M40：host 的 unix socket 落在 $XDG_RUNTIME_DIR/vipper/，指进沙箱可写目录，
+// Chromium（→host）与验收脚本（→cli）注同一个值，保证路径解析一致。
+const FAKE_XDG = resolve(FAKE_HOME, 'xdg-run');
 const EXT = resolve(ROOT, '.output/chrome-mv3');
 const BASE_PORT = 9333;
 const DEFAULT_TIMEOUT_S = 60;
@@ -35,6 +38,22 @@ const CDP_READY_TIMEOUT_MS = 30_000;
 /** 特殊启动参数的脚本；其余用标准扩展加载回路 */
 const SPECIAL = {
   m16: ['--enable-unsafe-extension-debugging'], // 不预加载扩展，脚本内 loadUnpacked
+};
+
+/**
+ * 启动前钩子（rmSync(profile) 之后、launch 之前）。
+ * m40：Chromium 只在启动时扫描 native manifest，且以 --user-data-dir 启动时用户级
+ * manifest 目录是 <profile>/NativeMessagingHosts——必须提前把 manifest 装进测试 profile。
+ */
+const PRELAUNCH = {
+  m40(profile) {
+    const r = spawnSync('bash', ['scripts/install-host.sh'], {
+      cwd: ROOT,
+      env: { ...process.env, HOME: FAKE_HOME, VIPPER_NMH_EXTRA_DIR: resolve(profile, 'NativeMessagingHosts') },
+      encoding: 'utf8',
+    });
+    if (r.status !== 0) throw new Error(`m40 preLaunch（install-host.sh）失败：${r.stderr || r.stdout}`);
+  },
 };
 
 const MAP = JSON.parse(readFileSync(resolve(import.meta.dirname, 'verify-map.json'), 'utf8'));
@@ -178,6 +197,7 @@ function killGroup(proc, signal = 'SIGTERM') {
 
 function launch(milestone, port) {
   mkdirSync(FAKE_HOME, { recursive: true });
+  mkdirSync(FAKE_XDG, { recursive: true, mode: 0o700 });
   const special = SPECIAL[milestone];
   const args = [
     '--headless=new',
@@ -191,7 +211,7 @@ function launch(milestone, port) {
   ];
   const proc = spawn('chromium', args, {
     cwd: ROOT,
-    env: { ...process.env, HOME: FAKE_HOME },
+    env: { ...process.env, HOME: FAKE_HOME, XDG_RUNTIME_DIR: FAKE_XDG },
     stdio: 'ignore',
     detached: true,
   });
@@ -233,7 +253,7 @@ function runScript(milestone, port, timeoutS) {
   return new Promise((r) => {
     const proc = spawn('node', [`scripts/${milestone}-verify.mjs`], {
       cwd: ROOT,
-      env: { ...process.env, VIPPER_CDP_PORT: String(port) },
+      env: { ...process.env, VIPPER_CDP_PORT: String(port), XDG_RUNTIME_DIR: FAKE_XDG },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     scripts.add(proc);
@@ -264,6 +284,7 @@ async function runOne(milestone, port, timeoutS) {
   const t0 = Date.now();
   const profile = resolve(ROOT, `.chrome-test-profile-${milestone}`);
   rmSync(profile, { recursive: true, force: true });
+  if (PRELAUNCH[milestone]) PRELAUNCH[milestone](profile);
   if (!(await ensurePortFree(port))) {
     return { milestone, code: 1, ms: Date.now() - t0, tail: `端口 ${port} 被残留浏览器占用且 15s 内未释放`, out: '', timedOut: false };
   }
