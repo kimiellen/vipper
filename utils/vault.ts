@@ -19,7 +19,12 @@ export type UrlMatch = 'host' | 'exact' | 'prefix';
 export interface BookmarkUrl { url: string; match: UrlMatch }
 export interface Account { username: string; password: string }
 export interface NoteRecord { template: 'note'; name: string; content: string }
-export interface SecretRecord { template: 'secret'; name: string; content: string }
+/**
+ * socket 暴露策略（socket-access.md §6.1）：字段缺省 = ⛔ disabled（既有数据无需迁移）。
+ * 仅在 ask / allowed 时落字段；allowed 的 clients 是配对客户端公钥指纹白名单。
+ */
+export interface SocketExposure { mode: 'ask' | 'allowed'; clients: string[] }
+export interface SecretRecord { template: 'secret'; name: string; content: string; socketExposure?: SocketExposure }
 export type VaultRecord = NoteRecord | SecretRecord;
 
 export interface Bookmark {

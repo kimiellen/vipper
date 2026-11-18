@@ -450,3 +450,17 @@
 - [x] `scripts/m41-verify.mjs` 新增（20 断言：未配对全拒 / 确认窗允许·拒绝 / 配对存储 / 私钥 0600 / 身份复用免弹窗 / 删私钥重新配对且指纹变更）；verify-map.json 登记（packages/**、socketEndpoint.ts、entrypoints/confirm/** → m41）
 - 备注（验收回路踩坑）：① 复用旧 `.chrome-test-profile` 会吃到 Service Worker 脚本缓存里的旧 background.js——socket 类脚本必须走 verify-all 的独立新 profile；② 并行 jobs 下 socket 类里程碑互抢同一个 `$XDG_RUNTIME_DIR/vipper/host.sock` 串话——verify-all 改为每里程碑独立 XDG_RUNTIME_DIR；③ 分开 bash 调用跑验证时 PID namespace 隔离会让 host 的 /proc 读回解析到错误进程（exe 显示成 chromium）——进程属性本就只是展示辅助（§5.3），verify-all 统一 namespace 下无此问题
 - [x] 验证：m41 20/20；全量 `pnpm verify` **31/31 里程碑脚本通过**（m40/m41 并行无串话）；`pnpm typecheck` / `pnpm build` 通过
+
+## M42：授权层 ✅（2026-11-18）
+
+> socket 功能第三块（[socket-access.md](./socket-access.md) §6/§7/§13）。每个 get 按条目过三态策略，放行签发限时令牌，全程不明文落盘。
+
+- [x] 数据模型：`SecretRecord.socketExposure?: { mode: 'ask' | 'allowed', clients: string[] }`（指纹白名单）；字段缺省 = ⛔ disabled，既有数据零迁移
+- [x] 寻址（§6.2）：加密通道内 `get(条目路径)`，按 `title + '/'` 前缀匹配（title 含 `/` 也能解析）；只扫 active 书签；0 匹配 `not_found`、多匹配 `ambiguous`（防御分支，拒服务不猜）；vault 锁定统一 `locked`；无斜杠路径 `bad_request`
+- [x] 三态（§6.1）：⛔ 与 ✅ 非白名单统一 `not_found`（不泄露条目存在性）；✅ 白名单直接放行；🔔 落 `chrome.storage.session` 待确认 + 确认窗（`confirm.html?kind=authz`，展示条目路径/客户端/三按钮「仅此一次 / 记住此客户端 / 拒绝」+ 60s 倒计时，关窗 = 拒绝，超时默认拒绝）
+- [x] 令牌（§6.4）：放行签发 `socket.token.<指纹>|<路径>` → 过期时间，存 `chrome.storage.session`（SW 回收不丢、浏览器退出即清）；TTL 默认 8h，`meta:settings.socketTokenTtlHours` 可配（设置页新增输入）；TTL 内同客户端同条目免弹窗；过期同身份静默续期；`keychain.lock()` 按前缀清空全部令牌
+- [x] 「记住此客户端」：条目转 ✅ 并把该指纹写入白名单（saveBookmark 走密文形态，无需解锁）
+- [x] wui 编辑表单：secret 记录挂三态选择器子行（⛔/🔔/✅），✅ 时展开已配对客户端勾选区（enterEdit 时从 `socket.clients` 刷新）
+- [x] `scripts/m42-verify.mjs` 新增（37 断言）；verify-all PRELAUNCH 补 m42（socket 类里程碑都要装 native manifest）；verify-map.json 登记
+- 备注：🔔 60s 超时默认拒绝不实跑等待（会撑爆单脚本 60s 硬超时），倒计时文案与 SW 侧 at 兜底同 M41 已验模式
+- [x] 验证：m42 37/37；全量 `pnpm verify` **32/32 里程碑脚本通过**；`pnpm typecheck` / `pnpm build` 通过

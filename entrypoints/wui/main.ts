@@ -17,7 +17,7 @@ import * as groups from '../../utils/groups';
 import { collectBrowserBookmarks } from '../../utils/browserBookmarks';
 import { filterIndex } from '../../utils/search';
 import { genPassword, genUsername } from '../../utils/generator';
-import type { Bookmark, IndexEntry, LinkedInfo, Tag, TagColor, VaultRecord } from '../../utils/vault';
+import type { Bookmark, IndexEntry, LinkedInfo, SocketExposure, Tag, TagColor, VaultRecord } from '../../utils/vault';
 import type { VaultSettings } from '../../utils/keychain';
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
@@ -56,9 +56,15 @@ const T = {
   passSymbols: { zh: '包含符号', en: 'Include symbols' },
   lockTimeout: { zh: '超时锁定', en: 'Auto-lock' },
   autoArchive: { zh: '自动归档', en: 'Auto-archive' },
+  tokenTtl: { zh: 'socket 令牌有效期', en: 'Socket token TTL' },
   lockNow: { zh: '立即锁定', en: 'Lock now' },
   minute: { zh: '分钟', en: 'min' },
   day: { zh: '天', en: 'days' },
+  hour: { zh: '小时', en: 'hours' },
+  socketExpDisabled: { zh: '⛔ 禁止（默认）', en: '⛔ Disabled (default)' },
+  socketExpAsk: { zh: '🔔 每次询问', en: '🔔 Ask every time' },
+  socketExpAllowed: { zh: '✅ 允许指定客户端', en: '✅ Allow specific clients' },
+  noPairedClients: { zh: '（暂无已配对客户端）', en: '(no paired clients)' },
   off: { zh: '关闭', en: 'off' },
   add: { zh: '添加', en: 'Add' },
   list: { zh: '列表', en: 'List' },
@@ -216,6 +222,8 @@ let selectedId: string | null = null;
 let filtered: IndexEntry[] = [];
 let mainReady = false;
 let editing: string | null | false = false; // false=展示态；null=新建；否则为条目 id
+/** 已配对客户端（M42：secret 记录 socketExposure 白名单编辑的数据源，enterEdit 时刷新） */
+let socketClients: { fingerprint: string; name: string }[] = [];
 
 /** 过滤选择的会话状态键（spec：关窗重开恢复，浏览器重启复位） */
 const UI_STATE_KEY = 'ui:wuiFilters';
@@ -382,6 +390,11 @@ let draft: Bookmark | null = null;
 
 async function enterEdit(id: string | null): Promise<void> {
   editing = id;
+  // M42：白名单编辑需要最新配对客户端清单（storage.local `socket.clients`）
+  const stored = (await chrome.storage.local.get('socket.clients'))['socket.clients'] as
+    | Record<string, { name: string }>
+    | undefined;
+  socketClients = Object.entries(stored ?? {}).map(([fingerprint, c]) => ({ fingerprint, name: c.name }));
   draft = id
     ? await vault.getBookmarkDecrypted(id)
     : {
@@ -563,16 +576,48 @@ function renderEditForm(): void {
     content.type = r.template === 'secret' ? 'password' : 'text';
     content.value = r.content;
     content.placeholder = t('content');
-    tpl.addEventListener('change', () => { content.type = tpl.value === 'secret' ? 'password' : 'text'; });
     grp.append(content);
     const eye = ghostBtn('👁', '显示/隐藏', () => {});
     pwEye(eye);
     const del = ghostBtn('✕', '删除', () => {});
     del.style.color = 'var(--danger)';
-    editRowDelete(del);
     grp.append(eye, del);
     row.append(tpl, name, grp);
     recBox.append(row);
+
+    // M42：secret 记录挂 socket 暴露策略子行（⛔/🔔/✅ + 客户端白名单，socket-access.md §6.1/§7）
+    const exposure = r.template === 'secret' ? r.socketExposure : undefined;
+    const sub = el('div', 'frow-sub');
+    sub.hidden = tpl.value !== 'secret';
+    sub.append(el('label', '', 'socket'));
+    const expSel = el('select', 'select exposure-sel') as HTMLSelectElement;
+    expSel.append(
+      new Option(t('socketExpDisabled'), 'disabled', false, !exposure),
+      new Option(t('socketExpAsk'), 'ask', false, exposure?.mode === 'ask'),
+      new Option(t('socketExpAllowed'), 'allowed', false, exposure?.mode === 'allowed'),
+    );
+    sub.append(expSel);
+    const clientBox = el('div', 'exposure-clients');
+    if (socketClients.length === 0) clientBox.append(el('span', 'none', t('noPairedClients')));
+    for (const c of socketClients) {
+      const label = el('label', 'exposure-client');
+      const cb = el('input') as HTMLInputElement;
+      cb.type = 'checkbox';
+      cb.value = c.fingerprint;
+      cb.checked = exposure?.clients.includes(c.fingerprint) ?? false;
+      label.append(cb, document.createTextNode(`${c.name}（${c.fingerprint.slice(0, 8)}…）`));
+      clientBox.append(label);
+    }
+    clientBox.hidden = exposure?.mode !== 'allowed';
+    expSel.addEventListener('change', () => { clientBox.hidden = expSel.value !== 'allowed'; });
+    sub.append(clientBox);
+    // 删除记录行连同其暴露策略子行（editRowDelete 只删主行，这里不能用）
+    del.addEventListener('click', () => { row.remove(); sub.remove(); });
+    tpl.addEventListener('change', () => {
+      content.type = tpl.value === 'secret' ? 'password' : 'text';
+      sub.hidden = tpl.value !== 'secret';
+    });
+    recBox.append(sub);
   };
   d.records.forEach((r) => addRecRow(r));
   const addRec = el('button', 'btn btn-ghost btn-sm', t('addRecord')) as HTMLButtonElement;
@@ -660,7 +705,18 @@ async function saveEdit(): Promise<void> {
     .map((row) => {
       const tpl = row.querySelector('select')!.value as 'note' | 'secret';
       const [name, content] = [...row.querySelectorAll('input')] as [HTMLInputElement, HTMLInputElement];
-      return { template: tpl, name: name!.value.trim(), content: content!.value };
+      const base = { name: name!.value.trim(), content: content!.value };
+      if (tpl === 'note') return { template: tpl, ...base };
+      // M42：secret 行的下一兄弟是暴露策略子行（note 行的子行隐藏但仍在 DOM，按模板过滤）
+      const sub = row.nextElementSibling;
+      const mode = (sub?.querySelector('.exposure-sel') as HTMLSelectElement | null)?.value ?? 'disabled';
+      const clients = [...(sub?.querySelectorAll('.exposure-clients input:checked') ?? [])]
+        .map((cb) => (cb as HTMLInputElement).value);
+      const socketExposure: SocketExposure | undefined =
+        mode === 'ask' ? { mode: 'ask', clients: [] }
+          : mode === 'allowed' ? { mode: 'allowed', clients }
+            : undefined; // ⛔ 缺省即 disabled，不落字段
+      return { template: tpl, ...base, ...(socketExposure ? { socketExposure } : {}) };
     })
     .filter((r) => r.name !== '' || r.content !== '');
 
@@ -797,6 +853,7 @@ function renderSettings(): void {
 
   g.append(numSetting(t('lockTimeout'), settings.lockTimeoutMin, (v) => { settings.lockTimeoutMin = v; void keychain.setSettings({ lockTimeoutMin: v }); }, 'set-lock-timeout', t('minute')));
   g.append(numSetting(t('autoArchive'), settings.autoArchiveDays, (v) => { settings.autoArchiveDays = v; void keychain.setSettings({ autoArchiveDays: v }); }, 'set-auto-archive', t('day')));
+  g.append(numSetting(t('tokenTtl'), settings.socketTokenTtlHours, (v) => { settings.socketTokenTtlHours = v; void keychain.setSettings({ socketTokenTtlHours: v }); }, 'set-socket-token-ttl', t('hour')));
 
   g.append(divider());
 

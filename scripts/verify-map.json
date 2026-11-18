@@ -30,7 +30,8 @@
     "m37",
     "m39",
     "m40",
-    "m41"
+    "m41",
+    "m42"
   ],
   "maxAffected": 10,
   "notes": "按改动文件推断受影响里程碑。匹配到 'full' 或影响面超过 maxAffected 时退回全量；匹配不到任何规则也退回全量（保守）。空数组表示无 e2e 影响（只需 typecheck/build）。",
@@ -77,7 +78,8 @@
       "glob": "packages/**",
       "milestones": [
         "m40",
-        "m41"
+        "m41",
+        "m42"
       ]
     },
     {
@@ -99,7 +101,8 @@
         "m9d",
         "m12",
         "m37",
-        "m39"
+        "m39",
+        "m42"
       ]
     },
     {
@@ -120,7 +123,8 @@
       "glob": "utils/keychain.ts",
       "milestones": [
         "m4",
-        "m9d"
+        "m9d",
+        "m42"
       ]
     },
     {
@@ -178,13 +182,15 @@
       "glob": "utils/socketEndpoint.ts",
       "milestones": [
         "m40",
-        "m41"
+        "m41",
+        "m42"
       ]
     },
     {
       "glob": "entrypoints/confirm/**",
       "milestones": [
-        "m41"
+        "m41",
+        "m42"
       ]
     },
     {
@@ -236,7 +242,8 @@
         "m31",
         "m35",
         "m37",
-        "m39"
+        "m39",
+        "m42"
       ]
     },
     {

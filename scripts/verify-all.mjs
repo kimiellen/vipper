@@ -52,9 +52,12 @@ const PRELAUNCH = {
   m41(profile) {
     installHost(profile);
   },
+  m42(profile) {
+    installHost(profile);
+  },
 };
 
-/** m40/m41 共用：把 native manifest 与最新 host/cli 装进测试 profile 与 FAKE_HOME */
+/** m40/m41/m42 共用：把 native manifest 与最新 host/cli 装进测试 profile 与 FAKE_HOME */
 function installHost(profile) {
   const r = spawnSync('bash', ['scripts/install-host.sh'], {
     cwd: ROOT,

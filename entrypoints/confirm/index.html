@@ -245,6 +245,24 @@
   </div>
   <p class="countdown" id="countdown"></p>
 </main>
+<main id="panel-authz" hidden>
+  <h1>vipper 访问请求</h1>
+  <p class="lead">应用 <strong id="a-name-lead">…</strong> 请求读取私密记录，是否允许？</p>
+  <dl class="meta">
+    <div><dt>条目</dt><dd id="a-path" class="mono">…</dd></div>
+    <div><dt>名称</dt><dd id="a-name">…</dd></div>
+    <div><dt>路径</dt><dd id="a-exe" class="mono">…</dd></div>
+    <div><dt>PID</dt><dd id="a-pid" class="mono">…</dd></div>
+    <div><dt>指纹</dt><dd id="a-fp" class="mono">…</dd></div>
+  </dl>
+  <p class="hint">「仅此一次」签发限时令牌（TTL 内同一条目免再问）；「记住此客户端」把该条目转为 ✅ 永久允许此客户端。仅允许你主动发起的读取。</p>
+  <div class="actions">
+    <button id="a-btn-deny" class="btn btn-ghost" type="button">拒绝</button>
+    <button id="a-btn-once" class="btn btn-ghost" type="button">仅此一次</button>
+    <button id="a-btn-remember" class="btn btn-primary" type="button">记住此客户端</button>
+  </div>
+  <p class="countdown" id="a-countdown"></p>
+</main>
 <div id="expired" hidden>
   <p id="expired-reason">该请求已失效。</p>
 </div>
