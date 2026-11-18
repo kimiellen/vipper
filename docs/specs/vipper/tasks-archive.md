@@ -464,3 +464,19 @@
 - [x] `scripts/m42-verify.mjs` 新增（37 断言）；verify-all PRELAUNCH 补 m42（socket 类里程碑都要装 native manifest）；verify-map.json 登记
 - 备注：🔔 60s 超时默认拒绝不实跑等待（会撑爆单脚本 60s 硬超时），倒计时文案与 SW 侧 at 兜底同 M41 已验模式
 - [x] 验证：m42 37/37；全量 `pnpm verify` **32/32 里程碑脚本通过**；`pnpm typecheck` / `pnpm build` 通过
+
+## M43：cli 四模式 + 审计 ✅（2026-11-18）
+
+> socket 功能收尾（[socket-access.md](./socket-access.md) §8/§9/§10.3/§13）。cli 补齐 get/run 两个命令（模式 2/4），fd 模式即 `<(vipper-cli get x)` 无需新代码；审计日志落 storage.local 并可在管理页回放；release 产出扩展 zip + host/cli tarball 双产物。
+
+- [x] `vipper-cli get <条目路径>`：经加密通道取私密记录写 stdout（密码命令 / 进程替换两种消费面共用），失败 stderr + 退出 1；写完即切断明文引用（JS 层面尽力而为，注释说明）
+- [x] `vipper-cli run -e VAR=<条目路径> [-e …] -- <cmd> [args…]`（模式 4）：串行取密钥后注入子进程 env，任一失败整体中止不启动子进程；退出码透传；`-e` 缺失/格式错误打用法并以 2 退出
+- [x] `vipper-cli get` 的等待提示复用配对提示（`onWaitingConfirm` → stderr），🔔 授权、配对两种弹窗都有用户可见提示
+- [x] 审计（§8）：新模块 `utils/socketAudit.ts`——`chrome.storage.local` 的 `socket.audit` 数组，append 经串行队列防并发覆盖（只增不改），滚动上限可配（`meta:settings.socketAuditMax`，默认 1000，设置页新增输入）；锁库不清审计（`keychain.lock` 只清令牌）
+- [x] 审计记录点：`handleGet` 全部终局（granted/token、granted/allowed、not_found、ambiguous、locked、bad_request）+ `decideAuthz`（granted/ask-once、granted/ask-remember、denied、timeout、locked、not_found、ambiguous）+ `expireAuthz`（timeout）；字段 = 时间/指纹/名字/exe/PID/路径/结果（granted 附 via）
+- [x] 管理页两小节（§7）：设置手风琴新增「已配对客户端」（列表含指纹与配对时间，✎ 行内重命名、✕ 二次确认撤销——撤销删身份并清空该指纹全部令牌）与「审计日志」（倒序回放，最新在前，结果按 granted/其余着色）；中英双语
+- [x] release workflow（§10.3）：`package` job 增加 `vipper-host-cli-<version>.tar.gz`（install-host.sh 与 packages/ 同级，命中脚本的 tarball 分支）+ sha256，与扩展 zip 上传同一 Release
+- [x] README 双语「外部访问」：按 §9 安全优先级写四模式（应用直连 / 密码命令含 git·msmtp 示例 / fd 进程替换 / `run` env 注入及 `/proc/<pid>/environ` 代价），并补审计与客户端管理入口
+- [x] `scripts/m43-verify.mjs` 新增（31 断言：get 成功/⛔ 失败、fd 进程替换、git credential fill 实战、run 注入与失败不启动、五种审计结果 + 锁库保留 + 滚动上限、管理页审计回放/重命名/撤销清令牌）；verify-all PRELAUNCH 补 m43；verify-map.json 登记
+- 备注：沙箱无 msmtp，`passwordeval` 与 git helper 的消费语义相同（执行命令读 stdout），git 实战已覆盖同一路径
+- [x] 验证：m43 31/31；全量 `pnpm verify` **33/33 里程碑脚本通过**（61.1s）；`pnpm typecheck` / `pnpm build` 通过

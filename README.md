@@ -122,13 +122,23 @@ Then load `.output/chrome-mv3` via `chrome://extensions` → Developer mode → 
 
 Full walkthrough — including the Hyprland window rules that make the popup float and center on Wayland: **[Installation guide](docs/guide/installation.md)**
 
-## External access (experimental, M42 authorization)
+## External access (experimental)
 
-Local applications (git, msmtp, scripts, …) can read secrets from the vault via `vipper-cli → vipper-host → extension`, with no plaintext ever touching disk. A first-time client triggers a pairing confirmation window in the browser, and once approved all traffic runs over an X25519+HKDF+AES-GCM encrypted channel. Every secret read passes a per-entry policy (`socketExposure`: ⛔ disabled by default / 🔔 ask every time / ✅ allow specific clients) and grants a time-limited token (default 8h, cleared on vault lock). Design: [socket-access.md](docs/specs/vipper/socket-access.md).
+Local applications (git, msmtp, scripts, …) can read secrets from the vault via `vipper-cli → vipper-host → extension`, with no plaintext ever touching disk. A first-time client triggers a pairing confirmation window in the browser, and once approved all traffic runs over an X25519+HKDF+AES-GCM encrypted channel. Every secret read passes a per-entry policy (`socketExposure`: ⛔ disabled by default / 🔔 ask every time / ✅ allow specific clients) and grants a time-limited token (default 8h, cleared on vault lock). All reads are recorded in an audit log (rolling cap, default 1000 entries) replayable under Settings → Audit Log; paired clients can be renamed or revoked under Settings → Paired Clients. Design: [socket-access.md](docs/specs/vipper/socket-access.md).
 
 ```bash
 bash scripts/install-host.sh   # one-time install (requires Node.js ≥ 22), registers for both Chrome and Chromium
 ```
+
+A *secret path* is `<bookmark title>/<secret record name>` (e.g. `git/github`). Consumption modes, **safest first**:
+
+1. **Call the socket protocol directly from the app** — the secret only ever lives in the app's memory.
+2. **Password-command mode** — for software that can run a command to obtain a secret; `vipper-cli get` writes the secret to stdout:
+   - git: `git config --global credential.helper '!f() { echo password="$(vipper-cli get git/github)"; }; f'`
+   - msmtp: `passwordeval "vipper-cli get smtp/gmail"`
+   - likewise restic `--password-command`, offlineimap, mutt, …
+3. **fd / temp-file injection** — `app --key-file <(vipper-cli get git/github)`: process substitution yields a memfd, nothing touches disk.
+4. **`vipper-cli run --` env injection** (fallback): `vipper-cli run -e API_KEY=llm/deepseek -- myapp`. ⚠️ Cost: env vars are world-readable via `/proc/<pid>/environ` to same-user processes, inherited by all children, and live for the process's lifetime. Use only when modes 1–3 are unavailable.
 
 > ⚠️ **Extension ID is pinned as of M40**: the manifest now carries a fixed key so Native Messaging `allowed_origins` can be pinned too. **Reloading an older build afterwards changes the extension ID, and `chrome.storage.local` is isolated per ID — the new ID sees an empty vault.** Migrate by exporting the full JSON backup from the manager page before reloading, then set the master password again and import it.
 

@@ -22,6 +22,10 @@
  *   （SW 回收不丢、浏览器退出即清）；TTL 默认 8h（meta:settings.socketTokenTtlHours）；
  *   锁库即清空全部令牌（keychain.lock 按 SOCKET_TOKEN_PREFIX 前缀清除）。
  * - vault 锁定时所有 get 返回 `locked`，不泄露任何元数据。
+ * M43 协议面（审计层，§8）：
+ * - 每个 get 请求在 socketAudit 落一条审计（chrome.storage.local，滚动上限可配，
+ *   默认 1000）：granted / denied / locked / timeout / not_found / ambiguous / bad_request，
+ *   granted 附放行途径（token / allowed / ask-once / ask-remember）。
  */
 
 import {
@@ -29,6 +33,7 @@ import {
 } from '../packages/vipper-protocol/crypto';
 import { decryptString } from './crypto';
 import { getKey, getSettings, SOCKET_TOKEN_PREFIX } from './keychain';
+import { flushAudit, readAudit, recordAudit } from './socketAudit';
 import { getBookmark, listIndex, saveBookmark } from './vault';
 import type { Bookmark, SecretRecord } from './vault';
 
@@ -42,7 +47,7 @@ export interface HostConnMeta {
 
 /** chrome.storage.local `socket.clients` 的一条配对记录（§5.1 步骤 4） */
 interface PairedClient {
-  name: string;        // 用户起的名字（M41 先存自报名，重命名/撤销属 M43 管理页）
+  name: string;        // 配对时自报名；管理页「已配对客户端」可重命名（M43）
   identityPub: string; // X25519 身份公钥（raw base64）
   pairedAt: number;
 }
@@ -397,7 +402,19 @@ async function handleGet(
   path: unknown,
   respond: SecureRespond,
 ): Promise<void> {
-  const fail = (code: string, message: string) => respond({ type: 'error', error: { code, message } });
+  // 审计上下文（§8）：客户端身份（指纹+名字）、exe 路径、PID、条目路径
+  const clientName = (await readClients())[session.fingerprint]?.name ?? session.fingerprint.slice(0, 16);
+  const auditCtx = {
+    fingerprint: session.fingerprint,
+    clientName,
+    exePath: session.exePath,
+    pid: session.pid,
+    path: typeof path === 'string' ? path : String(path ?? ''),
+  };
+  const fail = (code: string, message: string) => {
+    recordAudit({ ...auditCtx, result: code });
+    return respond({ type: 'error', error: { code, message } });
+  };
   if (typeof path !== 'string' || !path.includes('/')) {
     await fail('bad_request', 'get 需要 payload.path（格式 <书签title>/<secret记录name>）');
     return;
@@ -423,24 +440,26 @@ async function handleGet(
   }
   // 令牌命中：免重复弹窗直接放行
   if (await validToken(fp, path)) {
+    recordAudit({ ...auditCtx, result: 'granted', via: 'token' });
     await grantGet(path, resolved.record, key, respond);
     return;
   }
   // ✅ 白名单命中：直接放行并签发令牌
   if (exposure.mode === 'allowed') {
     await issueToken(fp, path);
+    recordAudit({ ...auditCtx, result: 'granted', via: 'allowed' });
     await grantGet(path, resolved.record, key, respond);
     return;
   }
   // 🔔 ask：待确认请求落 storage.session（SW 回收不丢）+ 弹确认窗，60s 超时默认拒绝
-  const clients = await readClients();
+  // 终局（仅此一次/记住/拒绝/超时）在 decideAuthz / expireAuthz 记录审计，此处不重复
   const pendingId = String(id);
   const pending: PendingAuthz = {
     pendingId,
     sessionId,
     path,
     fingerprint: fp,
-    clientName: clients[fp]?.name ?? fp.slice(0, 16),
+    clientName,
     pid: session.pid,
     exePath: session.exePath,
     at: Date.now(),
@@ -467,7 +486,19 @@ async function expireAuthz(pendingId: string): Promise<void> {
   const got = (await chrome.storage.session.get(key)) as Record<string, PendingAuthz>;
   if (!got[key]) return;
   await chrome.storage.session.remove(key);
+  recordAudit({ ...authzAuditCtx(got[key]), result: 'timeout' });
   await respondAuthz(got[key], { type: 'error', error: { code: 'timeout', message: '授权确认超时（60s 未决定，默认拒绝）' } });
+}
+
+/** PendingAuthz → 审计上下文字段（§8） */
+function authzAuditCtx(pending: PendingAuthz) {
+  return {
+    fingerprint: pending.fingerprint,
+    clientName: pending.clientName,
+    exePath: pending.exePath,
+    pid: pending.pid,
+    path: pending.path,
+  };
 }
 
 /** 用 pending 里的会话密钥应答（SW 回收后会话密钥已蒸发时静默放弃——客户端会按超时结案） */
@@ -491,6 +522,7 @@ async function decideAuthz(
   await chrome.storage.session.remove(key);
 
   const fail = async (code: string, message: string) => {
+    recordAudit({ ...authzAuditCtx(pending), result: code });
     await respondAuthz(pending, { type: 'error', error: { code, message } });
     return { ok: true };
   };
@@ -519,6 +551,7 @@ async function decideAuthz(
   }
 
   await issueToken(pending.fingerprint, pending.path);
+  recordAudit({ ...authzAuditCtx(pending), result: 'granted', via: decision === 'remember' ? 'ask-remember' : 'ask-once' });
   await respondAuthz(pending, {
     type: 'result',
     payload: { path: pending.path, content: await decryptString(vaultKey, resolved.record.content) },
@@ -579,7 +612,7 @@ export const socketEndpoint = {
   status: () => ({ connected: port !== null, host: HOST_NAME, lastDisconnectReason }),
   /** 最近的客户端连接元数据（环形，诊断与验收用） */
   peers: (): HostConnMeta[] => [...peers],
-  /** 已配对客户端（配对存储快照，M41 验收；重命名/撤销属 M43 管理页） */
+  /** 已配对客户端（配对存储快照；M43 起管理页「已配对客户端」小节可重命名/撤销） */
   pairedClients: readClients,
   /** 待确认配对请求（验收用；确认窗从 storage.session 自行读取） */
   pendingPairs: async (): Promise<PendingPair[]> => {
@@ -594,5 +627,10 @@ export const socketEndpoint = {
     return Object.entries(all)
       .filter(([k]) => k.startsWith(AUTHZ_PREFIX))
       .map(([, v]) => v as PendingAuthz);
+  },
+  /** 审计日志（M43：管理页回放与验收；flush 确保 fire-and-forget 写入已落盘） */
+  audit: async () => {
+    await flushAudit();
+    return readAudit();
   },
 };

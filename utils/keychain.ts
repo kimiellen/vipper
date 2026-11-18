@@ -37,6 +37,8 @@ export interface VaultSettings {
   genPassSymbols: boolean;
   /** socket 授权令牌 TTL（小时，默认 8；socket-access.md §6.4） */
   socketTokenTtlHours: number;
+  /** socket 审计日志滚动上限（条，默认 1000；socket-access.md §8） */
+  socketAuditMax: number;
 }
 
 /** 0 = 不开启（超时锁定/自动归档默认关闭，spec 2026-10-14 修订） */
@@ -44,7 +46,7 @@ const DEFAULT_SETTINGS: VaultSettings = {
   lockTimeoutMin: 0, autoArchiveDays: 0,
   theme: 'dark', lang: 'zh',
   genWordLen: 8, genDigitLen: 2, genPassLen: 12, genPassSymbols: true,
-  socketTokenTtlHours: 8,
+  socketTokenTtlHours: 8, socketAuditMax: 1000,
 };
 
 /** socket 授权令牌在 storage.session 的键前缀（§6.4：锁库即清空全部令牌） */
@@ -83,7 +85,7 @@ export async function unlock(password: string): Promise<boolean> {
 }
 
 export async function lock(): Promise<void> {
-  // §6.4：锁库即清空全部 socket 令牌（审计保留，属 M43）
+  // §6.4：锁库即清空全部 socket 令牌（审计存 storage.local，不受锁库影响，§8）
   const all = await chrome.storage.session.get(null);
   const tokenKeys = Object.keys(all).filter((k) => k.startsWith(SOCKET_TOKEN_PREFIX));
   await chrome.storage.session.remove([SESSION_KEY, SESSION_LAST, ...tokenKeys]);

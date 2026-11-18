@@ -17,6 +17,7 @@ import * as groups from '../../utils/groups';
 import { collectBrowserBookmarks } from '../../utils/browserBookmarks';
 import { filterIndex } from '../../utils/search';
 import { genPassword, genUsername } from '../../utils/generator';
+import { readAudit } from '../../utils/socketAudit';
 import type { Bookmark, IndexEntry, LinkedInfo, SocketExposure, Tag, TagColor, VaultRecord } from '../../utils/vault';
 import type { VaultSettings } from '../../utils/keychain';
 
@@ -57,6 +58,8 @@ const T = {
   lockTimeout: { zh: '超时锁定', en: 'Auto-lock' },
   autoArchive: { zh: '自动归档', en: 'Auto-archive' },
   tokenTtl: { zh: 'socket 令牌有效期', en: 'Socket token TTL' },
+  auditMax: { zh: 'socket 审计日志上限', en: 'Socket audit log cap' },
+  auditUnit: { zh: '条', en: 'entries' },
   lockNow: { zh: '立即锁定', en: 'Lock now' },
   minute: { zh: '分钟', en: 'min' },
   day: { zh: '天', en: 'days' },
@@ -65,6 +68,16 @@ const T = {
   socketExpAsk: { zh: '🔔 每次询问', en: '🔔 Ask every time' },
   socketExpAllowed: { zh: '✅ 允许指定客户端', en: '✅ Allow specific clients' },
   noPairedClients: { zh: '（暂无已配对客户端）', en: '(no paired clients)' },
+  pairedAt: { zh: '配对于', en: 'paired at' },
+  renameClient: { zh: '重命名', en: 'Rename' },
+  revokeClient: { zh: '撤销', en: 'Revoke' },
+  revokeClientTitle: { zh: (name: string) => `撤销客户端「${name}」？`, en: (name: string) => `Revoke client “${name}”?` },
+  revokeClientBody: {
+    zh: '撤销后该客户端的身份登记被删除、全部令牌立即失效；其下次连接需重新弹窗配对。',
+    en: 'Revoking deletes the client identity and invalidates all its tokens; the next connection requires a fresh pairing confirmation.',
+  },
+  revokeOk: { zh: '撤销', en: 'Revoke' },
+  noAudit: { zh: '（暂无审计记录）', en: '(no audit entries)' },
   off: { zh: '关闭', en: 'off' },
   add: { zh: '添加', en: 'Add' },
   list: { zh: '列表', en: 'List' },
@@ -854,6 +867,7 @@ function renderSettings(): void {
   g.append(numSetting(t('lockTimeout'), settings.lockTimeoutMin, (v) => { settings.lockTimeoutMin = v; void keychain.setSettings({ lockTimeoutMin: v }); }, 'set-lock-timeout', t('minute')));
   g.append(numSetting(t('autoArchive'), settings.autoArchiveDays, (v) => { settings.autoArchiveDays = v; void keychain.setSettings({ autoArchiveDays: v }); }, 'set-auto-archive', t('day')));
   g.append(numSetting(t('tokenTtl'), settings.socketTokenTtlHours, (v) => { settings.socketTokenTtlHours = v; void keychain.setSettings({ socketTokenTtlHours: v }); }, 'set-socket-token-ttl', t('hour')));
+  g.append(numSetting(t('auditMax'), settings.socketAuditMax, (v) => { settings.socketAuditMax = v; void keychain.setSettings({ socketAuditMax: v }); }, 'set-socket-audit-max', t('auditUnit')));
 
   g.append(divider());
 
@@ -872,6 +886,106 @@ function renderSettings(): void {
 
   // ---- backup ----
   renderSettingsBackup();
+
+  // ---- socket：已配对客户端 / 审计日志（M43，socket-access.md §7/§8） ----
+  void renderSettingsClients();
+  void renderSettingsAudit();
+}
+
+/** storage.local `socket.clients` 的一条配对记录（与 socketEndpoint.ts 同构） */
+interface PairedClientEntry { name: string; identityPub: string; pairedAt: number }
+
+async function readSocketClients(): Promise<Record<string, PairedClientEntry>> {
+  const got = await chrome.storage.local.get('socket.clients');
+  return (got['socket.clients'] as Record<string, PairedClientEntry> | undefined) ?? {};
+}
+
+/** 已配对客户端（§7）：查看 / 重命名 / 撤销（撤销 = 删身份 + 清空其全部令牌） */
+async function renderSettingsClients(): Promise<void> {
+  const box = $('#settings-clients');
+  box.innerHTML = '';
+  const clients = await readSocketClients();
+  const entries = Object.entries(clients);
+  const list = el('div', 'rlist');
+  list.id = 'settings-client-list';
+  if (entries.length === 0) list.append(el('div', 'none', t('noPairedClients')));
+  for (const [fp, c] of entries) {
+    const rowEl = el('div', 'rlist-row');
+    const main = el('span', 'rlist-main');
+    main.append(
+      el('span', '', c.name),
+      el('span', 'sub mono', `${fp.slice(0, 12)}… · ${t('pairedAt')} ${fmtTime(c.pairedAt)}`),
+    );
+    rowEl.append(main);
+    const actions = el('span', 'rlist-actions');
+    actions.append(
+      ghostBtn('✎', t('renameClient'), () => void (async () => {
+        // 行内重命名：输入框 + ✓
+        rowEl.innerHTML = '';
+        const nameIn = el('input', 'input') as HTMLInputElement;
+        nameIn.value = c.name;
+        const ok = ghostBtn('✓', t('save'), () => void (async () => {
+          const name = nameIn.value.trim();
+          if (name) {
+            const all = await readSocketClients();
+            if (all[fp]) {
+              all[fp]!.name = name;
+              await chrome.storage.local.set({ 'socket.clients': all });
+            }
+          }
+          await renderSettingsClients();
+        })());
+        rowEl.append(nameIn, ok);
+        nameIn.focus();
+        nameIn.select();
+      })()),
+      ghostBtn('✕', t('revokeClient'), () => void (async () => {
+        const ok = await confirmDialog({
+          title: T.revokeClientTitle[lang](c.name),
+          body: T.revokeClientBody[lang],
+          okLabel: t('revokeOk'),
+        });
+        if (!ok) return;
+        const all = await readSocketClients();
+        delete all[fp];
+        await chrome.storage.local.set({ 'socket.clients': all });
+        // 清空其全部令牌（§7：撤销即失效；令牌存 storage.session，键前缀 socket.token.<fp>|）
+        const session = await chrome.storage.session.get(null);
+        await chrome.storage.session.remove(
+          Object.keys(session).filter((k) => k.startsWith(`${keychain.SOCKET_TOKEN_PREFIX}${fp}|`)),
+        );
+        await renderSettingsClients();
+      })()),
+    );
+    actions.lastElementChild!.setAttribute('style', 'color: var(--danger);');
+    rowEl.append(actions);
+    list.append(rowEl);
+  }
+  box.append(list);
+}
+
+/** 审计日志（§8）：只增不改、滚动上限可配；管理页倒序回放（最新在前） */
+async function renderSettingsAudit(): Promise<void> {
+  const box = $('#settings-audit');
+  box.innerHTML = '';
+  const audit = await readAudit();
+  const list = el('div', 'rlist');
+  list.id = 'settings-audit-list';
+  if (audit.length === 0) list.append(el('div', 'none', t('noAudit')));
+  for (const e of [...audit].reverse()) {
+    const rowEl = el('div', 'rlist-row');
+    const main = el('span', 'rlist-main');
+    const result = el('span', 'audit-result', e.via ? `${e.result}(${e.via})` : e.result);
+    result.style.color = e.result === 'granted' ? 'var(--success)' : 'var(--danger)';
+    main.append(
+      el('span', 'sub mono', fmtTime(e.at)),
+      el('span', '', `${e.clientName} · ${e.path}`),
+      result,
+    );
+    rowEl.append(main);
+    list.append(rowEl);
+  }
+  box.append(list);
 }
 
 function copyBtnLive(getText: () => string): HTMLButtonElement {

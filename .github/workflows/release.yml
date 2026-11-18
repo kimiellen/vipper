@@ -66,7 +66,18 @@ jobs:
           ( cd .output/chrome-mv3 && zip -qr "../../vipper-${version}.zip" . )
           sha256sum "vipper-${version}.zip" > "vipper-${version}.zip.sha256"
 
+      # §10.3：host + cli + install-host.sh 纯 JS tarball，与扩展 zip 挂同一个 Release
+      - name: Package host/cli tarball
+        run: |
+          version="${TAG#v}"
+          stage="$(mktemp -d)"
+          cp scripts/install-host.sh "$stage/"
+          mkdir -p "$stage/packages"
+          cp -R packages/vipper-host packages/vipper-cli packages/vipper-protocol "$stage/packages/"
+          tar -czf "vipper-host-cli-${version}.tar.gz" -C "$stage" .
+          sha256sum "vipper-host-cli-${version}.tar.gz" > "vipper-host-cli-${version}.tar.gz.sha256"
+
       - name: Upload assets to the release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$TAG" vipper-*.zip vipper-*.zip.sha256 --clobber
+        run: gh release upload "$TAG" vipper-*.zip vipper-*.zip.sha256 vipper-host-cli-*.tar.gz vipper-host-cli-*.tar.gz.sha256 --clobber
