@@ -2,6 +2,10 @@
 
 Chrome MV3 扩展：标签管理器 + 书签/密码管理器。面向 Hyprland（Wayland）桌面。
 
+## 沟通
+
+- 会话沟通一律使用**中文**（含质询、解释、汇报）；代码与标识符维持英文，commit message 沿用仓库现有风格（Conventional Commits 前缀 + 中文描述）。
+
 ## 技术栈
 
 - Chrome Extension Manifest V3

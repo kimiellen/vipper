@@ -72,7 +72,7 @@ vipper 是一个 Chrome MV3 扩展，目标用户是作者本人（Arch Linux + 
 - 有匹配且所有匹配条目都不含该 username → **追加**弹窗：目标条目下拉（默认 `lastUsedAt` 最新；单条目也显示，便于确认追加目标），账号 / 密码
 - 任一匹配条目已含该 username → 静默丢弃，不弹（**不做密码更新提示**，2026-10-20 决定；改密码去 wui 手动编辑）
 - 归档条目不参与匹配（与 Alt+P 一致）；已归档站点按新建处理
-- 保存：新建走 `addBookmark`（`urls: [{ url: 顶层 URL, match: 'host' }]`），追加走 `saveBookmark`；均加密落盘、更新 `lastUsedAt`；保存时过滤已删除的 tag/link id
+- 保存：新建走 `addBookmark`（`urls: [{ url: 顶层 URL, match: 'host' }]`），追加走 `saveBookmark`；均加密落盘、更新 `lastUsedAt`；保存时过滤已删除的 tag/link id；新建撞名（title 唯一性约束）自动追加序号后缀，不阻断保存（2026-11-18 追加）
 
 **弹窗 UI**
 
@@ -99,7 +99,8 @@ vipper 是一个 Chrome MV3 扩展，目标用户是作者本人（Arch Linux + 
 - **账号区**：`accounts: { username, password }[]`，默认 1 对可增；`password` 加密落盘（2026-10-14 起删除 `label` 字段，多账号二级菜单直接显示 username）
 - **记录区**：`records: (Note | Secret)[]`，默认空、不限量；只有这两种是"模板"（可重复添加）：
   - `note` 明文记录：`{ name, content }`，不加密
-  - `secret` 私密记录：`{ name, content }`，`content` 加密落盘，展示遮蔽为 `*`
+  - `secret` 私密记录：`{ name, content }`，`content` 加密落盘，展示遮蔽为 `*`；另有 `socketExposure` 三态字段（⛔`disabled` 默认 / 🔔`ask` / ✅`allowed` + 客户端白名单，缺省视为 ⛔），语义见 [socket-access.md](./socket-access.md) §6.1（Feature 4，2026-11-18 新增）
+- **唯一性约束**（2026-11-18 新增，Feature 4 socket 寻址的前置）：**书签 `title` 全局唯一**（active + archived 一起唯一，恢复归档撞名拒绝恢复）；**同书签内 `secret` 记录 `name` 唯一**（note 不受约束）。所有写入口强制校验（wui 表单、登录自动保存、两个导入路径）；自动路径（登录自动保存、浏览器书签导入）撞名自动追加序号后缀（`淘宝` → `淘宝 (2)`）；全量 JSON 导入文件含重名直接拒绝导入（带病不恢复）。存量数据 2026-11-18 检测无重名（199 条），不做迁移
 - **备注区**：`remarks: string`，书签级固定唯一字段，不是模板，不加密；**入 idx 支持搜索**。2026-10-17 由 `remark` 更名；旧 `bm:`/`arc:`/`idx` 数据首次访问时自动迁移，导入兼容旧版导出文件的 `remark` 字段
 - **条目状态**：`status: 'active' | 'archived'`
 - **favicon**：展示层自动获取站点图标，不入数据模型
@@ -134,9 +135,9 @@ chrome.storage.local 是 LevelDB 键值库（声明 `unlimitedStorage` 去配额
 
 - 导出：全量**明文 JSON**，需输入主密码确认（明文导出是有意设计，用于本地 git 备份）；`remarks` 改名后导出版本为 **2**
 - 导入**兼容 version 1**：旧文件里的 `remark` 字段自动读取为 `remarks`（旧备份不失效）
-- 导入 = **数据恢复**：校验文件结构后**全量替换**（清空现有书签与管理表再写入），不做增量合并；同样**需输入主密码确认**（防恶意覆盖）。原"增量合并"语义作废
+- 导入 = **数据恢复**：校验文件结构后**全量替换**（清空现有书签与管理表再写入），不做增量合并；同样**需输入主密码确认**（防恶意覆盖）。原"增量合并"语义作废；文件内含重名 `title`（或书签内重名 `secret` name）**直接拒绝导入**并报告冲突，一个字节不写（2026-11-18 追加，唯一性约束）
 - 备份主路径 = 导出 JSON 提交本地 git；软链 LevelDB 目录可行但不推荐（二进制噪音、恢复脆弱）
-- **浏览器书签导入**（2026-11-01 新增）：Settings→备份 提供「导入浏览器书签」，经 `chrome.bookmarks` API 读取实时书签树（manifest 新增 `bookmarks` 权限），与导出/导入一样**需输入主密码确认**。与全量恢复不同，本功能为**追加语义**：只新建条目，不触碰已有书签与 tags/linkedInfos 管理表（需求：不覆盖元数据）。文件夹树展平，文件夹路径写入 `remarks` 供搜索与追溯；自动关联 tag「浏览器书签导入」（同名复用，不存在则以 sapphire 色创建）；URL 按 `URL.href` 规范化后精确比较，已存在的跳过并在结果中报告新增/跳过数；标题为空回落 URL；`createdAt` 保留浏览器 `dateAdded`，`lastUsedAt` 取导入时间，导入条目均为 active。
+- **浏览器书签导入**（2026-11-01 新增）：Settings→备份 提供「导入浏览器书签」，经 `chrome.bookmarks` API 读取实时书签树（manifest 新增 `bookmarks` 权限），与导出/导入一样**需输入主密码确认**。与全量恢复不同，本功能为**追加语义**：只新建条目，不触碰已有书签与 tags/linkedInfos 管理表（需求：不覆盖元数据）。文件夹树展平，文件夹路径写入 `remarks` 供搜索与追溯；自动关联 tag「浏览器书签导入」（同名复用，不存在则以 sapphire 色创建）；URL 按 `URL.href` 规范化后精确比较，已存在的跳过并在结果中报告新增/跳过数；标题为空回落 URL；撞名（title 唯一性约束）自动追加序号后缀并在结果中报告改名数（2026-11-18 追加）；`createdAt` 保留浏览器 `dateAdded`，`lastUsedAt` 取导入时间，导入条目均为 active。
 
 ### 安全模型（2026-10-14 修订）
 
@@ -149,6 +150,7 @@ chrome.storage.local 是 LevelDB 键值库（声明 `unlimitedStorage` 去配额
   - 已锁定 → 「解锁」模式，解密成功进主页面
   - 已解锁 → 直接进主页面
 - 解锁策略：**浏览器重启必锁**；超时锁定**默认 0 = 不开启**（2026-10-14 修订，原默认 30 分钟），可配置
+- **锁定边界 = 浏览器进程退出**（2026-11-18 追加）：**不启用 Chrome 后台运行模式**，关闭最后一个窗口即退出进程，`chrome.storage.session`（密钥、socket 令牌、待确认请求）随之清空。后台模式下"关窗不锁定"的问题因此不成立
 - **不提供"忘记密码"入口**（避免恶意清除数据）；重置方法（清除扩展存储）写入 README/docs/install.md
 - 数据只能通过插件本身读取
 
@@ -217,6 +219,19 @@ chrome.storage.local 是 LevelDB 键值库（声明 `unlimitedStorage` 去配额
 - wui 加视图路由（书签视图 / groups 视图），Alt+, 打开 wui 直达 groups；复用 tokens.css 主题、`launcherSize.ts` 弹窗尺寸、vault 搜索/TAGS/LINS 组件
 - Alt+, 命令无 suggested_key（配额已满），安装后手动绑定，写入 docs/install.md
 
+## Feature 4：外部访问接口（socket API，2026-11-18 设计定稿）
+
+让系统环境中的外部应用（dsh、shell、git、msmtp 等）经本机 IPC 安全读取 vault 中的私密记录，守住两条原则：私密信息不明文落盘、使用过程中不明文显示。
+
+**完整设计见 [socket-access.md](./socket-access.md)（该功能的唯一事实源）**，此处只记方向性决策：
+
+- **方案 A**：vault 留在扩展内，扩展是唯一解密者与决策者；`vipper-host`（Native Messaging 程序）是愚蠢管道，`vipper-cli` 是外部应用的唯一适配器。方案 B（独立后端 daemon 持有 vault、浏览器插件沦为客户端）为**方向性备选**，触发条件 = 出现"不开浏览器也要取密钥"的真实刚需（详 socket-access.md §1）
+- 只读、无 list-all；寻址 = **条目路径** `<书签title>/<secret记录name>`（唯一性约束见数据模型节）
+- 未配对客户端什么都拿不到；配对须用户在确认窗亲手确认；每条私密记录按 `socketExposure` 三态过策略（默认 ⛔）
+- 令牌存 `chrome.storage.session`、带 TTL，锁库即清；一切访问留审计
+- 通道加密只用 WebCrypto（X25519+HKDF+AES-GCM，不引第三方库）；版本底线 Chrome ≥133 / Node ≥22
+- host/cli 与扩展同仓（pnpm workspace）；release 同 tag 挂扩展 zip 与 host-cli tarball 双产物
+
 ## 关键约束（Chrome 平台限制）
 
 1. `Alt+←/→` 是 Chrome 保留的历史导航键，**扩展不可覆盖**；方向键方案初版用 `Alt+Shift+←/→` 绕开，2026-10-20 起整体改为 vim 风格字母键（H/L/J/K），天然无此冲突
@@ -232,6 +247,8 @@ chrome.storage.local 是 LevelDB 键值库（声明 `unlimitedStorage` 去配额
 
 - TOTP 二步验证种子、密码历史（评估后缓办）
 - 切组滚动动画的 UI 载体（第一版不做）
+- socket 跨 OS（macOS 凭据 API、Windows named-pipe）：Linux（M40–M43）跑通前不动（socket-access.md §14）
+- 方案 B（独立后端 daemon 持有 vault）：方向性备选，触发条件见 socket-access.md §1
 
 ## 技术栈
 
