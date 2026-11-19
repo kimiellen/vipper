@@ -370,3 +370,9 @@ release workflow 增加一个打包 job：产出 **`vipper-host-cli-<version>.ta
 - dsh 凭据解析：`apiKeyEnv` 配置项命名一个环境变量；`dsh-credentials-local` 从 owner-only YAML 凭据文件读取并优先于启动环境。
 - dsh **无密码命令模式**。
 - 推荐路径：dsh 插件实现 `CredentialProvider` 调 vipper（模式 1）；过渡路径：`vipper-cli run -- dsh`（模式 4，注意 env 风险）。
+- **无插件接入的关键前提**（2026-11-19 实测）：`~/.dsh/.credentials.yaml` 的 `refs.<NAME>` 是**存储值，优先级高于启动环境**。因此 `vipper-cli run -e <NAME>=... -- dsh` 只有在 refs 中没有同名条目时才生效；必须先在 dsh 设置里 `unset`（或直接删掉该行）再启动，否则 dsh 仍读旧存储值。步骤：
+  1. 确认 provider 的 `apiKeyEnv: <NAME>`（如 `kimi-coding` → `KIMI_CODING_API_KEY`）；
+  2. 从 `~/.dsh/.credentials.yaml` 移除该 ref（或设置页移除密钥）；
+  3. `vipper-cli run -e <NAME>='<书签title>/<记录name>' -- dsh`；
+  4. 不要再用 dsh 设置页保存同一密钥——会写回 refs 并重新遮蔽环境注入。
+- env 注入的固有代价同样适用于 dsh：`/proc/<pid>/environ` 同用户可读，且会被 dsh 启动的所有子进程（工具、MCP 等）继承；能接受插件时仍以模式 1 为长期方案。
