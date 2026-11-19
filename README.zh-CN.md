@@ -127,7 +127,7 @@ pnpm build
 vipper 支持本机应用（git、msmtp、脚本等）经 `vipper-cli → vipper-host → 扩展` 读取保管库中的私密记录，全程不明文落盘。新客户端首次连接会在浏览器弹配对确认窗，亲手允许后全部流量走 X25519+HKDF+AES-GCM 加密通道；每次读取私密记录按条目过三态策略（`socketExposure`：⛔ 禁止（默认）/ 🔔 每次询问 / ✅ 允许指定客户端），放行后签发限时令牌（默认 8h，锁库即清）。所有读取记入审计日志（滚动上限默认 1000 条），在 设置 → 审计日志 回放；已配对客户端在 设置 → 已配对客户端 重命名或撤销。设计见 [socket-access.md](docs/specs/vipper/socket-access.md)。
 
 ```bash
-bash scripts/install-host.sh   # 一次性安装（要求 Node.js ≥ 22），Chrome 与 Chromium 都注册
+bash scripts/install-host.sh   # 一次性安装（要求 Node.js ≥ 22），注册 Chrome 与 Chromium，并把 vipper-cli 链到 ~/.local/bin
 ```
 
 条目路径格式 = `<书签title>/<secret记录name>`（如 `git/github`）。四种消费模式按安全优先级（越靠前越安全）：

@@ -127,7 +127,7 @@ Full walkthrough — including the Hyprland window rules that make the popup flo
 Local applications (git, msmtp, scripts, …) can read secrets from the vault via `vipper-cli → vipper-host → extension`, with no plaintext ever touching disk. A first-time client triggers a pairing confirmation window in the browser, and once approved all traffic runs over an X25519+HKDF+AES-GCM encrypted channel. Every secret read passes a per-entry policy (`socketExposure`: ⛔ disabled by default / 🔔 ask every time / ✅ allow specific clients) and grants a time-limited token (default 8h, cleared on vault lock). All reads are recorded in an audit log (rolling cap, default 1000 entries) replayable under Settings → Audit Log; paired clients can be renamed or revoked under Settings → Paired Clients. Design: [socket-access.md](docs/specs/vipper/socket-access.md).
 
 ```bash
-bash scripts/install-host.sh   # one-time install (requires Node.js ≥ 22), registers for both Chrome and Chromium
+bash scripts/install-host.sh   # one-time install (Node.js ≥ 22), registers Chrome + Chromium, links vipper-cli into ~/.local/bin
 ```
 
 A *secret path* is `<bookmark title>/<secret record name>` (e.g. `git/github`). Consumption modes, **safest first**:

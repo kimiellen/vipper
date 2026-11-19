@@ -2,7 +2,8 @@
 # vipper host 一次性安装（socket-access.md §10.2）：
 #   1. 检查 Node.js ≥ 22（crypto.webcrypto X25519 底线，§10.4）
 #   2. 复制 host/cli/protocol 到 ~/.local/lib/vipper/
-#   3. 写 Native Messaging manifest 到 Chrome 与 Chromium 两个路径，
+#   3. 把 cli 软链到 ~/.local/bin/vipper-cli（该目录默认在 PATH 中）
+#   4. 写 Native Messaging manifest 到 Chrome 与 Chromium 两个路径，
 #      allowed_origins 仅含钉死 key 的扩展 ID（§10.1）
 # 安装一次即可；之后扩展 connectNative() 时浏览器自动拉起 host，无常驻进程。
 set -euo pipefail
@@ -40,8 +41,20 @@ cp -R "$PACKAGES_DIR" "$INSTALL_LIB/packages"
 chmod +x "$INSTALL_LIB/packages/vipper-host/bin/vipper-host.js" \
          "$INSTALL_LIB/packages/vipper-cli/bin/vipper-cli.js"
 HOST_BIN="$INSTALL_LIB/packages/vipper-host/bin/vipper-host.js"
+CLI_BIN="$INSTALL_LIB/packages/vipper-cli/bin/vipper-cli.js"
 
-# 3) Native Messaging manifest：Chrome 与 Chromium 各一份（§10.2）
+# 3) 把 cli 放进 ~/.local/bin（多数发行版默认在 PATH 里），否则外部程序调用
+#    `vipper-cli get ...` 会 command not found（2026-11-19 增补）
+CLI_LINK_DIR="${VIPPER_BIN_DIR:-$HOME/.local/bin}"
+mkdir -p "$CLI_LINK_DIR"
+if [[ -e "$CLI_LINK_DIR/vipper-cli" && ! -L "$CLI_LINK_DIR/vipper-cli" ]]; then
+  echo "警告：$CLI_LINK_DIR/vipper-cli 已存在且不是符号链接，未覆盖；请手动处理" >&2
+else
+  ln -sfn "$CLI_BIN" "$CLI_LINK_DIR/vipper-cli"
+  echo "已链接 $CLI_LINK_DIR/vipper-cli → $CLI_BIN"
+fi
+
+# 4) Native Messaging manifest：Chrome 与 Chromium 各一份（§10.2）
 write_manifest() {
   local manifest_dir="$1"
   mkdir -p "$manifest_dir"
@@ -66,4 +79,8 @@ if [[ -n "${VIPPER_NMH_EXTRA_DIR:-}" ]]; then
 fi
 
 echo "完成：vipper-host 已安装到 $INSTALL_LIB（Node $(node --version)）"
-echo "提示：重新加载扩展后生效；vipper-cli 位于 $INSTALL_LIB/packages/vipper-cli/bin/vipper-cli.js"
+echo "提示：重新加载扩展后生效；vipper-cli 位于 $CLI_LINK_DIR/vipper-cli"
+case ":$PATH:" in
+  *":$CLI_LINK_DIR:"*) ;;
+  *) echo "提示：$CLI_LINK_DIR 不在当前 PATH，请加入 shell 配置（如 ~/.zshrc）后重开终端" ;;
+esac

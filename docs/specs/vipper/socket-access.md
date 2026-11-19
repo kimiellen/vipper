@@ -283,9 +283,10 @@ socket 对同用户进程天生不设防，因此**未配对的客户端必须�
 ### 10.2 host 安装（一次性）
 
 `scripts/install-host.sh` 一次性完成：
-1. 复制 host 程序到 `~/.local/lib/vipper/vipper-host`；
-2. 写 Native Messaging manifest `com.vipper.host.json` 到 **Chrome 与 Chromium 两个路径**（`~/.config/google-chrome/NativeMessagingHosts/` 与 `~/.config/chromium/NativeMessagingHosts/`），内容为 host 路径、`"type": "stdio"`、`allowed_origins` 仅含钉死的扩展 ID；
-3. 检查 `node --version` ≥ 22，不满足则明确报错退出（Q14）。
+1. 检查 `node --version` ≥ 22，不满足则明确报错退出（Q14）；
+2. 复制 host/cli/protocol 到 `~/.local/lib/vipper/packages`；
+3. 把 cli 软链到 `~/.local/bin/vipper-cli`（该目录通常在 PATH；不在时脚本打印提示，不静默失败）——2026-11-19 增补，避免安装后 `vipper-cli: command not found`；
+4. 写 Native Messaging manifest `com.vipper.host.json` 到 **Chrome 与 Chromium 两个路径**（`~/.config/google-chrome/NativeMessagingHosts/` 与 `~/.config/chromium/NativeMessagingHosts/`），内容为 host 路径、`"type": "stdio"`、`allowed_origins` 仅含钉死的扩展 ID。
 
 安装只需一次；之后扩展调用 `chrome.runtime.connectNative()` 时 Chrome 自动拉起 host 进程，host 空闲即退出，无常驻守护进程。
 

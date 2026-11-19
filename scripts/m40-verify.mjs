@@ -21,7 +21,7 @@
  */
 
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import net from 'node:net';
 import { resolve } from 'node:path';
 import { connectSW, createChecker, sleep } from './lib/sw-driver.mjs';
@@ -107,6 +107,11 @@ const { check, summary } = createChecker();
   check('host/cli 落盘且可执行',
     existsSync(hostBin) && (statSync(hostBin).mode & 0o111) !== 0 && existsSync(cliBin) && (statSync(cliBin).mode & 0o111) !== 0,
     { hostBin, cliBin });
+
+  // 2026-11-19：安装脚本把 cli 软链进 ~/.local/bin（否则 `vipper-cli` command not found）
+  const cliLink = `${FAKE_HOME}/.local/bin/vipper-cli`;
+  check('vipper-cli 已软链到 ~/.local/bin',
+    existsSync(cliLink) && readlinkSync(cliLink) === cliBin, { cliLink, target: existsSync(cliLink) ? readlinkSync(cliLink) : null });
 
   for (const browser of ['google-chrome', 'chromium']) {
     const mp = `${FAKE_HOME}/.config/${browser}/NativeMessagingHosts/com.vipper.host.json`;
