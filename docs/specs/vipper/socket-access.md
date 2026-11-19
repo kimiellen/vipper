@@ -376,3 +376,4 @@ release workflow 增加一个打包 job：产出 **`vipper-host-cli-<version>.ta
   3. `vipper-cli run -e <NAME>='<书签title>/<记录name>' -- dsh`；
   4. 不要再用 dsh 设置页保存同一密钥——会写回 refs 并重新遮蔽环境注入。
 - env 注入的固有代价同样适用于 dsh：`/proc/<pid>/environ` 同用户可读，且会被 dsh 启动的所有子进程（工具、MCP 等）继承；能接受插件时仍以模式 1 为长期方案。
+- **登录自启动注意**（2026-11-19）：`vipper-host` 由 Chrome 拉起、vault 需先解锁，因此 Hyprland `exec-once` 类自启动不能直接 `vipper-cli run`（登录瞬间必然失败）。应包一层等待循环：反复 `vipper-cli get` 直到成功再 `run`，超时则记录日志并提示解锁后重跑；等待期间 vault 未解锁的每次探测会记一条 `locked` 审计。
