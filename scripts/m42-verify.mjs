@@ -332,6 +332,8 @@ let ids = {};
   await sleep(300);
   await page(`[...document.querySelectorAll('#results-body tr')].find((r) => r.cells[1].textContent === 'm42-off').click()`);
   await sleep(400);
+  const noPath = await page(`document.querySelectorAll('#contents-view .socket-path').length`);
+  check('详情预览：未开启 socket 的 secret 不显示条目路径', noPath === 0, noPath);
   await page(`document.querySelector('#contents-view .detail-actions button').click()`); // ✎
   await sleep(300);
   const form = JSON.parse(await page(`JSON.stringify((() => {
@@ -365,6 +367,21 @@ let ids = {};
   })()`));
   check('表单保存后 socketExposure 落盘（✅ + 白名单指纹）',
     saved?.mode === 'allowed' && saved?.clients?.includes(fp), saved);
+
+  await sleep(400);
+  const pathRows = JSON.parse(await page(`JSON.stringify(
+    [...document.querySelectorAll('#contents-view .socket-path')].map((r) => ({
+      text: r.querySelector('.txt')?.textContent,
+      title: r.querySelector('.txt')?.title,
+      hasCopy: !!r.querySelector('button'),
+    })),
+  )`));
+  check('详情预览：开启 socket 的 secret 显示条目路径 + 复制按钮',
+    pathRows.length === 1
+    && pathRows[0].text?.includes('m42-off/api')
+    && pathRows[0].hasCopy
+    && pathRows[0].title?.includes("vipper-cli get 'm42-off/api'"),
+    pathRows);
 }
 
 clearInterval(keepAlive);

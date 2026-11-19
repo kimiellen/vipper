@@ -415,6 +415,8 @@
   .copy-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
   .copy-row + .copy-row { margin-top: 2px; }
   .copy-row .txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* 开启 socket 暴露的 secret：详情里缩进展示可复制的条目路径 */
+  .socket-path { padding-left: var(--space-4); margin-top: 1px; color: var(--fg-muted); }
 
   /* favicon */
   .favicon { width: 16px; height: 16px; flex: none; vertical-align: -2px; }

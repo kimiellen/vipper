@@ -68,6 +68,8 @@ const T = {
   socketExpAsk: { zh: '🔔 每次询问', en: '🔔 Ask every time' },
   socketExpAllowed: { zh: '✅ 允许指定客户端', en: '✅ Allow specific clients' },
   noPairedClients: { zh: '（暂无已配对客户端）', en: '(no paired clients)' },
+  socketPath: { zh: 'socket 路径', en: 'socket path' },
+  copySocketPath: { zh: '复制 socket 条目路径（vipper-cli get 用）', en: 'Copy socket entry path (for vipper-cli get)' },
   pairedAt: { zh: '配对于', en: 'paired at' },
   renameClient: { zh: '重命名', en: 'Rename' },
   revokeClient: { zh: '撤销', en: 'Revoke' },
@@ -373,6 +375,18 @@ async function renderDetail(): Promise<void> {
     const row = el('div', 'copy-row');
     row.append(el('span', 'txt', `${r.name}: ${r.template === 'secret' ? '********' : r.content}`), copyBtn(r.content));
     recBox.append(row);
+    // 开启 socket 暴露（🔔/✅）的 secret：展示条目路径并可直接复制给外部程序
+    // （socket-access.md §6.2 寻址格式 <书签title>/<secret记录name>）
+    if (r.template === 'secret' && r.socketExposure) {
+      const path = `${b.title}/${r.name}`;
+      const pathRow = el('div', 'copy-row socket-path');
+      const pathText = el('span', 'txt', `${t('socketPath')}: ${path}`);
+      pathText.title = `vipper-cli get '${path}'`;
+      const pathCopy = copyBtn(path);
+      pathCopy.title = t('copySocketPath');
+      pathRow.append(pathText, pathCopy);
+      recBox.append(pathRow);
+    }
   });
   if (b.records.length > 0) view.append(kvBlock('records', recBox));
 
