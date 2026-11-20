@@ -6,6 +6,24 @@
 从 `0.1.1` 起，本文件由 [release-please](https://github.com/googleapis/release-please) 依据
 Conventional Commits 自动维护，**不要手写版本段落**；`0.1.0` 为人工基线。
 
+## [0.2.0](https://github.com/kimiellen/vipper/compare/v0.1.1...v0.2.0) (2026-11-20)
+
+
+### Features
+
+* **socket:** M40 传输层 + host 骨架（cli→host→扩展字节互通） ([b45aa00](https://github.com/kimiellen/vipper/commit/b45aa00be5869fc8f0ffe0b5e0cb663912b4fc07))
+* **socket:** M41 配对层（X25519 握手 + 确认窗 + 加密通道） ([888cb27](https://github.com/kimiellen/vipper/commit/888cb27d61c592c8cc6c53cdc6b1f6aeb2190494))
+* **socket:** M42 授权层（三态策略 + 寻址 + 令牌 TTL + 🔔 弹窗） ([25826d2](https://github.com/kimiellen/vipper/commit/25826d2164c090f7de937521f0267b5dca31790d))
+* **socket:** M43 cli 四模式 + 审计（get/run + 审计日志 + 管理页 + tarball） ([6ea4cba](https://github.com/kimiellen/vipper/commit/6ea4cba82ecfce061f1d0e7de420eee093ade3b0))
+* **vault:** M39 唯一性约束（socket 寻址前置） ([d14283d](https://github.com/kimiellen/vipper/commit/d14283d8f50d4e5372da741be29bc3394eae4e7d))
+* **wui:** 私密记录详情展示 socket 条目路径并支持复制 ([013b85c](https://github.com/kimiellen/vipper/commit/013b85ce975935cc9589fad0c03fa0949eeb2713))
+
+
+### Bug Fixes
+
+* **groups:** 选中（展开）即记录 lastOpened，重开视图落在最后展开的组 ([ff32085](https://github.com/kimiellen/vipper/commit/ff320858b97300d627bac85b4e9b085a239efc55))
+* **install:** 安装脚本把 vipper-cli 链入 ~/.local/bin ([a73a7f8](https://github.com/kimiellen/vipper/commit/a73a7f81f9e2aedcfcab51b232761426ab67e591))
+
 ## [0.1.1](https://github.com/kimiellen/vipper/compare/v0.1.0...v0.1.1) (2026-11-01)
 
 
