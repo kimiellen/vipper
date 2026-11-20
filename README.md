@@ -130,7 +130,14 @@ Local applications (git, msmtp, scripts, …) can read secrets from the vault vi
 bash scripts/install-host.sh   # one-time install (Node.js ≥ 22), registers Chrome + Chromium, links vipper-cli into ~/.local/bin
 ```
 
-A *secret path* is `<bookmark title>/<secret record name>` (e.g. `git/github`). Consumption modes, **safest first**:
+A *secret path* is `<bookmark title>/<secret record name>` (e.g. `git/github`). You don't have to type it by hand: a secret record with socket exposure enabled (🔔/✅) shows a **socket path** row with a copy button in the bookmark detail view. Practical notes:
+
+- The path follows the bookmark title and record name — renaming either breaks external configs (and existing tokens, which are bound to `client fingerprint + path`).
+- For ✅ entries the requesting client must be ticked in the whitelist; an empty whitelist allows no one (the response is `not_found`, revealing nothing).
+- Only active bookmarks resolve; archiving an entry makes its path return `not_found`.
+- The browser must be running and the vault unlocked — the host is spawned by Chrome via Native Messaging, so there is no service without it.
+
+Consumption modes, **safest first**:
 
 1. **Call the socket protocol directly from the app** — the secret only ever lives in the app's memory.
 2. **Password-command mode** — for software that can run a command to obtain a secret; `vipper-cli get` writes the secret to stdout:
@@ -139,6 +146,19 @@ A *secret path* is `<bookmark title>/<secret record name>` (e.g. `git/github`). 
    - likewise restic `--password-command`, offlineimap, mutt, …
 3. **fd / temp-file injection** — `app --key-file <(vipper-cli get git/github)`: process substitution yields a memfd, nothing touches disk.
 4. **`vipper-cli run --` env injection** (fallback): `vipper-cli run -e API_KEY=llm/deepseek -- myapp`. ⚠️ Cost: env vars are world-readable via `/proc/<pid>/environ` to same-user processes, inherited by all children, and live for the process's lifetime. Use only when modes 1–3 are unavailable.
+
+### Using with dsh (DeepSeek Harness)
+
+dsh has no password-command mode, so without a plugin the only option is mode 4:
+
+```bash
+vipper-cli run -e KIMI_CODING_API_KEY='kimi for coding/kimi-dsh' -- dsh
+```
+
+Two prerequisites that are easy to miss:
+
+1. **Remove the same-named entry from `refs` in `~/.dsh/.credentials.yaml` first.** A stored credential outranks the launch environment and would silently shadow the injected value — dsh starts fine but never reads from vipper. Don't re-save the key from dsh's settings page afterwards, or it lands back in `refs`.
+2. **For desktop autostart (e.g. Hyprland `exec-once`), wrap the launch in a wait loop.** At login the host doesn't exist yet (it is spawned by Chrome) and the vault is still locked; probe with `vipper-cli get` until it succeeds, then `run`. A plain `vipper-cli run …` at login fails instantly.
 
 > ⚠️ **Extension ID is pinned as of M40**: the manifest now carries a fixed key so Native Messaging `allowed_origins` can be pinned too. **Reloading an older build afterwards changes the extension ID, and `chrome.storage.local` is isolated per ID — the new ID sees an empty vault.** Migrate by exporting the full JSON backup from the manager page before reloading, then set the master password again and import it.
 

@@ -130,7 +130,14 @@ vipper 支持本机应用（git、msmtp、脚本等）经 `vipper-cli → vipper
 bash scripts/install-host.sh   # 一次性安装（要求 Node.js ≥ 22），注册 Chrome 与 Chromium，并把 vipper-cli 链到 ~/.local/bin
 ```
 
-条目路径格式 = `<书签title>/<secret记录name>`（如 `git/github`）。四种消费模式按安全优先级（越靠前越安全）：
+条目路径格式 = `<书签title>/<secret记录name>`（如 `git/github`）。路径不用手敲：开启了 socket 暴露（🔔/✅）的私密记录，在书签详情页会显示「socket 路径」行并附复制按钮。几个实操要点：
+
+- 路径跟随书签标题与记录名——任一改名都会让外部配置失效（已签发的令牌也按「客户端指纹 + 路径」绑定，一并失效）。
+- ✅ 条目必须在白名单里勾上对应客户端才会放行；白名单为空 = 谁都取不到（统一返回 `not_found`，不泄露条目存在性）。
+- 只解析 active 书签；归档后该路径返回 `not_found`。
+- 浏览器必须运行且 vault 已解锁——host 由 Chrome 经 Native Messaging 拉起，浏览器不在就没有服务。
+
+四种消费模式按安全优先级（越靠前越安全）：
 
 1. **应用直接调 socket 协议**——密钥只活在应用内存。
 2. **密码命令模式**——目标软件支持"执行命令获取密钥"时优先用；`vipper-cli get` 把密钥写到 stdout：
@@ -139,6 +146,19 @@ bash scripts/install-host.sh   # 一次性安装（要求 Node.js ≥ 22），�
    - restic `--password-command`、offlineimap、mutt 等同类
 3. **fd / 临时文件注入**——`app --key-file <(vipper-cli get git/github)`：进程替换生成 memfd，不落盘。
 4. **`vipper-cli run --` env 注入**（兜底）：`vipper-cli run -e API_KEY=llm/deepseek -- myapp`。⚠️ 代价：env 位于 `/proc/<pid>/environ`，同用户进程可读；自动遗传所有子进程；伴随进程终身。仅用于不支持前三种模式的软件。
+
+### 与 dsh（DeepSeek Harness）集成
+
+dsh 没有密码命令模式，不装插件时只能走模式 4：
+
+```bash
+vipper-cli run -e KIMI_CODING_API_KEY='kimi for coding/kimi-dsh' -- dsh
+```
+
+两个容易踩的前提：
+
+1. **先删掉 `~/.dsh/.credentials.yaml` 里 `refs` 下的同名条目。** 存储凭据的优先级高于启动环境，不删的话注入会被静默遮蔽——dsh 照常启动，但根本没读 vipper。之后也不要再在 dsh 设置页保存这个 key，否则会写回 `refs`。
+2. **桌面自启动（如 Hyprland `exec-once`）要包一层等待循环。** 登录瞬间 host 还不存在（它由 Chrome 拉起）、vault 也未解锁，直接 `vipper-cli run` 会立刻失败；应先反复 `vipper-cli get` 探测，成功后再 `run`。
 
 > ⚠️ **扩展 ID 已固定（M40 起）**：为让 Native Messaging 的 `allowed_origins` 可固定，manifest 钉了公钥。**从旧构建升级的实例重新加载后扩展 ID 会变，而 `chrome.storage.local` 按 ID 隔离——新 ID 看到的是空库。** 迁移：重新加载前先在管理页导出全量 JSON 备份，加载后重设主密码再导入。
 
